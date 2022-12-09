@@ -28,11 +28,16 @@ const (
 
 type model struct {
 	date                  time.Time
+	dateChanged           bool
 	googleCalendarService *calendar.Service
 	events                []*calendar.Event
 }
 
 func (m model) getEvents() []*calendar.Event {
+	if !m.dateChanged {
+		return m.events
+	}
+	m.dateChanged = false
 	startOfToday := m.date
 	startOfTomorrow := m.date.AddDate(0, 0, 1)
 	events, err := m.googleCalendarService.Events.
@@ -66,6 +71,7 @@ func initialModel(srv *calendar.Service) model {
 	return model{
 		googleCalendarService: srv,
 		date:                  startOfToday,
+		dateChanged:           true,
 	}
 }
 
@@ -79,6 +85,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "j", "n":
+			m.date = m.date.AddDate(0, 0, 1)
+			m.dateChanged = true
+		case "k", "p":
+			m.date = m.date.AddDate(0, 0, -1)
+			m.dateChanged = true
 		}
 	}
 	return m, nil
