@@ -15,6 +15,7 @@ import (
 	"google.golang.org/api/option"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 const (
@@ -33,6 +34,8 @@ type model struct {
 	dateChanged     bool
 	calendarService *calendar.Service
 	events          []*calendar.Event
+	height          int
+	width           int
 }
 
 func main() {
@@ -75,12 +78,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dateChanged = true
 			m.events = getEvents(m.calendarService, m.date)
 		case "t":
-            now := time.Now()
-            today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+			now := time.Now()
+			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 			m.date = today
 			m.dateChanged = true
 			m.events = getEvents(m.calendarService, m.date)
 		}
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		return m, nil
 	}
 	return m, nil
 }
@@ -100,19 +106,35 @@ func getEvents(calendarService *calendar.Service, date time.Time) []*calendar.Ev
 }
 
 func (m model) View() string {
+	if m.width == 0 || m.height == 0 {
+		return "Loading..."
+	}
+	date := renderDate(m.date, m.width)
+	events := renderEvents(m.events, m.width)
+	return lipgloss.JoinVertical(lipgloss.Left, date, events)
+}
+
+func renderDate(date time.Time, width int) string {
+	return lipgloss.NewStyle().
+		Width(width).
+		Padding(1).
+		AlignHorizontal(lipgloss.Center).
+		Render(date.Format(TextDateWithWeekday))
+}
+
+func renderEvents(events []*calendar.Event, width int) string {
 	var s string
-	s += m.date.Format(TextDateWithWeekday) + "\n"
-	if len(m.events) == 0 {
-		s += "No events found"
+	if len(events) == 0 {
+		return "No events found"
 	} else {
-		for _, item := range m.events {
+		for _, event := range events {
 			// Filter out all-day events for now
-			if item.Start.DateTime == "" {
+			if event.Start.DateTime == "" {
 				continue
 			}
-			start, _ := time.Parse(time.RFC3339, item.Start.DateTime)
-			end, _ := time.Parse(time.RFC3339, item.End.DateTime)
-			s += fmt.Sprintf("%v, %v - %v\n", item.Summary, start.Format(time.Kitchen), end.Format(time.Kitchen))
+			start, _ := time.Parse(time.RFC3339, event.Start.DateTime)
+			end, _ := time.Parse(time.RFC3339, event.End.DateTime)
+			s += fmt.Sprintf("%v, %v - %v\n", event.Summary, start.Format(time.Kitchen), end.Format(time.Kitchen))
 		}
 	}
 	return s
