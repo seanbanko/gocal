@@ -29,52 +29,31 @@ const (
 )
 
 type model struct {
-	date                  time.Time
-	dateChanged           bool
-	googleCalendarService *calendar.Service
-	events                []*calendar.Event
-}
-
-func (m model) getEvents() []*calendar.Event {
-	if !m.dateChanged {
-		return m.events
-	}
-	m.dateChanged = false
-	startOfToday := m.date
-	startOfTomorrow := m.date.AddDate(0, 0, 1)
-	events, err := m.googleCalendarService.Events.
-		List("primary").
-		ShowDeleted(false).
-		SingleEvents(true).
-		TimeMin(startOfToday.Format(time.RFC3339)).
-		TimeMax(startOfTomorrow.Format(time.RFC3339)).
-		OrderBy("startTime").
-		Do()
-	if err != nil {
-		log.Fatalf("Error retrieving user's events: %v", err)
-	}
-	m.events = make([]*calendar.Event, len(events.Items))
-	copy(m.events, events.Items)
-	return m.events
+	date            time.Time
+	dateChanged     bool
+	calendarService *calendar.Service
+	events          []*calendar.Event
 }
 
 func main() {
-	srv := getService()
-	m := initialModel(srv)
+	m := initialModel()
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func initialModel(srv *calendar.Service) model {
+func initialModel() model {
+	srv := getService()
 	now := time.Now()
-	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	return model{
-		googleCalendarService: srv,
-		date:                  startOfToday,
-		dateChanged:           true,
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	m := model{
+		calendarService: srv,
+		date:            today,
+		dateChanged:     true,
 	}
+    m.events = getEvents(srv, today)
+	return m
 }
 
 func (m model) Init() tea.Cmd {
@@ -90,22 +69,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "j", "n":
 			m.date = m.date.AddDate(0, 0, 1)
 			m.dateChanged = true
+			m.events = getEvents(m.calendarService, m.date)
 		case "k", "p":
 			m.date = m.date.AddDate(0, 0, -1)
 			m.dateChanged = true
+			m.events = getEvents(m.calendarService, m.date)
 		}
 	}
 	return m, nil
 }
 
+func getEvents(calendarService *calendar.Service, date time.Time) []*calendar.Event {
+	start := date
+	nextDay := start.AddDate(0, 0, 1)
+	data, _ := calendarService.Events.
+		List("primary").
+		ShowDeleted(false).
+		SingleEvents(true).
+		TimeMin(start.Format(time.RFC3339)).
+		TimeMax(nextDay.Format(time.RFC3339)).
+		OrderBy("startTime").
+		Do()
+	return data.Items
+}
+
 func (m model) View() string {
 	var s string
 	s += m.date.Format(TextDateWithWeekday) + "\n"
-	events := m.getEvents()
-	if len(events) == 0 {
+	if len(m.events) == 0 {
 		s += "No events found"
 	} else {
-		for _, item := range events {
+		for _, item := range m.events {
 			// Filter out all-day events for now
 			if item.Start.DateTime == "" {
 				continue
