@@ -74,6 +74,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.date = m.date.AddDate(0, 0, -1)
 			m.dateChanged = true
 			m.events = getEvents(m.calendarService, m.date)
+		case "t":
+            now := time.Now()
+            today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+			m.date = today
+			m.dateChanged = true
+			m.events = getEvents(m.calendarService, m.date)
 		}
 	}
 	return m, nil
