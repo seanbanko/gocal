@@ -20,7 +20,9 @@ import (
 const (
 	YYYYMMDD            = "2006-01-02"
 	HHMMSS24h           = "15:04:05"
+	HHMM24h             = "15:04"
 	HHMMSS12h           = "3:04:05 PM"
+	HHMM12h             = "3:04 PM"
 	TextDate            = "January 2, 2006"
 	TextDateWithWeekday = "Monday, January 2, 2006"
 	AbbreviatedTextDate = "Jan 2 Mon"
