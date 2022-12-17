@@ -15,9 +15,10 @@ import (
 	"google.golang.org/api/option"
 )
 
-/*
-From Google Calendar's `quickstart.go`
-*/
+// ----------------------------------------------------------------------
+// From Google Calendar's `quickstart.go`
+// https://github.com/googleworkspace/go-samples/blob/main/calendar/quickstart/quickstart.go
+// ----------------------------------------------------------------------
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
