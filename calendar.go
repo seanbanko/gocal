@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"google.golang.org/api/calendar/v3"
@@ -44,6 +45,11 @@ func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.createEventPopup = newPopup()
 			m.creatingEvent = true
 			return m, textinput.Blink
+		}
+	case createEventMsg:
+		err := msg.err
+		if err != nil {
+			log.Fatalf("error creating event: %v", err)
 		}
 	}
 	return m, nil

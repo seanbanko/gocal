@@ -84,7 +84,13 @@ func updateCreateEventPopup(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", "ctrl+s":
 			// TODO this should return a CreateEventCmd of some kind
 			m.creatingEvent = false
-			return m, nil
+            title := m.createEventPopup.inputs[title].Value()
+            startDate := m.createEventPopup.inputs[startDate].Value()
+            startTime := m.createEventPopup.inputs[startTime].Value()
+            endDate := m.createEventPopup.inputs[endDate].Value()
+            endTime := m.createEventPopup.inputs[endTime].Value()
+            cmd := createEventCmd(m.calendarService, title, startDate, startTime, endDate, endTime)
+			return m, cmd
 		case "tab", "ctrl+n":
 			m.createEventPopup.focusNext()
 		case "shift+tab", "ctrl+p":
@@ -143,3 +149,4 @@ func viewPopup(m model) string {
 	)
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, popupStyle.Render(content))
 }
+
