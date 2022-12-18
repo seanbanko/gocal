@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -95,16 +94,3 @@ func getService() *calendar.Service {
 	return srv
 }
 
-func getEvents(calendarService *calendar.Service, date time.Time) []*calendar.Event {
-	start := date
-	nextDay := start.AddDate(0, 0, 1)
-	data, _ := calendarService.Events.
-		List("primary").
-		ShowDeleted(false).
-		SingleEvents(true).
-		TimeMin(start.Format(time.RFC3339)).
-		TimeMax(nextDay.Format(time.RFC3339)).
-		OrderBy("startTime").
-		Do()
-	return data.Items
-}

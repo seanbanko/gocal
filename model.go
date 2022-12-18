@@ -38,7 +38,6 @@ func initialModel() model {
 		calendar: cal{
 			date:        today,
 			dateChanged: true,
-			events:      getEvents(srv, today),
 		},
 		calendarService:  srv,
 		creatingEvent:    false,
@@ -48,7 +47,7 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return getEventsCmd(m.calendarService, m.calendar.date)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

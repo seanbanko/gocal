@@ -30,27 +30,35 @@ func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "j", "n":
 			m.calendar.date = m.calendar.date.AddDate(0, 0, 1)
 			m.calendar.dateChanged = true
-			m.calendar.events = getEvents(m.calendarService, m.calendar.date)
+			return m, getEventsCmd(m.calendarService, m.calendar.date)
 		case "k", "p":
 			m.calendar.date = m.calendar.date.AddDate(0, 0, -1)
 			m.calendar.dateChanged = true
-			m.calendar.events = getEvents(m.calendarService, m.calendar.date)
+			return m, getEventsCmd(m.calendarService, m.calendar.date)
 		case "t":
 			now := time.Now()
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 			m.calendar.date = today
 			m.calendar.dateChanged = true
-			m.calendar.events = getEvents(m.calendarService, m.calendar.date)
+			return m, getEventsCmd(m.calendarService, m.calendar.date)
 		case "c":
 			m.createEventPopup = newPopup()
 			m.creatingEvent = true
 			return m, textinput.Blink
 		}
+	case getEventsMsg:
+		err := msg.err
+		if err != nil {
+			log.Fatalf("Error getting events: %v", err)
+		}
+		m.calendar.events = msg.events
+		return m, nil
 	case createEventMsg:
 		err := msg.err
 		if err != nil {
-			log.Fatalf("error creating event: %v", err)
+			log.Fatalf("Error creating event: %v", err)
 		}
+		return m, nil
 	}
 	return m, nil
 }
