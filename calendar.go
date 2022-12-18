@@ -14,7 +14,6 @@ import (
 
 type cal struct {
 	date        time.Time
-	dateChanged bool
 	events      []*calendar.Event
 }
 
@@ -29,17 +28,14 @@ func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "j", "n":
 			m.calendar.date = m.calendar.date.AddDate(0, 0, 1)
-			m.calendar.dateChanged = true
 			return m, getEventsCmd(m.calendarService, m.calendar.date)
 		case "k", "p":
 			m.calendar.date = m.calendar.date.AddDate(0, 0, -1)
-			m.calendar.dateChanged = true
 			return m, getEventsCmd(m.calendarService, m.calendar.date)
 		case "t":
 			now := time.Now()
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 			m.calendar.date = today
-			m.calendar.dateChanged = true
 			return m, getEventsCmd(m.calendarService, m.calendar.date)
 		case "c":
 			m.createEventPopup = newPopup()

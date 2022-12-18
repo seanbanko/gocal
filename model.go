@@ -35,10 +35,7 @@ func initialModel() model {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	m := model{
-		calendar: cal{
-			date:        today,
-			dateChanged: true,
-		},
+		calendar:         cal{date: today},
 		calendarService:  srv,
 		creatingEvent:    false,
 		createEventPopup: newPopup(),
