@@ -22,10 +22,15 @@ const (
 )
 
 type model struct {
-	calendar         cal
+    // Google Calendar API client
 	calendarService  *calendar.Service
-	creatingEvent    bool
+
+    // sub models
+	calendar         cal
 	createEventPopup CreateEventPopup
+	creatingEvent    bool
+
+    // misc
 	height           int
 	width            int
 }
