@@ -58,7 +58,7 @@ func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			log.Fatalf("Error creating event: %v", err)
 		}
-		return m, nil
+		return m, getEventsCmd(m.calendarService, m.calendar.date)
 	}
 	return m, nil
 }
