@@ -5,6 +5,7 @@ import (
 
 	"google.golang.org/api/calendar/v3"
 
+	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -22,17 +23,20 @@ const (
 )
 
 type model struct {
-    // Google Calendar API client
-	calendarService  *calendar.Service
+	// Google Calendar API client
+	calendarService *calendar.Service
 
-    // sub models
+	// sub models
 	calendar         cal
 	createEventPopup CreateEventPopup
 	creatingEvent    bool
 
-    // misc
-	height           int
-	width            int
+	keys keyMap
+	help help.Model
+
+	// misc
+	height int
+	width  int
 }
 
 func initialModel() model {
@@ -44,6 +48,8 @@ func initialModel() model {
 		calendarService:  srv,
 		creatingEvent:    false,
 		createEventPopup: newPopup(),
+		keys:             DefaultKeyMap,
+		help:             help.New(),
 	}
 	return m
 }

@@ -7,20 +7,22 @@ import (
 
 	"google.golang.org/api/calendar/v3"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/help"
 )
 
 type cal struct {
-	date        time.Time
-	events      []*calendar.Event
+	date   time.Time
+	events []*calendar.Event
 }
 
 func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.help.Width = msg.Width
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -41,6 +43,9 @@ func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.createEventPopup = newPopup()
 			m.creatingEvent = true
 			return m, textinput.Blink
+		case "?":
+			m.help.ShowAll = !m.help.ShowAll
+			return m, nil
 		}
 	case getEventsMsg:
 		err := msg.err
@@ -64,8 +69,9 @@ func viewCalendar(m model) string {
 		return "Loading..."
 	}
 	date := renderDate(m.calendar.date, m.width)
-	events := renderEvents(m.calendar.events, m.width)
-	return lipgloss.JoinVertical(lipgloss.Left, date, events)
+    help := renderHelp(m.help, m.keys, m.width)
+	events := renderEvents(m.calendar.events, m.width, m.height - lipgloss.Height(date) - lipgloss.Height(help))
+	return lipgloss.JoinVertical(lipgloss.Left, date, events, help)
 }
 
 func renderDate(date time.Time, width int) string {
@@ -76,20 +82,31 @@ func renderDate(date time.Time, width int) string {
 		Render(date.Format(TextDateWithWeekday))
 }
 
-func renderEvents(events []*calendar.Event, width int) string {
-	var s string
+func renderEvents(events []*calendar.Event, width int, height int) string {
+    var renderedEvents []string
 	if len(events) == 0 {
-		return "No events found"
-	} else {
-		for _, event := range events {
-			// Filter out all-day events for now
-			if event.Start.DateTime == "" {
-				continue
-			}
-			start, _ := time.Parse(time.RFC3339, event.Start.DateTime)
-			end, _ := time.Parse(time.RFC3339, event.End.DateTime)
-			s += fmt.Sprintf("%v, %v - %v\n", event.Summary, start.Format(time.Kitchen), end.Format(time.Kitchen))
-		}
-	}
-	return s
+        renderedEvents = append(renderedEvents, "No events found")
+	} 
+    for _, event := range events {
+        // Filter out all-day events for now
+        if event.Start.DateTime == "" {
+            continue
+        }
+        start, _ := time.Parse(time.RFC3339, event.Start.DateTime)
+        end, _ := time.Parse(time.RFC3339, event.End.DateTime)
+        renderedEvent := fmt.Sprintf("%v, %v - %v", event.Summary, start.Format(time.Kitchen), end.Format(time.Kitchen))
+        renderedEvents = append(renderedEvents, renderedEvent)
+    }
+    return lipgloss.NewStyle().
+        Height(height).
+        Padding(0, 1).
+        Render(lipgloss.JoinVertical(lipgloss.Left, renderedEvents...))
+}
+
+func renderHelp(help help.Model, keys keyMap, width int) string {
+	return lipgloss.NewStyle().
+		Width(width).
+		Padding(1).
+		AlignHorizontal(lipgloss.Center).
+		Render(help.View(keys))
 }
