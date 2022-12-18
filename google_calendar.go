@@ -36,8 +36,14 @@ func getClient(config *oauth2.Config) *http.Client {
 // Request a token from the web, then returns the retrieved token.
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
+	fmt.Printf("Welcome to GoCal, a TUI for Google Calendar\n")
+	fmt.Printf("To use GoCal, you'll need to authorize GoCal to access your Google Calendar\n")
+    fmt.Printf("Please go to the following link in your browser to sign in with Google:\n\n")
+	fmt.Printf("%v\n\n", authURL)
+    fmt.Printf("After you sign in, your will be redirected to a page containing the authorization code in the URL.\n")
+    example := "http://localhost/?state=state-token&code=[--CODE HERE--]&scope=https://www.googleapis.com/auth/calendar.events"
+    fmt.Printf("It will look something like this:\n\n%v\n\n", example)
+    fmt.Printf("Copy that authorization code from the URL and paste it here, then press enter\n")
 
 	var authCode string
 	if _, err := fmt.Scan(&authCode); err != nil {
