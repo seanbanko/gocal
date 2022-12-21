@@ -3,6 +3,8 @@ package main
 import (
 	"time"
 
+	"google.golang.org/api/calendar/v3"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -16,19 +18,20 @@ const (
 	endTime
 )
 
-type CreateEventPopup struct {
-	inputs     []textinput.Model
-	focusIndex int
-	height     int
-	width      int
-}
-
 var (
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
 	textInputTextStyle        = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
 )
 
-func newPopup() CreateEventPopup {
+type CreateEventPopup struct {
+	inputs          []textinput.Model
+	focusIndex      int
+	calendarService *calendar.Service
+	height          int
+	width           int
+}
+
+func newPopup(srv *calendar.Service, height, width int) CreateEventPopup {
 	inputs := make([]textinput.Model, 5)
 
 	inputs[title] = textinput.New()
@@ -67,43 +70,62 @@ func newPopup() CreateEventPopup {
 	inputs[endTime].PlaceholderStyle = textInputPlaceholderStyle
 
 	return CreateEventPopup{
-		inputs:     inputs,
-		focusIndex: title,
+		calendarService: srv,
+		inputs:          inputs,
+		focusIndex:      title,
+		height:          height,
+		width:           width,
 	}
 }
 
-func updateCreateEventPopup(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m CreateEventPopup) Init() tea.Cmd {
+	return textinput.Blink
+}
+
+type enterCreatePopupMsg struct{}
+
+func enterCreatePopupCmd() tea.Msg {
+	return enterCreatePopupMsg{}
+}
+
+type exitCreatePopupMsg struct{}
+
+func exitCreatePopupCmd() tea.Msg {
+	return exitCreatePopupMsg{}
+}
+
+func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height, m.width = msg.Height, msg.Width
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			m.creatingEvent = false
-			return m, nil
+			return m, exitCreatePopupCmd
 		case "enter", "ctrl+s":
-			// TODO this should return a CreateEventCmd of some kind
-			m.creatingEvent = false
-            title := m.createEventPopup.inputs[title].Value()
-            startDate := m.createEventPopup.inputs[startDate].Value()
-            startTime := m.createEventPopup.inputs[startTime].Value()
-            endDate := m.createEventPopup.inputs[endDate].Value()
-            endTime := m.createEventPopup.inputs[endTime].Value()
-            cmd := createEventCmd(m.calendarService, title, startDate, startTime, endDate, endTime)
-			return m, cmd
+			title := m.inputs[title].Value()
+			startDate := m.inputs[startDate].Value()
+			startTime := m.inputs[startTime].Value()
+			endDate := m.inputs[endDate].Value()
+			endTime := m.inputs[endTime].Value()
+			cmd := createEventCmd(m.calendarService, title, startDate, startTime, endDate, endTime)
+			return m, tea.Batch(cmd, exitCreatePopupCmd)
 		case "tab", "ctrl+n":
-			m.createEventPopup.focusNext()
+			m.focusNext()
 		case "shift+tab", "ctrl+p":
-			m.createEventPopup.focusPrev()
+			m.focusPrev()
 		}
-		for i := range m.createEventPopup.inputs {
-			m.createEventPopup.inputs[i].Blur()
+		for i := range m.inputs {
+			m.inputs[i].Blur()
 		}
-		m.createEventPopup.inputs[m.createEventPopup.focusIndex].Focus()
+		m.inputs[m.focusIndex].Focus()
 	}
-	cmds := make([]tea.Cmd, len(m.createEventPopup.inputs))
-	for i := range m.createEventPopup.inputs {
-		m.createEventPopup.inputs[i], cmds[i] = m.createEventPopup.inputs[i].Update(msg)
+	cmds := make([]tea.Cmd, len(m.inputs))
+	for i := range m.inputs {
+		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
 	return m, tea.Batch(cmds...)
 }
@@ -119,7 +141,7 @@ func (m *CreateEventPopup) focusPrev() {
 	}
 }
 
-func viewPopup(m model) string {
+func (m CreateEventPopup) View() string {
 	popupStyle := lipgloss.NewStyle().
 		Width(m.width / 2).
 		Height(m.height / 2).
@@ -133,20 +155,19 @@ func viewPopup(m model) string {
 		lipgloss.Center,
 		"Create Event",
 		"\n",
-		titleStyle.Render(m.createEventPopup.inputs[title].View()),
+		titleStyle.Render(m.inputs[title].View()),
 		"\n",
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
-			dateStyle.Render(m.createEventPopup.inputs[startDate].View()),
+			dateStyle.Render(m.inputs[startDate].View()),
 			"at ",
-			timeStyle.Render(m.createEventPopup.inputs[startTime].View()),
+			timeStyle.Render(m.inputs[startTime].View()),
 			"to ",
-			dateStyle.Render(m.createEventPopup.inputs[endDate].View()),
+			dateStyle.Render(m.inputs[endDate].View()),
 			"at ",
-			timeStyle.Render(m.createEventPopup.inputs[endTime].View()),
+			timeStyle.Render(m.inputs[endTime].View()),
 			".", // TODO This is just here to the overall width doesn't change
 		),
 	)
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, popupStyle.Render(content))
 }
-

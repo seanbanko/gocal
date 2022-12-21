@@ -8,20 +8,28 @@ import (
 	"google.golang.org/api/calendar/v3"
 
 	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type cal struct {
-	date   time.Time
-	events []*calendar.Event
+	calendarService *calendar.Service
+	date            time.Time
+	events          []*calendar.Event
+	keys            keyMap
+	help            help.Model
+	height          int
+	width           int
 }
 
-func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m cal) Init() tea.Cmd {
+	return getEventsCmd(m.calendarService, m.date)
+}
+
+func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
+		m.height, m.width = msg.Height, msg.Width
 		m.help.Width = msg.Width
 		return m, nil
 	case tea.KeyMsg:
@@ -29,20 +37,18 @@ func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "j", "n":
-			m.calendar.date = m.calendar.date.AddDate(0, 0, 1)
-			return m, getEventsCmd(m.calendarService, m.calendar.date)
+			m.date = m.date.AddDate(0, 0, 1)
+			return m, getEventsCmd(m.calendarService, m.date)
 		case "k", "p":
-			m.calendar.date = m.calendar.date.AddDate(0, 0, -1)
-			return m, getEventsCmd(m.calendarService, m.calendar.date)
+			m.date = m.date.AddDate(0, 0, -1)
+			return m, getEventsCmd(m.calendarService, m.date)
 		case "t":
 			now := time.Now()
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-			m.calendar.date = today
-			return m, getEventsCmd(m.calendarService, m.calendar.date)
+			m.date = today
+			return m, getEventsCmd(m.calendarService, m.date)
 		case "c":
-			m.createEventPopup = newPopup()
-			m.creatingEvent = true
-			return m, textinput.Blink
+			return m, enterCreatePopupCmd
 		case "?":
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
@@ -52,25 +58,25 @@ func updateCalendar(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			log.Fatalf("Error getting events: %v", err)
 		}
-		m.calendar.events = msg.events
+		m.events = msg.events
 		return m, nil
 	case createEventMsg:
 		err := msg.err
 		if err != nil {
 			log.Fatalf("Error creating event: %v", err)
 		}
-		return m, getEventsCmd(m.calendarService, m.calendar.date)
+		return m, getEventsCmd(m.calendarService, m.date)
 	}
 	return m, nil
 }
 
-func viewCalendar(m model) string {
+func (m cal) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	date := renderDate(m.calendar.date, m.width)
+	date := renderDate(m.date, m.width)
 	help := renderHelp(m.help, m.keys, m.width)
-	events := renderEvents(m.calendar.events, m.width, m.height-lipgloss.Height(date)-lipgloss.Height(help))
+	events := renderEvents(m.events, m.width, m.height-lipgloss.Height(date)-lipgloss.Height(help))
 	return lipgloss.JoinVertical(lipgloss.Left, date, events, help)
 }
 
