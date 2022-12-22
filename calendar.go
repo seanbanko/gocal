@@ -60,12 +60,6 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.events = msg.events
 		return m, nil
-	case createEventMsg:
-		err := msg.err
-		if err != nil {
-			log.Fatalf("Error creating event: %v", err)
-		}
-		return m, getEventsCmd(m.calendarService, m.date)
 	}
 	return m, nil
 }

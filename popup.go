@@ -29,6 +29,7 @@ type CreateEventPopup struct {
 	calendarService *calendar.Service
 	height          int
 	width           int
+	err             error
 }
 
 func newPopup(srv *calendar.Service, height, width int) CreateEventPopup {
@@ -99,6 +100,10 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
 		return m, nil
+	case createEventMsg:
+		if msg.err != nil {
+			m.err = msg.err
+		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
@@ -112,7 +117,7 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			endDate := m.inputs[endDate].Value()
 			endTime := m.inputs[endTime].Value()
 			cmd := createEventCmd(m.calendarService, title, startDate, startTime, endDate, endTime)
-			return m, tea.Batch(cmd, exitCreatePopupCmd)
+			return m, cmd
 		case "tab", "ctrl+n":
 			m.focusNext()
 		case "shift+tab", "ctrl+p":
@@ -142,12 +147,16 @@ func (m *CreateEventPopup) focusPrev() {
 }
 
 func (m CreateEventPopup) View() string {
-	popupStyle := lipgloss.NewStyle().
-		Width(m.width / 2).
-		Height(m.height / 2).
+    popupStyle := lipgloss.NewStyle().
+        Width(m.width / 2).
+        Height(m.height / 2).
 		AlignHorizontal(lipgloss.Center).
 		AlignVertical(lipgloss.Center).
 		Border(lipgloss.NormalBorder())
+	if m.err != nil {
+		s := "Error creating event. Press esc to return to calendar."
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, popupStyle.Render(s))
+	}
 	titleStyle := lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
 	dateStyle := lipgloss.NewStyle().Width(11)
 	timeStyle := lipgloss.NewStyle().Width(6)
