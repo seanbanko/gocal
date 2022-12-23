@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -17,6 +18,7 @@ const (
 )
 
 var (
+	popupStyle                = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Center).Border(lipgloss.RoundedBorder())
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
 	textInputTextStyle        = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
 	titleStyle                = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
@@ -31,6 +33,8 @@ type CreateEventPopup struct {
 	width      int
 	success    bool
 	err        error
+	help       help.Model
+	keys       keyMapCreate
 }
 
 func newPopup(width, height int) CreateEventPopup {
@@ -78,6 +82,8 @@ func newPopup(width, height int) CreateEventPopup {
 		width:      width,
 		success:    false,
 		err:        nil,
+		help:       help.New(),
+		keys:       CreateKeyMap,
 	}
 }
 
@@ -123,9 +129,9 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			endTime := m.inputs[endTime].Value()
 			cmd := createEventRequestCmd(title, startDate, startTime, endDate, endTime)
 			return m, cmd
-		case "tab", "ctrl+n":
+		case "tab":
 			m.focusNext()
-		case "shift+tab", "ctrl+p":
+		case "shift+tab":
 			m.focusPrev()
 		}
 		for i := range m.inputs {
@@ -155,12 +161,8 @@ func (m CreateEventPopup) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	popupStyle := lipgloss.NewStyle().
-		Width(m.width / 2).
-		Height(m.height / 2).
-		AlignHorizontal(lipgloss.Center).
-		AlignVertical(lipgloss.Center).
-		Border(lipgloss.NormalBorder())
+	popupStyle = popupStyle.Width(m.width / 2)
+	popupStyle = popupStyle.Height(m.height / 2)
 	var content string
 	if m.err != nil {
 		content = "Error creating event. Press esc to return to calendar."
@@ -169,7 +171,14 @@ func (m CreateEventPopup) View() string {
 	} else {
 		content = renderForm(m)
 	}
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, popupStyle.Render(content))
+	help := renderHelpCreate(m.help, m.keys, m.width)
+    popupContainer := lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height - lipgloss.Height(help)).
+		AlignHorizontal(lipgloss.Center).
+		AlignVertical(lipgloss.Center).
+		Render(popupStyle.Render(content))
+	return lipgloss.JoinVertical(lipgloss.Center, popupContainer, help)
 }
 
 func renderForm(m CreateEventPopup) string {
@@ -191,4 +200,12 @@ func renderForm(m CreateEventPopup) string {
 			".", // TODO This is just here to the overall width doesn't change
 		),
 	)
+}
+
+func renderHelpCreate(help help.Model, keys keyMapCreate, width int) string {
+	return lipgloss.NewStyle().
+		Width(width).
+		Padding(1).
+		AlignHorizontal(lipgloss.Center).
+		Render(help.View(keys))
 }
