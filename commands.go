@@ -53,7 +53,6 @@ type createEventResponseMsg struct {
 	event *calendar.Event
 	err   error
 }
-
 	
 func createEventRequestCmd(title string, startDate string, startTime string, endDate string, endTime string) tea.Cmd {
 	return func() tea.Msg {
@@ -92,4 +91,16 @@ func createEventResponseCmd(calendarService *calendar.Service, msg createEventRe
 			err:   err,
 		}
 	}
+}
+
+type enterCreatePopupMsg struct{}
+
+func enterCreatePopupCmd() tea.Msg {
+	return enterCreatePopupMsg{}
+}
+
+type exitCreatePopupMsg struct{}
+
+func exitCreatePopupCmd() tea.Msg {
+	return exitCreatePopupMsg{}
 }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -91,18 +92,6 @@ func (m CreateEventPopup) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-type enterCreatePopupMsg struct{}
-
-func enterCreatePopupCmd() tea.Msg {
-	return enterCreatePopupMsg{}
-}
-
-type exitCreatePopupMsg struct{}
-
-func exitCreatePopupCmd() tea.Msg {
-	return exitCreatePopupMsg{}
-}
-
 func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -172,7 +161,7 @@ func (m CreateEventPopup) View() string {
 		content = renderForm(m)
 	}
 	help := renderHelpCreate(m.help, m.keys, m.width)
-    popupContainer := lipgloss.NewStyle().
+	popupContainer := lipgloss.NewStyle().
 		Width(m.width).
 		Height(m.height - lipgloss.Height(help)).
 		AlignHorizontal(lipgloss.Center).
@@ -208,4 +197,49 @@ func renderHelpCreate(help help.Model, keys keyMapCreate, width int) string {
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
 		Render(help.View(keys))
+}
+
+// Help
+
+type keyMapCreate struct {
+	Next   key.Binding
+	Prev   key.Binding
+	Create key.Binding
+	Cancel key.Binding
+	Quit   key.Binding
+}
+
+var CreateKeyMap = keyMapCreate{
+	Next: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "next field"),
+	),
+	Prev: key.NewBinding(
+		key.WithKeys("shift+tab"),
+		key.WithHelp("shift+tab", "previous field"),
+	),
+	Create: key.NewBinding(
+		key.WithKeys("enter", "ctrl+s"),
+		key.WithHelp("enter/ctrl+s", "create event"),
+	),
+	Cancel: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "cancel"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c", "q"),
+		key.WithHelp("ctrl+c/q", "quit"),
+	),
+}
+
+func (k keyMapCreate) ShortHelp() []key.Binding {
+	return []key.Binding{k.Next, k.Prev, k.Create, k.Cancel, k.Quit}
+}
+
+func (k keyMapCreate) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Next, k.Cancel},
+		{k.Prev, k.Quit},
+		{k.Create},
+	}
 }
