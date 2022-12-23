@@ -1,12 +1,8 @@
 package main
 
 import (
-	"time"
-
-	"google.golang.org/api/calendar/v3"
-
-	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
+	"google.golang.org/api/calendar/v3"
 )
 
 const (
@@ -31,59 +27,63 @@ const (
 
 type model struct {
 	calendarService  *calendar.Service
-	keys             keyMap
-	help             help.Model
-
-	height           int
-	width            int
-
 	state            sessionState
 	calendar         tea.Model
 	createEventPopup tea.Model
+	height           int
+	width            int
 }
 
 func initialModel() model {
-	calendarService := getService()
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	m := model{
-		calendarService: calendarService,
-		state:           calendarView,
-		keys:            DefaultKeyMap,
-		help:            help.New(),
-		calendar: cal{
-			calendarService: calendarService,
-			date:            today,
-			keys:            DefaultKeyMap,
-			help:            help.New(),
-		},
-        // createEventPopup: newPopup(calendarService, 0, 0),
+	return model{
+		calendarService:  getService(),
+		state:            calendarView,
+		calendar:         newCal(0, 0),
+		createEventPopup: newPopup(0, 0),
+		height:           0,
+		width:            0,
 	}
-	return m
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	var cmds []tea.Cmd
+	cmds = append(cmds, m.calendar.Init())
+	cmds = append(cmds, m.createEventPopup.Init())
+	return tea.Batch(cmds...)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
-    switch msg := msg.(type) {
+	// Handle global messages
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		// ctrl+c should quit from anywhere in the application
+		case "ctrl+c":
+			return m, tea.Quit
+		}
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
-        m.calendar, cmd = m.calendar.Update(msg)
-        cmds = append(cmds, cmd)
-        // m.createEventPopup, cmd = m.createEventPopup.Update(msg)
-        // cmds = append(cmds, cmd)
-		m.help.Width = msg.Width
+		m.calendar, cmd = m.calendar.Update(msg)
+		cmds = append(cmds, cmd)
+		m.createEventPopup, cmd = m.createEventPopup.Update(msg)
+		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
+	}
+	// Handle messsages from sub-models
+	switch msg := msg.(type) {
+	case getEventsRequestMsg:
+		return m, getEventsResponseCmd(m.calendarService, msg)
+	case createEventRequestMsg:
+		return m, createEventResponseCmd(m.calendarService, msg)
 	case enterCreatePopupMsg:
 		m.state = creatingEvent
-		m.createEventPopup = newPopup(m.calendarService, m.height, m.width)
+		m.createEventPopup = newPopup(m.width, m.height)
 	case exitCreatePopupMsg:
 		m.state = calendarView
 	}
+	// Relay messages to the focused sub-model
 	switch m.state {
 	case calendarView:
 		m.calendar, cmd = m.calendar.Update(msg)

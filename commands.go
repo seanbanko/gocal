@@ -7,14 +7,24 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type getEventsMsg struct {
+type getEventsRequestMsg struct {
+	date time.Time
+}
+
+type getEventsResponseMsg struct {
 	events []*calendar.Event
 	err    error
 }
 
-func getEventsCmd(calendarService *calendar.Service, date time.Time) tea.Cmd {
+func getEventsRequestCmd(date time.Time) tea.Cmd {
 	return func() tea.Msg {
-		start := date
+		return getEventsRequestMsg{date: date}
+	}
+}
+
+func getEventsResponseCmd(calendarService *calendar.Service, msg getEventsRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		start := msg.date
 		nextDay := start.AddDate(0, 0, 1)
 		response, err := calendarService.Events.
 			List("primary").
@@ -24,37 +34,51 @@ func getEventsCmd(calendarService *calendar.Service, date time.Time) tea.Cmd {
 			TimeMax(nextDay.Format(time.RFC3339)).
 			OrderBy("startTime").
 			Do()
-		return getEventsMsg{
+		return getEventsResponseMsg{
 			events: response.Items,
 			err:    err,
 		}
 	}
 }
 
-type createEventMsg struct {
+type createEventRequestMsg struct {
+	title     string
+	startDate string
+	startTime string
+	endDate   string
+	endTime   string
+}
+
+type createEventResponseMsg struct {
 	event *calendar.Event
 	err   error
 }
 
-func createEventCmd(
-	calendarService *calendar.Service,
-	title string,
-	startDate string,
-	startTime string,
-	endDate string,
-	endTime string,
-) tea.Cmd {
+	
+func createEventRequestCmd(title string, startDate string, startTime string, endDate string, endTime string) tea.Cmd {
 	return func() tea.Msg {
-		start, err := time.ParseInLocation(MMDDYYYYHHMM24h, startDate+" "+startTime, time.Local)
-		if err != nil {
-			return createEventMsg{err: err}
+		return createEventRequestMsg{
+            title:    title, 
+            startDate: startDate, 
+            startTime: startTime, 
+            endDate:  endDate, 
+            endTime:  endTime,
 		}
-		end, err := time.ParseInLocation(MMDDYYYYHHMM24h, endDate+" "+endTime, time.Local)
+	}
+}
+
+func createEventResponseCmd(calendarService *calendar.Service, msg createEventRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		start, err := time.ParseInLocation(MMDDYYYYHHMM24h, msg.startDate+" "+msg.startTime, time.Local)
 		if err != nil {
-			return createEventMsg{err: err}
+			return createEventResponseMsg{err: err}
+		}
+		end, err := time.ParseInLocation(MMDDYYYYHHMM24h, msg.endDate+" "+msg.endTime, time.Local)
+		if err != nil {
+			return createEventResponseMsg{err: err}
 		}
 		event := &calendar.Event{
-			Summary: title,
+			Summary: msg.title,
 			Start: &calendar.EventDateTime{
 				DateTime: start.Format(time.RFC3339),
 			},
@@ -63,7 +87,7 @@ func createEventCmd(
 			},
 		}
 		response, err := calendarService.Events.Insert("primary", event).Do()
-		return createEventMsg{
+		return createEventResponseMsg{
 			event: response,
 			err:   err,
 		}

@@ -13,24 +13,39 @@ import (
 )
 
 type cal struct {
-	calendarService *calendar.Service
-	date            time.Time
-	events          []*calendar.Event
-	keys            keyMap
-	help            help.Model
-	height          int
-	width           int
+	date   time.Time
+	events []*calendar.Event
+	keys   keyMap
+	help   help.Model
+	height int
+	width  int
+}
+
+func newCal(height, width int) cal {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	return cal{
+		date:   today,
+		events: nil,
+		keys:   DefaultKeyMap,
+		help:   help.New(),
+		height: height,
+		width:  width,
+	}
 }
 
 func (m cal) Init() tea.Cmd {
-	return getEventsCmd(m.calendarService, m.date)
+	return getEventsRequestCmd(m.date)
 }
 
 func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.height, m.width = msg.Height, msg.Width
-		m.help.Width = msg.Width
+	case getEventsResponseMsg:
+		err := msg.err
+		if err != nil {
+			log.Fatalf("Error getting events: %v", err)
+		}
+		m.events = msg.events
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -38,27 +53,24 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "j", "n":
 			m.date = m.date.AddDate(0, 0, 1)
-			return m, getEventsCmd(m.calendarService, m.date)
+			return m, getEventsRequestCmd(m.date)
 		case "k", "p":
 			m.date = m.date.AddDate(0, 0, -1)
-			return m, getEventsCmd(m.calendarService, m.date)
+			return m, getEventsRequestCmd(m.date)
 		case "t":
 			now := time.Now()
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 			m.date = today
-			return m, getEventsCmd(m.calendarService, m.date)
+			return m, getEventsRequestCmd(m.date)
 		case "c":
 			return m, enterCreatePopupCmd
 		case "?":
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
 		}
-	case getEventsMsg:
-		err := msg.err
-		if err != nil {
-			log.Fatalf("Error getting events: %v", err)
-		}
-		m.events = msg.events
+	case tea.WindowSizeMsg:
+		m.height, m.width = msg.Height, msg.Width
+		m.help.Width = msg.Width
 		return m, nil
 	}
 	return m, nil

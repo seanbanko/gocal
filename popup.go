@@ -3,8 +3,6 @@ package main
 import (
 	"time"
 
-	"google.golang.org/api/calendar/v3"
-
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -21,18 +19,21 @@ const (
 var (
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
 	textInputTextStyle        = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
+	titleStyle                = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
+	dateStyle                 = lipgloss.NewStyle().Width(11)
+	timeStyle                 = lipgloss.NewStyle().Width(6)
 )
 
 type CreateEventPopup struct {
-	inputs          []textinput.Model
-	focusIndex      int
-	calendarService *calendar.Service
-	height          int
-	width           int
-	err             error
+	inputs     []textinput.Model
+	focusIndex int
+	height     int
+	width      int
+	success    bool
+	err        error
 }
 
-func newPopup(srv *calendar.Service, height, width int) CreateEventPopup {
+func newPopup(width, height int) CreateEventPopup {
 	inputs := make([]textinput.Model, 5)
 
 	inputs[title] = textinput.New()
@@ -71,11 +72,12 @@ func newPopup(srv *calendar.Service, height, width int) CreateEventPopup {
 	inputs[endTime].PlaceholderStyle = textInputPlaceholderStyle
 
 	return CreateEventPopup{
-		calendarService: srv,
-		inputs:          inputs,
-		focusIndex:      title,
-		height:          height,
-		width:           width,
+		inputs:     inputs,
+		focusIndex: title,
+		height:     height,
+		width:      width,
+		success:    false,
+		err:        nil,
 	}
 }
 
@@ -100,10 +102,13 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
 		return m, nil
-	case createEventMsg:
+	case createEventResponseMsg:
 		if msg.err != nil {
 			m.err = msg.err
+		} else {
+			m.success = true
 		}
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
@@ -116,7 +121,7 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			startTime := m.inputs[startTime].Value()
 			endDate := m.inputs[endDate].Value()
 			endTime := m.inputs[endTime].Value()
-			cmd := createEventCmd(m.calendarService, title, startDate, startTime, endDate, endTime)
+			cmd := createEventRequestCmd(title, startDate, startTime, endDate, endTime)
 			return m, cmd
 		case "tab", "ctrl+n":
 			m.focusNext()
@@ -147,20 +152,28 @@ func (m *CreateEventPopup) focusPrev() {
 }
 
 func (m CreateEventPopup) View() string {
-    popupStyle := lipgloss.NewStyle().
-        Width(m.width / 2).
-        Height(m.height / 2).
+	if m.width == 0 || m.height == 0 {
+		return "Loading..."
+	}
+	popupStyle := lipgloss.NewStyle().
+		Width(m.width / 2).
+		Height(m.height / 2).
 		AlignHorizontal(lipgloss.Center).
 		AlignVertical(lipgloss.Center).
 		Border(lipgloss.NormalBorder())
+	var content string
 	if m.err != nil {
-		s := "Error creating event. Press esc to return to calendar."
-		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, popupStyle.Render(s))
+		content = "Error creating event. Press esc to return to calendar."
+	} else if m.success {
+		content = "Successfully created event. Press esc to return to calendar."
+	} else {
+		content = renderForm(m)
 	}
-	titleStyle := lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
-	dateStyle := lipgloss.NewStyle().Width(11)
-	timeStyle := lipgloss.NewStyle().Width(6)
-	content := lipgloss.JoinVertical(
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, popupStyle.Render(content))
+}
+
+func renderForm(m CreateEventPopup) string {
+	return lipgloss.JoinVertical(
 		lipgloss.Center,
 		"Create Event",
 		"\n",
@@ -178,5 +191,4 @@ func (m CreateEventPopup) View() string {
 			".", // TODO This is just here to the overall width doesn't change
 		),
 	)
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, popupStyle.Render(content))
 }
