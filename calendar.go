@@ -24,36 +24,6 @@ type cal struct {
 	width      int
 }
 
-type item struct {
-	event *calendar.Event
-}
-
-func (i item) Title() string {
-	if i.event == nil {
-		return ""
-	}
-	return i.event.Summary
-}
-
-func (i item) Description() string {
-	if i.event == nil {
-		return ""
-	}
-	if i.event.Start.DateTime == "" {
-		return "all day"
-	} else {
-		start, _ := time.Parse(time.RFC3339, i.event.Start.DateTime)
-		end, _ := time.Parse(time.RFC3339, i.event.End.DateTime)
-		return fmt.Sprintf("%v - %v", start.Format(time.Kitchen), end.Format(time.Kitchen))
-	}
-}
-func (i item) FilterValue() string {
-	if i.event == nil {
-		return ""
-	}
-	return i.event.Summary
-}
-
 func newCal(height, width int) cal {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -83,15 +53,16 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			log.Fatalf("Error getting events: %v", err)
 		}
-		m.events = msg.events
-		for i := 0; i < len(m.eventsList.Items()); i++ {
-			m.eventsList.RemoveItem(0)
-		}
-		for i, event := range m.events {
-			item := item{event: event}
-			m.eventsList.InsertItem(i, item)
-		}
+		m.refreshEvents(msg.events)
 		return m, nil
+	case deleteEventResponseMsg:
+		err := msg.err
+		if err != nil {
+			log.Fatalf("Error deleting event: %v", err)
+		}
+		return m, getEventsRequestCmd(m.date)
+	case createEventResponseMsg:
+		return m, getEventsRequestCmd(m.date)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -112,6 +83,13 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, getEventsRequestCmd(m.date)
 		case "c":
 			return m, enterCreatePopupCmd
+		case "d":
+			event := m.eventsList.SelectedItem()
+			if event == nil {
+                return m, nil
+			}
+			eventId := event.(item).event.Id
+			return m, deleteEventRequestCmd("primary", eventId)
 		case "?":
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
@@ -124,6 +102,17 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.eventsList, cmd = m.eventsList.Update(msg)
 	return m, cmd
+}
+
+func (m *cal) refreshEvents(events []*calendar.Event) {
+	for i := 0; i < len(m.eventsList.Items()); i++ {
+		m.eventsList.RemoveItem(0)
+	}
+	m.events = events
+	for i, event := range m.events {
+		item := item{event: event}
+		m.eventsList.InsertItem(i, item)
+	}
 }
 
 func (m cal) View() string {
@@ -227,4 +216,34 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Today},
 		{k.Create},
 	}
+}
+
+type item struct {
+	event *calendar.Event
+}
+
+func (i item) Title() string {
+	if i.event == nil {
+		return ""
+	}
+	return i.event.Summary
+}
+
+func (i item) Description() string {
+	if i.event == nil {
+		return ""
+	}
+	if i.event.Start.DateTime == "" {
+		return "all day"
+	} else {
+		start, _ := time.Parse(time.RFC3339, i.event.Start.DateTime)
+		end, _ := time.Parse(time.RFC3339, i.event.End.DateTime)
+		return fmt.Sprintf("%v - %v", start.Format(time.Kitchen), end.Format(time.Kitchen))
+	}
+}
+func (i item) FilterValue() string {
+	if i.event == nil {
+		return ""
+	}
+	return i.event.Summary
 }

@@ -64,6 +64,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, getEventsResponseCmd(m.calendarService, msg)
 	case createEventRequestMsg:
 		return m, createEventResponseCmd(m.calendarService, msg)
+	case deleteEventRequestMsg:
+		return m, deleteEventResponseCmd(m.calendarService, msg)
 	case enterCreatePopupMsg:
 		m.state = creatingEvent
 		m.createEventPopup = newPopup(m.width, m.height)

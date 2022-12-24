@@ -53,15 +53,15 @@ type createEventResponseMsg struct {
 	event *calendar.Event
 	err   error
 }
-	
+
 func createEventRequestCmd(title string, startDate string, startTime string, endDate string, endTime string) tea.Cmd {
 	return func() tea.Msg {
 		return createEventRequestMsg{
-            title:    title, 
-            startDate: startDate, 
-            startTime: startTime, 
-            endDate:  endDate, 
-            endTime:  endTime,
+			title:     title,
+			startDate: startDate,
+			startTime: startTime,
+			endDate:   endDate,
+			endTime:   endTime,
 		}
 	}
 }
@@ -88,6 +88,33 @@ func createEventResponseCmd(calendarService *calendar.Service, msg createEventRe
 		response, err := calendarService.Events.Insert("primary", event).Do()
 		return createEventResponseMsg{
 			event: response,
+			err:   err,
+		}
+	}
+}
+
+type deleteEventRequestMsg struct {
+	calendarId string
+	eventId    string
+}
+
+func deleteEventRequestCmd(calendarId string, eventId string) tea.Cmd {
+	return func() tea.Msg {
+		return deleteEventRequestMsg{
+			calendarId: calendarId,
+			eventId:    eventId,
+		}
+	}
+}
+
+type deleteEventResponseMsg struct {
+	err   error
+}
+
+func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		err := calendarService.Events.Delete(msg.calendarId, msg.eventId).Do()
+		return deleteEventResponseMsg{
 			err:   err,
 		}
 	}
