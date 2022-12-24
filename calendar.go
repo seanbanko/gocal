@@ -9,29 +9,66 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type cal struct {
-	date   time.Time
-	events []*calendar.Event
-	keys   keyMap
-	help   help.Model
-	height int
-	width  int
+	date       time.Time
+	events     []*calendar.Event
+	eventsList list.Model
+	keys       keyMap
+	help       help.Model
+	height     int
+	width      int
+}
+
+type item struct {
+	event *calendar.Event
+}
+
+func (i item) Title() string {
+	if i.event == nil {
+		return ""
+	}
+	return i.event.Summary
+}
+
+func (i item) Description() string {
+	if i.event == nil {
+		return ""
+	}
+	if i.event.Start.DateTime == "" {
+		return "all day"
+	} else {
+		start, _ := time.Parse(time.RFC3339, i.event.Start.DateTime)
+		end, _ := time.Parse(time.RFC3339, i.event.End.DateTime)
+		return fmt.Sprintf("%v - %v", start.Format(time.Kitchen), end.Format(time.Kitchen))
+	}
+}
+func (i item) FilterValue() string {
+	if i.event == nil {
+		return ""
+	}
+	return i.event.Summary
 }
 
 func newCal(height, width int) cal {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	eventsList := list.New(nil, list.NewDefaultDelegate(), 0, 0)
+	eventsList.Title = today.Format(AbbreviatedTextDate)
+	eventsList.SetShowStatusBar(false)
+	eventsList.SetShowHelp(false)
 	return cal{
-		date:   today,
-		events: nil,
-		keys:   DefaultKeyMap,
-		help:   help.New(),
-		height: height,
-		width:  width,
+		date:       today,
+		events:     nil,
+		eventsList: eventsList,
+		keys:       DefaultKeyMap,
+		help:       help.New(),
+		height:     height,
+		width:      width,
 	}
 }
 
@@ -47,21 +84,31 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			log.Fatalf("Error getting events: %v", err)
 		}
 		m.events = msg.events
+		for i := 0; i < len(m.eventsList.Items()); i++ {
+			m.eventsList.RemoveItem(0)
+		}
+		for i, event := range m.events {
+			item := item{event: event}
+			m.eventsList.InsertItem(i, item)
+		}
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "j", "n":
+		case "n":
 			m.date = m.date.AddDate(0, 0, 1)
+			m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
 			return m, getEventsRequestCmd(m.date)
-		case "k", "p":
+		case "p":
 			m.date = m.date.AddDate(0, 0, -1)
+			m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
 			return m, getEventsRequestCmd(m.date)
 		case "t":
 			now := time.Now()
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 			m.date = today
+			m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
 			return m, getEventsRequestCmd(m.date)
 		case "c":
 			return m, enterCreatePopupCmd
@@ -74,7 +121,9 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.help.Width = msg.Width
 		return m, nil
 	}
-	return m, nil
+	var cmd tea.Cmd
+	m.eventsList, cmd = m.eventsList.Update(msg)
+	return m, cmd
 }
 
 func (m cal) View() string {
@@ -83,7 +132,9 @@ func (m cal) View() string {
 	}
 	date := renderDate(m.date, m.width)
 	help := renderHelp(m.help, m.keys, m.width)
-	events := renderEvents(m.events, m.width, m.height-lipgloss.Height(date)-lipgloss.Height(help))
+	// events := renderEvents(m.events, m.width, m.height-lipgloss.Height(date)-lipgloss.Height(help))
+	m.eventsList.SetSize(m.width, m.height-lipgloss.Height(date)-lipgloss.Height(help))
+	events := lipgloss.NewStyle().Padding(0, 1).Render(m.eventsList.View())
 	return lipgloss.JoinVertical(lipgloss.Left, date, events, help)
 }
 
