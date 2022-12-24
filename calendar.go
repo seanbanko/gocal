@@ -30,6 +30,7 @@ func newCal(height, width int) cal {
 	eventsList := list.New(nil, list.NewDefaultDelegate(), 0, 0)
 	eventsList.Title = today.Format(AbbreviatedTextDate)
 	eventsList.SetShowStatusBar(false)
+    eventsList.SetStatusBarItemName("event", "events")
 	eventsList.SetShowHelp(false)
 	return cal{
 		date:       today,
@@ -84,11 +85,15 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "c":
 			return m, enterCreatePopupCmd
 		case "d":
-			event := m.eventsList.SelectedItem()
-			if event == nil {
-                return m, nil
+			listItem := m.eventsList.SelectedItem()
+			if listItem == nil {
+				return m, nil
 			}
-			eventId := event.(item).event.Id
+			item, ok := listItem.(item)
+			if !ok {
+				return m, nil
+			}
+			eventId := item.event.Id
 			return m, deleteEventRequestCmd("primary", eventId)
 		case "?":
 			m.help.ShowAll = !m.help.ShowAll
