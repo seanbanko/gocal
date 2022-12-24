@@ -32,6 +32,7 @@ func newCal(height, width int) cal {
 	eventsList.SetShowStatusBar(false)
     eventsList.SetStatusBarItemName("event", "events")
 	eventsList.SetShowHelp(false)
+    eventsList.DisableQuitKeybindings()
 	return cal{
 		date:       today,
 		events:     nil,
@@ -56,13 +57,13 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.refreshEvents(msg.events)
 		return m, nil
+	case createEventResponseMsg:
+		return m, getEventsRequestCmd(m.date)
 	case deleteEventResponseMsg:
 		err := msg.err
 		if err != nil {
 			log.Fatalf("Error deleting event: %v", err)
 		}
-		return m, getEventsRequestCmd(m.date)
-	case createEventResponseMsg:
 		return m, getEventsRequestCmd(m.date)
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -94,7 +95,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			eventId := item.event.Id
-			return m, deleteEventRequestCmd("primary", eventId)
+			return m, enterDeletePopupCmd("primary", eventId)
 		case "?":
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil

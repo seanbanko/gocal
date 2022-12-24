@@ -108,14 +108,14 @@ func deleteEventRequestCmd(calendarId string, eventId string) tea.Cmd {
 }
 
 type deleteEventResponseMsg struct {
-	err   error
+	err error
 }
 
 func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		err := calendarService.Events.Delete(msg.calendarId, msg.eventId).Do()
 		return deleteEventResponseMsg{
-			err:   err,
+			err: err,
 		}
 	}
 }
@@ -130,4 +130,24 @@ type exitCreatePopupMsg struct{}
 
 func exitCreatePopupCmd() tea.Msg {
 	return exitCreatePopupMsg{}
+}
+
+type enterDeletePopupMsg struct {
+	calendarId string
+	eventId    string
+}
+
+func enterDeletePopupCmd(calendarId, eventId string) tea.Cmd {
+	return func() tea.Msg {
+		return enterDeletePopupMsg{
+			calendarId: calendarId,
+			eventId:    eventId,
+		}
+	}
+}
+
+type exitDeletePopupMsg struct{}
+
+func exitDeletePopupCmd() tea.Msg {
+	return exitDeletePopupMsg{}
 }

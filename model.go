@@ -10,6 +10,7 @@ type sessionState int
 const (
 	calendarView sessionState = iota
 	creatingEvent
+	deletingEvent
 )
 
 type model struct {
@@ -17,6 +18,7 @@ type model struct {
 	state            sessionState
 	calendar         tea.Model
 	createEventPopup tea.Model
+	deleteEventPopup tea.Model
 	height           int
 	width            int
 }
@@ -27,6 +29,7 @@ func initialModel() model {
 		state:            calendarView,
 		calendar:         newCal(0, 0),
 		createEventPopup: newPopup(0, 0),
+		deleteEventPopup: newDeletePopup("", "", 0, 0),
 		height:           0,
 		width:            0,
 	}
@@ -56,6 +59,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		m.createEventPopup, cmd = m.createEventPopup.Update(msg)
 		cmds = append(cmds, cmd)
+		m.deleteEventPopup, cmd = m.deleteEventPopup.Update(msg)
+		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 	}
 	// Handle messsages from sub-models
@@ -71,6 +76,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.createEventPopup = newPopup(m.width, m.height)
 	case exitCreatePopupMsg:
 		m.state = calendarView
+	case enterDeletePopupMsg:
+		m.state = deletingEvent
+		m.deleteEventPopup = newDeletePopup(msg.calendarId, msg.eventId, m.width, m.height)
+	case exitDeletePopupMsg:
+		m.state = calendarView
 	}
 	// Relay messages to the focused sub-model
 	switch m.state {
@@ -78,6 +88,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.calendar, cmd = m.calendar.Update(msg)
 	case creatingEvent:
 		m.createEventPopup, cmd = m.createEventPopup.Update(msg)
+	case deletingEvent:
+		m.deleteEventPopup, cmd = m.deleteEventPopup.Update(msg)
 	}
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
@@ -89,6 +101,8 @@ func (m model) View() string {
 		return m.calendar.View()
 	case creatingEvent:
 		return m.createEventPopup.View()
+	case deletingEvent:
+		return m.deleteEventPopup.View()
 	}
 	return ""
 }
