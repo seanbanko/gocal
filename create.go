@@ -105,6 +105,10 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
+        // Prevent further updates after creating one event
+        if m.success == true {
+            return m, exitCreatePopupCmd
+        }
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
@@ -154,9 +158,9 @@ func (m CreateEventPopup) View() string {
 	popupStyle = popupStyle.Height(m.height / 2)
 	var content string
 	if m.err != nil {
-		content = "Error creating event. Press esc to return to calendar."
+		content = "Error creating event. Press any key to return to calendar."
 	} else if m.success {
-		content = "Successfully created event. Press esc to return to calendar."
+		content = "Successfully created event. Press any key to return to calendar."
 	} else {
 		content = renderForm(m)
 	}

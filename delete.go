@@ -74,6 +74,10 @@ func (m DeleteEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
+        // Prevent further updates after creating one event
+        if m.success == true {
+            return m, exitCreatePopupCmd
+        }
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
@@ -112,9 +116,9 @@ func (m DeleteEventPopup) View() string {
 	deletePopupStyle = deletePopupStyle.Height(m.height / 3)
 	var content string
 	if m.err != nil {
-		content = "Error deleting event. Press esc to return to calendar."
+		content = "Error deleting event. Press any key to return to calendar."
 	} else if m.success {
-		content = "Successfully deleted event. Press esc to return to calendar."
+		content = "Successfully deleted event. Press any key to return to calendar."
 	} else {
 		content = renderDeleteContent(m)
 	}
