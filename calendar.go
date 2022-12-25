@@ -30,9 +30,9 @@ func newCal(height, width int) cal {
 	eventsList := list.New(nil, list.NewDefaultDelegate(), 0, 0)
 	eventsList.Title = today.Format(AbbreviatedTextDate)
 	eventsList.SetShowStatusBar(false)
-    eventsList.SetStatusBarItemName("event", "events")
+	eventsList.SetStatusBarItemName("event", "events")
 	eventsList.SetShowHelp(false)
-    eventsList.DisableQuitKeybindings()
+	eventsList.DisableQuitKeybindings()
 	return cal{
 		date:       today,
 		events:     nil,
@@ -57,13 +57,9 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.refreshEvents(msg.events)
 		return m, nil
-	case createEventResponseMsg:
+	case exitCreatePopupMsg:
 		return m, getEventsRequestCmd(m.date)
-	case deleteEventResponseMsg:
-		err := msg.err
-		if err != nil {
-			log.Fatalf("Error deleting event: %v", err)
-		}
+	case exitDeletePopupMsg:
 		return m, getEventsRequestCmd(m.date)
 	case tea.KeyMsg:
 		switch msg.String() {
