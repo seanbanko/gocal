@@ -107,8 +107,8 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *cal) refreshEvents(events []*calendar.Event) {
-	for i := 0; i < len(m.eventsList.Items()); i++ {
-		m.eventsList.RemoveItem(0)
+	for i := len(m.eventsList.Items()) - 1; i >= 0; i-- {
+		m.eventsList.RemoveItem(i)
 	}
 	m.events = events
 	for i, event := range m.events {
