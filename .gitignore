@@ -1,5 +1,6 @@
 credentials.json
 token.json
+debug.log
 
 # Binaries for programs and plugins
 *.exe
