@@ -18,14 +18,7 @@ const (
 	endTime
 )
 
-var (
-	popupStyle                = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Center).Border(lipgloss.RoundedBorder())
-	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
-	textInputTextStyle        = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
-	titleStyle                = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
-	dateStyle                 = lipgloss.NewStyle().Width(11)
-	timeStyle                 = lipgloss.NewStyle().Width(6)
-)
+var createPopupStyle = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Center).Border(lipgloss.RoundedBorder())
 
 type CreateEventPopup struct {
 	inputs     []textinput.Model
@@ -38,7 +31,7 @@ type CreateEventPopup struct {
 	keys       keyMapCreate
 }
 
-func newPopup(width, height int) CreateEventPopup {
+func newCreatePopup(width, height int) CreateEventPopup {
 	inputs := make([]textinput.Model, 5)
 
 	inputs[title] = textinput.New()
@@ -105,10 +98,10 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-        // Prevent further updates after creating one event
-        if m.success == true {
-            return m, exitCreatePopupCmd
-        }
+		// Prevent further updates after creating one event
+		if m.success == true {
+			return m, exitCreatePopupCmd
+		}
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
@@ -154,8 +147,8 @@ func (m CreateEventPopup) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	popupStyle = popupStyle.Width(m.width / 2)
-	popupStyle = popupStyle.Height(m.height / 2)
+	createPopupStyle = createPopupStyle.Width(m.width / 2)
+	createPopupStyle = createPopupStyle.Height(m.height / 2)
 	var content string
 	if m.err != nil {
 		content = "Error creating event. Press any key to return to calendar."
@@ -170,7 +163,7 @@ func (m CreateEventPopup) View() string {
 		Height(m.height - lipgloss.Height(help)).
 		AlignHorizontal(lipgloss.Center).
 		AlignVertical(lipgloss.Center).
-		Render(popupStyle.Render(content))
+		Render(createPopupStyle.Render(content))
 	return lipgloss.JoinVertical(lipgloss.Center, popupContainer, help)
 }
 

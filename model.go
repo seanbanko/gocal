@@ -11,6 +11,7 @@ const (
 	calendarView sessionState = iota
 	creatingEvent
 	deletingEvent
+	gotoDate
 )
 
 type model struct {
@@ -19,6 +20,7 @@ type model struct {
 	calendar         tea.Model
 	createEventPopup tea.Model
 	deleteEventPopup tea.Model
+	gotoDatePopup    tea.Model
 	height           int
 	width            int
 }
@@ -28,8 +30,9 @@ func initialModel() model {
 		calendarService:  getService(),
 		state:            calendarView,
 		calendar:         newCal(0, 0),
-		createEventPopup: newPopup(0, 0),
+		createEventPopup: newCreatePopup(0, 0),
 		deleteEventPopup: newDeletePopup("", "", 0, 0),
+		gotoDatePopup:    newGotoDatePopup(0, 0),
 		height:           0,
 		width:            0,
 	}
@@ -61,19 +64,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		m.deleteEventPopup, cmd = m.deleteEventPopup.Update(msg)
 		cmds = append(cmds, cmd)
+		m.gotoDatePopup, cmd = m.gotoDatePopup.Update(msg)
+		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 	}
-	// Handle messsages from sub-models
 	switch msg := msg.(type) {
+	// API call request messages are handled by the top-level model
 	case getEventsRequestMsg:
 		return m, getEventsResponseCmd(m.calendarService, msg)
 	case createEventRequestMsg:
 		return m, createEventResponseCmd(m.calendarService, msg)
 	case deleteEventRequestMsg:
 		return m, deleteEventResponseCmd(m.calendarService, msg)
+	case gotoDateRequestMsg:
+		return m, gotoDateResponseCmd(msg.date)
+		// Navigation messages change the focused sub-model
 	case enterCreatePopupMsg:
 		m.state = creatingEvent
-		m.createEventPopup = newPopup(m.width, m.height)
+		m.createEventPopup = newCreatePopup(m.width, m.height)
 	case exitCreatePopupMsg:
 		m.state = calendarView
 	case enterDeletePopupMsg:
@@ -81,8 +89,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.deleteEventPopup = newDeletePopup(msg.calendarId, msg.eventId, m.width, m.height)
 	case exitDeletePopupMsg:
 		m.state = calendarView
+	case enterGotoDatePopupMsg:
+		m.state = gotoDate
+		m.gotoDatePopup = newGotoDatePopup(m.width, m.height)
+	case exitGotoDatePopupMsg:
+		m.state = calendarView
 	}
-	// Relay messages to the focused sub-model
+	// All other messages are relayed to the focused sub-model
 	switch m.state {
 	case calendarView:
 		m.calendar, cmd = m.calendar.Update(msg)
@@ -90,6 +103,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.createEventPopup, cmd = m.createEventPopup.Update(msg)
 	case deletingEvent:
 		m.deleteEventPopup, cmd = m.deleteEventPopup.Update(msg)
+	case gotoDate:
+		m.gotoDatePopup, cmd = m.gotoDatePopup.Update(msg)
 	}
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
@@ -103,6 +118,8 @@ func (m model) View() string {
 		return m.createEventPopup.View()
 	case deletingEvent:
 		return m.deleteEventPopup.View()
+	case gotoDate:
+		return m.gotoDatePopup.View()
 	}
 	return ""
 }

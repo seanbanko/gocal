@@ -61,6 +61,10 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, getEventsRequestCmd(m.date)
 	case exitDeletePopupMsg:
 		return m, getEventsRequestCmd(m.date)
+	case gotoDateResponseMsg:
+		m.date = msg.date
+		m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
+		return m, getEventsRequestCmd(m.date)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -79,6 +83,8 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.date = today
 			m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
 			return m, getEventsRequestCmd(m.date)
+		case "g":
+			return m, enterGotoDatePopupCmd
 		case "c":
 			return m, enterCreatePopupCmd
 		case "d":
@@ -243,6 +249,7 @@ func (i item) Description() string {
 		return fmt.Sprintf("%v - %v", start.Format(time.Kitchen), end.Format(time.Kitchen))
 	}
 }
+
 func (i item) FilterValue() string {
 	if i.event == nil {
 		return ""

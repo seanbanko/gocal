@@ -1,5 +1,7 @@
 package main
 
+import "github.com/charmbracelet/lipgloss"
+
 const (
 	YYYYMMDD            = "2006-01-02"
 	MMDDYYYY            = "01/02/2006"
@@ -11,4 +13,11 @@ const (
 	TextDate            = "January 2, 2006"
 	TextDateWithWeekday = "Monday, January 2, 2006"
 	AbbreviatedTextDate = "Jan 2 Mon"
+)
+
+var (
+	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
+	titleStyle                = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
+	dateStyle                 = lipgloss.NewStyle().Width(11)
+	timeStyle                 = lipgloss.NewStyle().Width(6)
 )

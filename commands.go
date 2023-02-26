@@ -151,3 +151,41 @@ type exitDeletePopupMsg struct{}
 func exitDeletePopupCmd() tea.Msg {
 	return exitDeletePopupMsg{}
 }
+
+type gotoDateRequestMsg struct {
+	date string
+}
+
+type gotoDateResponseMsg struct {
+	date time.Time
+}
+
+func gotoDateRequestCmd(date string) tea.Cmd {
+	return func() tea.Msg {
+		return gotoDateRequestMsg{date: date}
+	}
+}
+
+func gotoDateResponseCmd(date string) tea.Cmd {
+	return func() tea.Msg {
+		d, err := time.ParseInLocation(MMDDYYYY, date, time.Local)
+		if err != nil {
+			now := time.Now()
+			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+			d = today
+		}
+		return gotoDateResponseMsg{date: d}
+	}
+}
+
+type enterGotoDatePopupMsg struct{}
+
+func enterGotoDatePopupCmd() tea.Msg {
+	return enterGotoDatePopupMsg{}
+}
+
+type exitGotoDatePopupMsg struct{}
+
+func exitGotoDatePopupCmd() tea.Msg {
+	return exitGotoDatePopupMsg{}
+}
