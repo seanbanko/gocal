@@ -31,7 +31,7 @@ func getService() *calendar.Service {
 	if err != nil {
 		log.Fatalf("Unable to read GoCal credentials file: %v", err)
 	}
-	config, err := google.ConfigFromJSON(f, calendar.CalendarEventsScope)
+	config, err := google.ConfigFromJSON(f, calendar.CalendarScope)
 	if err != nil {
 		log.Fatalf("Unable to parse GoCal credentials file to config: %v", err)
 	}

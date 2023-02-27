@@ -1,42 +1,107 @@
 package main
 
 import (
+	"sort"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"google.golang.org/api/calendar/v3"
 )
 
+type getCalendarsListRequestMsg struct{}
+
+type getCalendarsListResponseMsg struct {
+	calendars []*calendar.CalendarListEntry
+	err       error
+}
+
+func getCalendarsListRequestCmd() tea.Cmd {
+	return func() tea.Msg {
+		return getCalendarsListRequestMsg{}
+	}
+}
+
+func getCalendarsListResponseCmd(calendarService *calendar.Service, msg getCalendarsListRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		response, err := calendarService.CalendarList.
+			List().
+			Do()
+		if err != nil {
+			return getCalendarsListResponseMsg{err: err}
+		}
+        var calendars []*calendar.CalendarListEntry
+        calendars = append(calendars, response.Items...)
+		return getCalendarsListResponseMsg{
+			calendars: calendars,
+			err:       err,
+		}
+	}
+}
+
 type getEventsRequestMsg struct {
-	date time.Time
+	calendars []*calendar.CalendarListEntry
+	date      time.Time
 }
 
 type getEventsResponseMsg struct {
 	events []*calendar.Event
-	err    error
+	errs   []error
 }
 
-func getEventsRequestCmd(date time.Time) tea.Cmd {
+func getEventsRequestCmd(calendars []*calendar.CalendarListEntry, date time.Time) tea.Cmd {
 	return func() tea.Msg {
-		return getEventsRequestMsg{date: date}
+		return getEventsRequestMsg{calendars: calendars, date: date}
 	}
+}
+
+type eventsSlice []*calendar.Event
+
+func (events eventsSlice) Len() int {
+	return len(events)
+}
+
+func (events eventsSlice) Less(i, j int) bool {
+	dateI, err := time.Parse(time.RFC3339, events[i].Start.DateTime)
+	if err != nil {
+		return true
+	}
+	dateJ, err := time.Parse(time.RFC3339, events[j].Start.DateTime)
+	if err != nil {
+		return true
+	}
+	return dateI.Before(dateJ)
+}
+
+func (events eventsSlice) Swap(i, j int) {
+	events[i], events[j] = events[j], events[i]
 }
 
 func getEventsResponseCmd(calendarService *calendar.Service, msg getEventsRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		start := msg.date
 		nextDay := start.AddDate(0, 0, 1)
-		response, err := calendarService.Events.
-			List("primary").
-			ShowDeleted(false).
-			SingleEvents(true).
-			TimeMin(start.Format(time.RFC3339)).
-			TimeMax(nextDay.Format(time.RFC3339)).
-			OrderBy("startTime").
-			Do()
+		var events []*calendar.Event
+		var errs []error
+		// TODO parallelize this with goroutines
+		for _, calendar := range msg.calendars {
+			response, err := calendarService.Events.
+				List(calendar.Id).
+				ShowDeleted(false).
+				SingleEvents(true).
+				TimeMin(start.Format(time.RFC3339)).
+				TimeMax(nextDay.Format(time.RFC3339)).
+				OrderBy("startTime").
+				Do()
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			events = append(events, response.Items...)
+		}
+		sort.Sort(eventsSlice(events))
 		return getEventsResponseMsg{
-			events: response.Items,
-			err:    err,
+			events: events,
+			errs:   errs,
 		}
 	}
 }

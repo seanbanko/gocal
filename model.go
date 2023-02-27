@@ -17,7 +17,7 @@ const (
 type model struct {
 	calendarService  *calendar.Service
 	state            sessionState
-	calendar         tea.Model
+	calendarView     tea.Model
 	createEventPopup tea.Model
 	deleteEventPopup tea.Model
 	gotoDatePopup    tea.Model
@@ -29,7 +29,7 @@ func initialModel() model {
 	return model{
 		calendarService:  getService(),
 		state:            calendarView,
-		calendar:         newCal(0, 0),
+		calendarView:     newCal(0, 0),
 		createEventPopup: newCreatePopup(0, 0),
 		deleteEventPopup: newDeletePopup("", "", 0, 0),
 		gotoDatePopup:    newGotoDatePopup(0, 0),
@@ -40,7 +40,7 @@ func initialModel() model {
 
 func (m model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	cmds = append(cmds, m.calendar.Init())
+	cmds = append(cmds, m.calendarView.Init())
 	cmds = append(cmds, m.createEventPopup.Init())
 	return tea.Batch(cmds...)
 }
@@ -58,7 +58,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
-		m.calendar, cmd = m.calendar.Update(msg)
+		m.calendarView, cmd = m.calendarView.Update(msg)
 		cmds = append(cmds, cmd)
 		m.createEventPopup, cmd = m.createEventPopup.Update(msg)
 		cmds = append(cmds, cmd)
@@ -70,6 +70,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	switch msg := msg.(type) {
 	// API call request messages are handled by the top-level model
+	case getCalendarsListRequestMsg:
+		return m, getCalendarsListResponseCmd(m.calendarService, msg)
 	case getEventsRequestMsg:
 		return m, getEventsResponseCmd(m.calendarService, msg)
 	case createEventRequestMsg:
@@ -98,7 +100,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// All other messages are relayed to the focused sub-model
 	switch m.state {
 	case calendarView:
-		m.calendar, cmd = m.calendar.Update(msg)
+		m.calendarView, cmd = m.calendarView.Update(msg)
 	case creatingEvent:
 		m.createEventPopup, cmd = m.createEventPopup.Update(msg)
 	case deletingEvent:
@@ -113,7 +115,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	switch m.state {
 	case calendarView:
-		return m.calendar.View()
+		return m.calendarView.View()
 	case creatingEvent:
 		return m.createEventPopup.View()
 	case deletingEvent:
