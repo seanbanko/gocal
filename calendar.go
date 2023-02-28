@@ -225,7 +225,9 @@ func (i item) Description() string {
 		return "all day"
 	} else {
 		start, _ := time.Parse(time.RFC3339, i.event.Start.DateTime)
+		start = start.In(time.Local)
 		end, _ := time.Parse(time.RFC3339, i.event.End.DateTime)
+		end = end.In(time.Local)
 		return fmt.Sprintf("%v - %v", start.Format(time.Kitchen), end.Format(time.Kitchen))
 	}
 }
