@@ -2,6 +2,7 @@ package main
 
 import (
 	"sort"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,8 +30,8 @@ func getCalendarsListResponseCmd(calendarService *calendar.Service, msg getCalen
 		if err != nil {
 			return getCalendarsListResponseMsg{err: err}
 		}
-        var calendars []*calendar.CalendarListEntry
-        calendars = append(calendars, response.Items...)
+		var calendars []*calendar.CalendarListEntry
+		calendars = append(calendars, response.Items...)
 		return getCalendarsListResponseMsg{
 			calendars: calendars,
 			err:       err,
@@ -76,28 +77,59 @@ func (events eventsSlice) Swap(i, j int) {
 	events[i], events[j] = events[j], events[i]
 }
 
+func getEvents(
+	calendarService *calendar.Service,
+	calendarId string,
+	timeMin, timeMax time.Time,
+	eventCh chan<- *calendar.Event,
+	errCh chan<- error,
+) {
+	response, err := calendarService.Events.
+		List(calendarId).
+		ShowDeleted(false).
+		SingleEvents(true).
+		TimeMin(timeMin.Format(time.RFC3339)).
+		TimeMax(timeMax.Format(time.RFC3339)).
+		OrderBy("startTime").
+		Do()
+	if err != nil {
+		errCh <- err
+		return
+	}
+	for _, event := range response.Items {
+		eventCh <- event
+	}
+}
+
 func getEventsResponseCmd(calendarService *calendar.Service, msg getEventsRequestMsg) tea.Cmd {
 	return func() tea.Msg {
+		eventCh := make(chan *calendar.Event)
+		errCh := make(chan error)
 		start := msg.date
-		nextDay := start.AddDate(0, 0, 1)
+		oneDayLater := start.AddDate(0, 0, 1)
+		var wg sync.WaitGroup
+        wg.Add(len(msg.calendars))
+		for _, cal := range msg.calendars {
+			go func(id string) {
+				getEvents(calendarService, id, start, oneDayLater, eventCh, errCh)
+				wg.Done()
+			}(cal.Id)
+		}
+		go func() {
+			wg.Wait()
+			close(eventCh)
+			close(errCh)
+		}()
+
 		var events []*calendar.Event
 		var errs []error
-		// TODO parallelize this with goroutines
-		for _, calendar := range msg.calendars {
-			response, err := calendarService.Events.
-				List(calendar.Id).
-				ShowDeleted(false).
-				SingleEvents(true).
-				TimeMin(start.Format(time.RFC3339)).
-				TimeMax(nextDay.Format(time.RFC3339)).
-				OrderBy("startTime").
-				Do()
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			events = append(events, response.Items...)
+		for event := range eventCh {
+			events = append(events, event)
 		}
+		for err := range errCh {
+			errs = append(errs, err)
+		}
+
 		sort.Sort(eventsSlice(events))
 		return getEventsResponseMsg{
 			events: events,
