@@ -47,7 +47,7 @@ func newCal(height, width int) cal {
 }
 
 func (m cal) Init() tea.Cmd {
-	return tea.Sequence(getCalendarsListRequestCmd(), getEventsRequestCmd(m.calendars, m.date))
+	return getCalendarsListRequestCmd()
 }
 
 func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -57,7 +57,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			log.Fatalf("Error getting calendars list: %v", msg.err)
 		}
         m.calendars = msg.calendars
-		return m, nil
+		return m, getEventsRequestCmd(m.calendars, m.date)
 	case getEventsResponseMsg:
 		if len(msg.errs) != 0 {
 			log.Fatalf("Errors getting events: %v", msg.errs)
