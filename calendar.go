@@ -136,7 +136,6 @@ func (m cal) View() string {
 	}
 	date := renderDate(m.date, m.width)
 	help := renderHelp(m.help, m.keys, m.width)
-	// events := renderEvents(m.events, m.width, m.height-lipgloss.Height(date)-lipgloss.Height(help))
 	m.eventsList.SetSize(m.width, m.height-lipgloss.Height(date)-lipgloss.Height(help))
 	events := lipgloss.NewStyle().Padding(0, 1).Render(m.eventsList.View())
 	return lipgloss.JoinVertical(lipgloss.Left, date, events, help)
@@ -148,32 +147,6 @@ func renderDate(date time.Time, width int) string {
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
 		Render(date.Format(TextDateWithWeekday))
-}
-
-func renderEvents(events []*calendar.Event, width int, height int) string {
-	var renderedEvents []string
-	if len(events) == 0 {
-		renderedEvents = append(renderedEvents, "No events found")
-	}
-	for _, event := range events {
-		renderedEvents = append(renderedEvents, renderEvent(event))
-	}
-	return lipgloss.NewStyle().
-		Height(height).
-		Padding(0, 1).
-		Render(lipgloss.JoinVertical(lipgloss.Left, renderedEvents...))
-}
-
-func renderEvent(event *calendar.Event) string {
-	var duration string
-	if event.Start.DateTime == "" {
-		duration = "all day"
-	} else {
-		start, _ := time.Parse(time.RFC3339, event.Start.DateTime)
-		end, _ := time.Parse(time.RFC3339, event.End.DateTime)
-		duration = fmt.Sprintf("%v - %v", start.Format(time.Kitchen), end.Format(time.Kitchen))
-	}
-	return fmt.Sprintf("%v | %v", event.Summary, duration)
 }
 
 func renderHelp(help help.Model, keys keyMap, width int) string {
