@@ -38,19 +38,26 @@ func getService() *calendar.Service {
     config.RedirectURL = "http://localhost:8090"
 	tokFilePath, err := tokenFilePath()
 	if err != nil {
-		log.Fatalf("Unable to get path to cached token file: %v", err)
+		log.Printf("Unable to generate path to token file: %v", err)
+		log.Print("Trying standard path")
+        tokFilePath = "~/.gocal/token.json"
 	}
 	tok, err := tokenFromFile(tokFilePath)
 	if !tok.Valid() || err != nil {
+        log.Printf("Error getting token from filepath: %v", err)
+        log.Print("Attempting to get a new token from the web")
         tok, err = getTokenFromWeb(config)
         if err != nil {
-            log.Print("Error getting token from the web: %v", err)
-            log.Print("Prompting user to get the token manually", err)
+            log.Printf("Error getting token from the web: %v", err)
+            log.Print("Prompting user to get the token manually")
             tok, err = getTokenFromPrompt(config)
+            if err != nil {
+                log.Fatalf("Error getting token from prompt: %v", err)
+            }
         }
         err = saveToken(tokFilePath, tok)
         if err != nil {
-            log.Fatalf("Error saving token: %v", err)
+            log.Printf("Error saving token: %v", err)
         }
 	}
 	client := config.Client(ctx, tok)
@@ -69,6 +76,7 @@ func startWebServer() (codeCh chan string, err error) {
 		return nil, err
 	}
 	codeCh = make(chan string)
+    // TODO handle errors here
     go http.Serve(listener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		code := r.FormValue("code")
 		codeCh <- code
@@ -76,9 +84,6 @@ func startWebServer() (codeCh chan string, err error) {
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprint(w, "Authorization code received.\nYou can now close this browser window and return to your application.")
 	}))
-    if err != nil {
-        return nil, err
-    }
 	return codeCh, nil
 }
 
@@ -125,11 +130,13 @@ func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	codeCh, err := startWebServer()
 	if err != nil {
-		log.Fatalf("Unable to start a web server: %v", err)
+		log.Printf("Unable to start a web server: %v", err)
+        return nil, err
 	}
 	err = openURL(authURL)
 	if err != nil {
-		log.Fatalf("Unable to open authorization URL in web server: %v", err)
+		log.Printf("Unable to open authorization URL in web server: %v", err)
+        return nil, err
 	} 
     fmt.Println("Your browser has been opened to the following authorization URL.")
     fmt.Println(authURL)
