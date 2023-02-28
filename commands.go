@@ -2,10 +2,12 @@ package main
 
 import (
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/patrickmn/go-cache"
 	"google.golang.org/api/calendar/v3"
 )
 
@@ -82,27 +84,40 @@ func (events eventsSlice) Swap(i, j int) {
 	events[i], events[j] = events[j], events[i]
 }
 
+func cacheKey(ss ...string) string {
+	return strings.Join(ss, "-")
+}
+
 func getEvents(
 	calendarService *calendar.Service,
+	cache *cache.Cache,
 	calendarId string,
 	timeMin, timeMax time.Time,
 	eventCh chan<- *calendar.Event,
 	errCh chan<- error,
 	done <-chan struct{},
 ) {
-	response, err := calendarService.Events.
-		List(calendarId).
-		ShowDeleted(false).
-		SingleEvents(true).
-		TimeMin(timeMin.Format(time.RFC3339)).
-		TimeMax(timeMax.Format(time.RFC3339)).
-		OrderBy("startTime").
-		Do()
-	if err != nil {
-		errCh <- err
-		return
+	var events []*calendar.Event
+	key := cacheKey(calendarId, timeMin.Format(time.RFC3339), timeMax.Format(time.RFC3339))
+	x, found := cache.Get(key)
+	if found {
+		events = x.([]*calendar.Event)
+	} else {
+		response, err := calendarService.Events.
+			List(calendarId).
+			SingleEvents(true).
+			TimeMin(timeMin.Format(time.RFC3339)).
+			TimeMax(timeMax.Format(time.RFC3339)).
+			OrderBy("startTime").
+			Do()
+		if err != nil {
+			errCh <- err
+			return
+		}
+		events = response.Items
+        cache.SetDefault(key, events)
 	}
-	for _, event := range response.Items {
+	for _, event := range events {
 		select {
 		case eventCh <- event:
 		case <-done:
@@ -111,7 +126,7 @@ func getEvents(
 	}
 }
 
-func getEventsResponseCmd(calendarService *calendar.Service, msg getEventsRequestMsg) tea.Cmd {
+func getEventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache, msg getEventsRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		eventCh := make(chan *calendar.Event)
 		errCh := make(chan error)
@@ -123,7 +138,7 @@ func getEventsResponseCmd(calendarService *calendar.Service, msg getEventsReques
 		oneDayLater := start.AddDate(0, 0, 1)
 		for _, cal := range msg.calendars {
 			go func(id string) {
-				getEvents(calendarService, id, start, oneDayLater, eventCh, errCh, done)
+				getEvents(calendarService, cache, id, start, oneDayLater, eventCh, errCh, done)
 				wg.Done()
 			}(cal.Id)
 		}

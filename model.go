@@ -1,7 +1,10 @@
 package main
 
 import (
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/patrickmn/go-cache"
 	"google.golang.org/api/calendar/v3"
 )
 
@@ -16,6 +19,7 @@ const (
 
 type model struct {
 	calendarService  *calendar.Service
+	cache            *cache.Cache
 	state            sessionState
 	calendarView     tea.Model
 	createEventPopup tea.Model
@@ -28,6 +32,7 @@ type model struct {
 func initialModel() model {
 	return model{
 		calendarService:  getService(),
+		cache:            cache.New(5*time.Minute, 10*time.Minute),
 		state:            calendarView,
 		calendarView:     newCal(0, 0),
 		createEventPopup: newCreatePopup(0, 0),
@@ -73,7 +78,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case getCalendarsListRequestMsg:
 		return m, getCalendarsListResponseCmd(m.calendarService, msg)
 	case getEventsRequestMsg:
-		return m, getEventsResponseCmd(m.calendarService, msg)
+		return m, getEventsResponseCmd(m.calendarService, m.cache, msg)
 	case createEventRequestMsg:
 		return m, createEventResponseCmd(m.calendarService, msg)
 	case deleteEventRequestMsg:
