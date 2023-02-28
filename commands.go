@@ -31,7 +31,12 @@ func getCalendarsListResponseCmd(calendarService *calendar.Service, msg getCalen
 			return getCalendarsListResponseMsg{err: err}
 		}
 		var calendars []*calendar.CalendarListEntry
-		calendars = append(calendars, response.Items...)
+		for _, calendar := range response.Items {
+			if !calendar.Selected {
+				continue
+			}
+			calendars = append(calendars, calendar)
+		}
 		return getCalendarsListResponseMsg{
 			calendars: calendars,
 			err:       err,
@@ -83,6 +88,7 @@ func getEvents(
 	timeMin, timeMax time.Time,
 	eventCh chan<- *calendar.Event,
 	errCh chan<- error,
+	done <-chan struct{},
 ) {
 	response, err := calendarService.Events.
 		List(calendarId).
@@ -97,7 +103,11 @@ func getEvents(
 		return
 	}
 	for _, event := range response.Items {
-		eventCh <- event
+		select {
+		case eventCh <- event:
+		case <-done:
+			return
+		}
 	}
 }
 
@@ -105,13 +115,15 @@ func getEventsResponseCmd(calendarService *calendar.Service, msg getEventsReques
 	return func() tea.Msg {
 		eventCh := make(chan *calendar.Event)
 		errCh := make(chan error)
+		done := make(chan struct{})
+		defer close(done)
+		var wg sync.WaitGroup
+		wg.Add(len(msg.calendars))
 		start := msg.date
 		oneDayLater := start.AddDate(0, 0, 1)
-		var wg sync.WaitGroup
-        wg.Add(len(msg.calendars))
 		for _, cal := range msg.calendars {
 			go func(id string) {
-				getEvents(calendarService, id, start, oneDayLater, eventCh, errCh)
+				getEvents(calendarService, id, start, oneDayLater, eventCh, errCh, done)
 				wg.Done()
 			}(cal.Id)
 		}
