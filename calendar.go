@@ -56,7 +56,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			log.Fatalf("Error getting calendars list: %v", msg.err)
 		}
-        m.calendars = msg.calendars
+		m.calendars = msg.calendars
 		return m, getEventsRequestCmd(m.calendars, m.date)
 	case getEventsResponseMsg:
 		if len(msg.errs) != 0 {
@@ -223,13 +223,18 @@ func (i item) Description() string {
 	}
 	if i.event.Start.DateTime == "" {
 		return "all day"
-	} else {
-		start, _ := time.Parse(time.RFC3339, i.event.Start.DateTime)
-		start = start.In(time.Local)
-		end, _ := time.Parse(time.RFC3339, i.event.End.DateTime)
-		end = end.In(time.Local)
-		return fmt.Sprintf("%v - %v", start.Format(time.Kitchen), end.Format(time.Kitchen))
 	}
+	start, err := time.Parse(time.RFC3339, i.event.Start.DateTime)
+	if err != nil {
+		return err.Error()
+	}
+	s := start.In(time.Local).Format(time.Kitchen)
+	end, err := time.Parse(time.RFC3339, i.event.End.DateTime)
+	if err != nil {
+		return err.Error()
+	}
+	e := end.In(time.Local).Format(time.Kitchen)
+	return fmt.Sprintf("%v - %v", s, e)
 }
 
 func (i item) FilterValue() string {
