@@ -113,7 +113,7 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			startTime := m.inputs[startTime].Value()
 			endDate := m.inputs[endDate].Value()
 			endTime := m.inputs[endTime].Value()
-			cmd := createEventRequestCmd(title, startDate, startTime, endDate, endTime)
+			cmd := createEventRequestCmd("primary", title, startDate, startTime, endDate, endTime)
 			return m, cmd
 		case "tab":
 			m.focusNext()

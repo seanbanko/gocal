@@ -14,6 +14,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type Event struct {
+	calendarId string
+	event      *calendar.Event
+}
+
 type cal struct {
 	calendars  []*calendar.CalendarListEntry
 	date       time.Time
@@ -62,7 +67,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(msg.errs) != 0 {
 			log.Fatalf("Errors getting events: %v", msg.errs)
 		}
-		m.updateEvents(msg.events)
+		m.updateEvents(msg)
 		return m, nil
 	case exitCreatePopupMsg:
 		return m, getEventsRequestCmd(m.calendars, m.date)
@@ -103,8 +108,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !ok {
 				return m, nil
 			}
-			eventId := item.event.Id
-			return m, enterDeletePopupCmd("primary", eventId)
+			return m, enterDeletePopupCmd(item.event.calendarId, item.event.event.Id)
 		case "?":
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
@@ -119,9 +123,9 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *cal) updateEvents(events []*calendar.Event) {
+func (m *cal) updateEvents(msg getEventsResponseMsg) {
 	var items []list.Item
-	for _, event := range events {
+	for _, event := range msg.events {
 		items = append(items, item{event: event})
 	}
 	m.eventsList.SetItems(items)
@@ -216,29 +220,23 @@ func (k keyMap) FullHelp() [][]key.Binding {
 }
 
 type item struct {
-	event *calendar.Event
+	event *Event
 }
 
 func (i item) Title() string {
-	if i.event == nil {
-		return ""
-	}
-	return i.event.Summary
+	return i.event.event.Summary
 }
 
 func (i item) Description() string {
-	if i.event == nil {
-		return ""
-	}
-	if i.event.Start.DateTime == "" {
+	if i.event.event.Start.DateTime == "" {
 		return "all day"
 	}
-	start, err := time.Parse(time.RFC3339, i.event.Start.DateTime)
+	start, err := time.Parse(time.RFC3339, i.event.event.Start.DateTime)
 	if err != nil {
 		return err.Error()
 	}
 	s := start.In(time.Local).Format(time.Kitchen)
-	end, err := time.Parse(time.RFC3339, i.event.End.DateTime)
+	end, err := time.Parse(time.RFC3339, i.event.event.End.DateTime)
 	if err != nil {
 		return err.Error()
 	}
@@ -247,8 +245,5 @@ func (i item) Description() string {
 }
 
 func (i item) FilterValue() string {
-	if i.event == nil {
-		return ""
-	}
-	return i.event.Summary
+	return i.event.event.Summary
 }

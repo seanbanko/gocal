@@ -52,7 +52,7 @@ type getEventsRequestMsg struct {
 }
 
 type getEventsResponseMsg struct {
-	events []*calendar.Event
+	events []*Event
 	errs   []error
 }
 
@@ -62,18 +62,18 @@ func getEventsRequestCmd(calendars []*calendar.CalendarListEntry, date time.Time
 	}
 }
 
-type eventsSlice []*calendar.Event
+type eventsSlice []*Event
 
 func (events eventsSlice) Len() int {
 	return len(events)
 }
 
 func (events eventsSlice) Less(i, j int) bool {
-	dateI, err := time.Parse(time.RFC3339, events[i].Start.DateTime)
+	dateI, err := time.Parse(time.RFC3339, events[i].event.Start.DateTime)
 	if err != nil {
 		return true
 	}
-	dateJ, err := time.Parse(time.RFC3339, events[j].Start.DateTime)
+	dateJ, err := time.Parse(time.RFC3339, events[j].event.Start.DateTime)
 	if err != nil {
 		return true
 	}
@@ -93,15 +93,15 @@ func getEvents(
 	cache *cache.Cache,
 	calendarId string,
 	timeMin, timeMax time.Time,
-	eventCh chan<- *calendar.Event,
+	eventCh chan<- *Event,
 	errCh chan<- error,
 	done <-chan struct{},
 ) {
-	var events []*calendar.Event
+	var events []*Event
 	key := cacheKey(calendarId, timeMin.Format(time.RFC3339), timeMax.Format(time.RFC3339))
 	x, found := cache.Get(key)
 	if found {
-		events = x.([]*calendar.Event)
+		events = x.([]*Event)
 	} else {
 		response, err := calendarService.Events.
 			List(calendarId).
@@ -114,8 +114,10 @@ func getEvents(
 			errCh <- err
 			return
 		}
-		events = response.Items
-        cache.SetDefault(key, events)
+		for _, event := range response.Items {
+			events = append(events, &Event{calendarId: calendarId, event: event})
+		}
+		cache.SetDefault(key, events)
 	}
 	for _, event := range events {
 		select {
@@ -128,7 +130,7 @@ func getEvents(
 
 func getEventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache, msg getEventsRequestMsg) tea.Cmd {
 	return func() tea.Msg {
-		eventCh := make(chan *calendar.Event)
+		eventCh := make(chan *Event)
 		errCh := make(chan error)
 		done := make(chan struct{})
 		defer close(done)
@@ -148,15 +150,14 @@ func getEventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache,
 			close(errCh)
 		}()
 
-		var events []*calendar.Event
-		var errs []error
+		var events []*Event
 		for event := range eventCh {
 			events = append(events, event)
 		}
+		var errs []error
 		for err := range errCh {
 			errs = append(errs, err)
 		}
-
 		sort.Sort(eventsSlice(events))
 		return getEventsResponseMsg{
 			events: events,
@@ -166,11 +167,12 @@ func getEventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache,
 }
 
 type createEventRequestMsg struct {
-	title     string
-	startDate string
-	startTime string
-	endDate   string
-	endTime   string
+	calendarId string
+	title      string
+	startDate  string
+	startTime  string
+	endDate    string
+	endTime    string
 }
 
 type createEventResponseMsg struct {
@@ -178,14 +180,15 @@ type createEventResponseMsg struct {
 	err   error
 }
 
-func createEventRequestCmd(title string, startDate string, startTime string, endDate string, endTime string) tea.Cmd {
+func createEventRequestCmd(calendarId, title, startDate, startTime, endDate, endTime string) tea.Cmd {
 	return func() tea.Msg {
 		return createEventRequestMsg{
-			title:     title,
-			startDate: startDate,
-			startTime: startTime,
-			endDate:   endDate,
-			endTime:   endTime,
+			calendarId: calendarId,
+			title:      title,
+			startDate:  startDate,
+			startTime:  startTime,
+			endDate:    endDate,
+			endTime:    endTime,
 		}
 	}
 }
@@ -209,7 +212,7 @@ func createEventResponseCmd(calendarService *calendar.Service, msg createEventRe
 				DateTime: end.Format(time.RFC3339),
 			},
 		}
-		response, err := calendarService.Events.Insert("primary", event).Do()
+		response, err := calendarService.Events.Insert(msg.calendarId, event).Do()
 		return createEventResponseMsg{
 			event: response,
 			err:   err,
@@ -222,7 +225,7 @@ type deleteEventRequestMsg struct {
 	eventId    string
 }
 
-func deleteEventRequestCmd(calendarId string, eventId string) tea.Cmd {
+func deleteEventRequestCmd(calendarId, eventId string) tea.Cmd {
 	return func() tea.Msg {
 		return deleteEventRequestMsg{
 			calendarId: calendarId,
