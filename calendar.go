@@ -135,27 +135,11 @@ func (m cal) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	date := renderDate(m.date, m.width)
-	help := renderHelp(m.help, m.keys, m.width)
-	m.eventsList.SetSize(m.width, m.height-lipgloss.Height(date)-lipgloss.Height(help))
+	titleView := lipgloss.NewStyle().Width(m.width - 2).Padding(1).AlignHorizontal(lipgloss.Center).Render("GoCal")
+	helpView := lipgloss.NewStyle().Width(m.width - 2).Padding(1).AlignHorizontal(lipgloss.Center).Render(m.help.View(m.keys))
+	m.eventsList.SetSize(m.width, m.height-lipgloss.Height(titleView)-lipgloss.Height(helpView))
 	events := lipgloss.NewStyle().Padding(0, 1).Render(m.eventsList.View())
-	return lipgloss.JoinVertical(lipgloss.Left, date, events, help)
-}
-
-func renderDate(date time.Time, width int) string {
-	return lipgloss.NewStyle().
-		Width(width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(date.Format(TextDateWithWeekday))
-}
-
-func renderHelp(help help.Model, keys keyMap, width int) string {
-	return lipgloss.NewStyle().
-		Width(width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(help.View(keys))
+	return lipgloss.JoinVertical(lipgloss.Left, titleView, events, helpView)
 }
 
 type keyMap struct {
