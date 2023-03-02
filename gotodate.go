@@ -10,7 +10,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var gotoDatePopupStyle = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Center).Border(lipgloss.RoundedBorder())
+var gotoDatePopupStyle = lipgloss.NewStyle().
+    Padding(1).
+    AlignHorizontal(lipgloss.Center).
+    AlignVertical(lipgloss.Center).
+    Border(lipgloss.RoundedBorder())
 
 type GotoDatePopup struct {
 	input   textinput.Model
@@ -26,7 +30,7 @@ func newGotoDatePopup(width, height int) GotoDatePopup {
 
 	input := textinput.New()
 	input.Placeholder = today.Format(MMDDYYYY)
-	input.Width = 40 // TODO make not arbitrary
+	input.CharLimit = 10
 	input.Prompt = ""
 	input.PlaceholderStyle = textInputPlaceholderStyle
 	input.Focus()
@@ -70,12 +74,9 @@ func (m GotoDatePopup) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	gotoDatePopupStyle = gotoDatePopupStyle.Width(m.width / 2)
-	gotoDatePopupStyle = gotoDatePopupStyle.Height(m.height / 2)
-    content := lipgloss.JoinVertical(
-        lipgloss.Center,
-        "Go to Date",
-        "\n",
+    content := lipgloss.JoinHorizontal(
+        lipgloss.Top,
+        "Go to Date: ",
         dateStyle.Render(m.input.View()),
     )
 	help := renderHelpGotoDate(m.help, m.keys, m.width)
