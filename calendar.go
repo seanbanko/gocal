@@ -158,12 +158,14 @@ func renderHelp(help help.Model, keys keyMap, width int) string {
 }
 
 type keyMap struct {
-	Next   key.Binding
-	Prev   key.Binding
-	Today  key.Binding
-	Create key.Binding
-	Help   key.Binding
-	Quit   key.Binding
+	Next     key.Binding
+	Prev     key.Binding
+	Today    key.Binding
+	GotoDate key.Binding
+	Create   key.Binding
+	Delete   key.Binding
+	Help     key.Binding
+	Quit     key.Binding
 }
 
 var DefaultKeyMap = keyMap{
@@ -179,9 +181,17 @@ var DefaultKeyMap = keyMap{
 		key.WithKeys("t"),
 		key.WithHelp("t", "today"),
 	),
+	GotoDate: key.NewBinding(
+		key.WithKeys("g"),
+		key.WithHelp("g", "go to date"),
+	),
 	Create: key.NewBinding(
 		key.WithKeys("c"),
 		key.WithHelp("c", "create event"),
+	),
+	Delete: key.NewBinding(
+		key.WithKeys("backspace", "delete"),
+		key.WithHelp("del", "delete event"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
@@ -202,7 +212,9 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Next, k.Help},
 		{k.Prev, k.Quit},
 		{k.Today},
-		{k.Create},
+		{k.GotoDate},
+        {k.Create},
+        {k.Delete},
 	}
 }
 
