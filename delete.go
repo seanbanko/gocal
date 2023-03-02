@@ -16,18 +16,15 @@ const (
 
 var (
 	deletePopupStyle = lipgloss.NewStyle().
+				Padding(1).
 				Border(lipgloss.RoundedBorder()).
 				AlignHorizontal(lipgloss.Center).
 				AlignVertical(lipgloss.Center)
-	rosePineDawnRoseHex    = "#D7827E"
-	rosePineDawnOverlayHex = "#F2E9E1"
-	rosePineDawnMutedHex   = "#9893A5"
-	buttonStyle            = lipgloss.NewStyle().
-				Foreground(lipgloss.Color(rosePineDawnOverlayHex)).
-				Background(lipgloss.Color(rosePineDawnMutedHex)).
-				Padding(0, 3)
+	buttonStyle = lipgloss.NewStyle().
+			Background(lipgloss.Color("241")).
+			Padding(0, 3)
 	selectedButtonStyle = buttonStyle.Copy().
-				Background(lipgloss.Color(rosePineDawnRoseHex)).
+				Background(lipgloss.Color("62")).
 				Underline(true)
 )
 
@@ -74,10 +71,10 @@ func (m DeleteEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-        // Prevent further updates after creating one event
-        if m.success == true {
-            return m, exitCreatePopupCmd
-        }
+		// Prevent further updates after creating one event
+		if m.success == true {
+			return m, exitCreatePopupCmd
+		}
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
@@ -112,8 +109,6 @@ func (m DeleteEventPopup) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	deletePopupStyle = deletePopupStyle.Width(m.width / 3)
-	deletePopupStyle = deletePopupStyle.Height(m.height / 3)
 	var content string
 	if m.err != nil {
 		content = "Error deleting event. Press any key to return to calendar."
@@ -144,13 +139,12 @@ func renderDeleteContent(m DeleteEventPopup) string {
 		yesStyle = buttonStyle
 		noStyle = selectedButtonStyle
 	}
-	yesButton := yesStyle.Render("yes")
-	noButton := noStyle.MarginLeft(2).Render("no")
+	yesButton := yesStyle.Render("Yes")
+	noButton := noStyle.Render("No")
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		"Delete Event?",
-		"\n",
-		lipgloss.JoinHorizontal(lipgloss.Top, yesButton, noButton),
+		"Delete Event?\n",
+		lipgloss.JoinHorizontal(lipgloss.Top, yesButton, " ", noButton),
 	)
 }
 
