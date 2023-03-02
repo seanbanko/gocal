@@ -43,7 +43,7 @@ func getService() *calendar.Service {
         tokFilePath = "~/.gocal/token.json"
 	}
 	tok, err := tokenFromFile(tokFilePath)
-	if !tok.Valid() || err != nil {
+	if err != nil {
         log.Printf("Error getting token from filepath: %v", err)
         log.Print("Attempting to get a new token from the web")
         tok, err = getTokenFromWeb(config)
