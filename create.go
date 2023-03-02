@@ -18,7 +18,11 @@ const (
 	endTime
 )
 
-var createPopupStyle = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center).AlignVertical(lipgloss.Center).Border(lipgloss.RoundedBorder())
+var createPopupStyle = lipgloss.NewStyle().
+    Padding(1).
+    AlignHorizontal(lipgloss.Center).
+    AlignVertical(lipgloss.Center).
+    Border(lipgloss.RoundedBorder())
 
 type CreateEventPopup struct {
 	inputs     []textinput.Model
@@ -147,8 +151,6 @@ func (m CreateEventPopup) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	createPopupStyle = createPopupStyle.Width(m.width / 2)
-	createPopupStyle = createPopupStyle.Height(m.height / 2)
 	var content string
 	if m.err != nil {
 		content = "Error creating event. Press any key to return to calendar."
