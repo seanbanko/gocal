@@ -177,8 +177,8 @@ var DeleteKeyMap = keyMapDelete{
 		key.WithHelp("yes", "yes"),
 	),
 	No: key.NewBinding(
-		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel"),
+		key.WithKeys("n"),
+		key.WithHelp("no", "no"),
 	),
 	Confirm: key.NewBinding(
 		key.WithKeys("enter"),
