@@ -20,14 +20,14 @@ type Event struct {
 }
 
 type cal struct {
-	calendars  []*calendar.CalendarListEntry
-	date       time.Time
-	events     []*calendar.Event
-	eventsList list.Model
-	keys       keyMap
-	help       help.Model
-	height     int
-	width      int
+	calendars   []*calendar.CalendarListEntry
+	focusedDate time.Time
+	events      []*calendar.Event
+	eventsList  list.Model
+	keys        keyMap
+	help        help.Model
+	height      int
+	width       int
 }
 
 func newCal(height, width int) cal {
@@ -40,14 +40,14 @@ func newCal(height, width int) cal {
 	eventsList.SetShowHelp(false)
 	eventsList.DisableQuitKeybindings()
 	return cal{
-		calendars:  nil,
-		date:       today,
-		events:     nil,
-		eventsList: eventsList,
-		keys:       DefaultKeyMap,
-		help:       help.New(),
-		height:     height,
-		width:      width,
+		calendars:   nil,
+		focusedDate: today,
+		events:      nil,
+		eventsList:  eventsList,
+		keys:        DefaultKeyMap,
+		help:        help.New(),
+		height:      height,
+		width:       width,
 	}
 }
 
@@ -62,7 +62,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			log.Fatalf("Error getting calendars list: %v", msg.err)
 		}
 		m.calendars = msg.calendars
-		return m, getEventsRequestCmd(m.calendars, m.date)
+		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case getEventsResponseMsg:
 		if len(msg.errs) != 0 {
 			log.Fatalf("Errors getting events: %v", msg.errs)
@@ -70,31 +70,31 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateEvents(msg)
 		return m, nil
 	case exitCreatePopupMsg:
-		return m, getEventsRequestCmd(m.calendars, m.date)
+		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case exitDeletePopupMsg:
-		return m, getEventsRequestCmd(m.calendars, m.date)
+		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case gotoDateResponseMsg:
-		m.date = msg.date
-		m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
-		return m, getEventsRequestCmd(m.calendars, m.date)
+		m.focusedDate = msg.date
+		m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDate)
+		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "n":
-			m.date = m.date.AddDate(0, 0, 1)
-			m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
-			return m, getEventsRequestCmd(m.calendars, m.date)
+			m.focusedDate = m.focusedDate.AddDate(0, 0, 1)
+			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDate)
+			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "p":
-			m.date = m.date.AddDate(0, 0, -1)
-			m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
-			return m, getEventsRequestCmd(m.calendars, m.date)
+			m.focusedDate = m.focusedDate.AddDate(0, 0, -1)
+			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDate)
+			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "t":
 			now := time.Now()
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-			m.date = today
-			m.eventsList.Title = m.date.Format(AbbreviatedTextDate)
-			return m, getEventsRequestCmd(m.calendars, m.date)
+			m.focusedDate = today
+			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDate)
+			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "g":
 			return m, enterGotoDatePopupCmd
 		case "c":
