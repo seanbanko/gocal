@@ -94,7 +94,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, enterGotoDatePopupCmd
 		case "c":
 			return m, enterCreatePopupCmd
-		case "d":
+		case "delete", "backspace":
 			listItem := m.eventsList.SelectedItem()
 			if listItem == nil {
 				return m, nil
