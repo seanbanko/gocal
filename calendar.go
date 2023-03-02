@@ -62,7 +62,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(msg.errs) != 0 {
 			log.Fatalf("Errors getting events: %v", msg.errs)
 		}
-		m.refreshEvents(msg.events)
+		m.updateEvents(msg.events)
 		return m, nil
 	case exitCreatePopupMsg:
 		return m, getEventsRequestCmd(m.calendars, m.date)
@@ -119,15 +119,12 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *cal) refreshEvents(events []*calendar.Event) {
-	for i := len(m.eventsList.Items()) - 1; i >= 0; i-- {
-		m.eventsList.RemoveItem(i)
+func (m *cal) updateEvents(events []*calendar.Event) {
+	var items []list.Item
+	for _, event := range events {
+		items = append(items, item{event: event})
 	}
-	m.events = events
-	for i, event := range m.events {
-		item := item{event: event}
-		m.eventsList.InsertItem(i, item)
-	}
+	m.eventsList.SetItems(items)
 }
 
 func (m cal) View() string {
@@ -213,8 +210,8 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Prev, k.Quit},
 		{k.Today},
 		{k.GotoDate},
-        {k.Create},
-        {k.Delete},
+		{k.Create},
+		{k.Delete},
 	}
 }
 
