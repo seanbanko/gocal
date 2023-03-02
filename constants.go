@@ -12,7 +12,7 @@ const (
 	MMDDYYYYHHMM24h     = "01/02/2006 15:04"
 	TextDate            = "January 2, 2006"
 	TextDateWithWeekday = "Monday, January 2, 2006"
-	AbbreviatedTextDate = "Jan 2 Mon"
+	AbbreviatedTextDate = "Mon Jan 2"
 )
 
 var (
