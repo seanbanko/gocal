@@ -80,8 +80,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case getEventsRequestMsg:
 		return m, getEventsResponseCmd(m.calendarService, m.cache, msg)
 	case createEventRequestMsg:
+        m.cache.Flush()
 		return m, createEventResponseCmd(m.calendarService, msg)
 	case deleteEventRequestMsg:
+        m.cache.Flush()
 		return m, deleteEventResponseCmd(m.calendarService, msg)
 	case gotoDateRequestMsg:
 		return m, gotoDateResponseCmd(msg.date)
