@@ -155,12 +155,12 @@ type keyMap struct {
 
 var DefaultKeyMap = keyMap{
 	Next: key.NewBinding(
-		key.WithKeys("n", "p"),
-		key.WithHelp("n/j", "next period"),
+		key.WithKeys("n"),
+		key.WithHelp("n", "next period"),
 	),
 	Prev: key.NewBinding(
-		key.WithKeys("p", "k"),
-		key.WithHelp("p/k", "previous period"),
+		key.WithKeys("p"),
+		key.WithHelp("p", "previous period"),
 	),
 	Today: key.NewBinding(
 		key.WithKeys("t"),
