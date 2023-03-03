@@ -137,10 +137,16 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *CreateEventPopup) focusNext() {
+    if len(m.inputs[m.focusIndex].Value()) == 0 {
+        m.inputs[m.focusIndex].SetValue(m.inputs[m.focusIndex].Placeholder)
+    }
 	m.focusIndex = (m.focusIndex + 1) % len(m.inputs)
 }
 
 func (m *CreateEventPopup) focusPrev() {
+    if len(m.inputs[m.focusIndex].Value()) == 0 {
+        m.inputs[m.focusIndex].SetValue(m.inputs[m.focusIndex].Placeholder)
+    }
 	m.focusIndex--
 	if m.focusIndex < 0 {
 		m.focusIndex = len(m.inputs) - 1
