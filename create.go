@@ -49,8 +49,8 @@ func newCreatePopup(width, height int) CreateEventPopup {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	inputs[startDate] = textinput.New()
-	inputs[startDate].Placeholder = today.Format(MMDDYYYY)
-	inputs[startDate].CharLimit = 10
+	inputs[startDate].Placeholder = today.Format(AbbreviatedTextDate)
+	inputs[startDate].CharLimit = 11
 	inputs[startDate].Prompt = ""
 	inputs[startDate].PlaceholderStyle = textInputPlaceholderStyle
 
@@ -61,8 +61,8 @@ func newCreatePopup(width, height int) CreateEventPopup {
 	inputs[startTime].PlaceholderStyle = textInputPlaceholderStyle
 
 	inputs[endDate] = textinput.New()
-	inputs[endDate].Placeholder = today.Format(MMDDYYYY)
-	inputs[endDate].CharLimit = 10
+	inputs[endDate].Placeholder = today.Format(AbbreviatedTextDate)
+	inputs[endDate].CharLimit = 11
 	inputs[endDate].Prompt = ""
 	inputs[endDate].PlaceholderStyle = textInputPlaceholderStyle
 

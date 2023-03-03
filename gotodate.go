@@ -29,8 +29,8 @@ func newGotoDatePopup(width, height int) GotoDatePopup {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	input := textinput.New()
-	input.Placeholder = today.Format(MMDDYYYY)
-	input.CharLimit = 10
+	input.Placeholder = today.Format(AbbreviatedTextDate)
+	input.CharLimit = 11
 	input.Prompt = ""
 	input.PlaceholderStyle = textInputPlaceholderStyle
 	input.Focus()

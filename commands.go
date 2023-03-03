@@ -195,11 +195,11 @@ func createEventRequestCmd(calendarId, title, startDate, startTime, endDate, end
 
 func createEventResponseCmd(calendarService *calendar.Service, msg createEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
-		start, err := time.ParseInLocation(MMDDYYYYHHMM24h, msg.startDate+" "+msg.startTime, time.Local)
+		start, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.startDate+" "+msg.startTime, time.Local)
 		if err != nil {
 			return createEventResponseMsg{err: err}
 		}
-		end, err := time.ParseInLocation(MMDDYYYYHHMM24h, msg.endDate+" "+msg.endTime, time.Local)
+		end, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.endDate+" "+msg.endTime, time.Local)
 		if err != nil {
 			return createEventResponseMsg{err: err}
 		}
@@ -295,7 +295,7 @@ func gotoDateRequestCmd(date string) tea.Cmd {
 
 func gotoDateResponseCmd(date string) tea.Cmd {
 	return func() tea.Msg {
-		d, err := time.ParseInLocation(MMDDYYYY, date, time.Local)
+		d, err := time.ParseInLocation(AbbreviatedTextDate, date, time.Local)
 		if err != nil {
 			now := time.Now()
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())

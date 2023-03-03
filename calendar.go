@@ -34,7 +34,7 @@ func newCal(height, width int) cal {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	eventsList := list.New(nil, list.NewDefaultDelegate(), 0, 0)
-	eventsList.Title = today.Format(AbbreviatedTextDate)
+	eventsList.Title = today.Format(AbbreviatedTextDateWithWeekday)
 	eventsList.SetShowStatusBar(false)
 	eventsList.SetStatusBarItemName("event", "events")
 	eventsList.SetShowHelp(false)
@@ -75,7 +75,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case gotoDateResponseMsg:
 		m.focusedDate = msg.date
-		m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDate)
+		m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -83,17 +83,17 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "n":
 			m.focusedDate = m.focusedDate.AddDate(0, 0, 1)
-			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDate)
+			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "p":
 			m.focusedDate = m.focusedDate.AddDate(0, 0, -1)
-			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDate)
+			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "t":
 			now := time.Now()
 			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 			m.focusedDate = today
-			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDate)
+			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "g":
 			return m, enterGotoDatePopupCmd
