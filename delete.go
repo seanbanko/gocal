@@ -7,19 +7,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type selectionValue int
+type selection int
 
 const (
-	yes selectionValue = iota
+	yes selection = iota
 	no
 )
 
 var (
-	deletePopupStyle = lipgloss.NewStyle().
-				Padding(1).
-				Border(lipgloss.RoundedBorder()).
-				AlignHorizontal(lipgloss.Center).
-				AlignVertical(lipgloss.Center)
 	buttonStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("241")).
 			Padding(0, 3)
@@ -28,10 +23,10 @@ var (
 				Underline(true)
 )
 
-type DeleteEventPopup struct {
-	selection  selectionValue
+type DeleteDialog struct {
 	calendarId string
 	eventId    string
+	selection  selection
 	height     int
 	width      int
 	success    bool
@@ -40,11 +35,11 @@ type DeleteEventPopup struct {
 	keys       keyMapDelete
 }
 
-func newDeletePopup(calendarId, eventId string, width, height int) DeleteEventPopup {
-	return DeleteEventPopup{
-		selection:  no,
+func newDeleteDialog(calendarId, eventId string, width, height int) DeleteDialog {
+	return DeleteDialog{
 		calendarId: calendarId,
 		eventId:    eventId,
+		selection:  no,
 		height:     height,
 		width:      width,
 		success:    false,
@@ -54,11 +49,11 @@ func newDeletePopup(calendarId, eventId string, width, height int) DeleteEventPo
 	}
 }
 
-func (m DeleteEventPopup) Init() tea.Cmd {
+func (m DeleteDialog) Init() tea.Cmd {
 	return nil
 }
 
-func (m DeleteEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
@@ -71,20 +66,20 @@ func (m DeleteEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		// Prevent further updates after creating one event
-		if m.success == true {
-			return m, exitCreatePopupCmd
+		// Prevents further updates after creating one event
+		if m.success {
+			return m, exitCreateDialogCmd
 		}
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			return m, exitDeletePopupCmd
+			return m, exitDeleteDialogCmd
 		case "enter":
 			if m.selection == yes {
 				return m, deleteEventRequestCmd(m.calendarId, m.eventId)
 			} else {
-				return m, exitDeletePopupCmd
+				return m, exitDeleteDialogCmd
 			}
 		case "tab", "shift+tab":
 			m.toggleSelection()
@@ -97,7 +92,7 @@ func (m DeleteEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *DeleteEventPopup) toggleSelection() {
+func (m *DeleteDialog) toggleSelection() {
 	if m.selection == yes {
 		m.selection = no
 	} else {
@@ -105,10 +100,7 @@ func (m *DeleteEventPopup) toggleSelection() {
 	}
 }
 
-func (m DeleteEventPopup) View() string {
-	if m.width == 0 || m.height == 0 {
-		return "Loading..."
-	}
+func (m DeleteDialog) View() string {
 	var content string
 	if m.err != nil {
 		content = "Error deleting event. Press any key to return to calendar."
@@ -117,17 +109,21 @@ func (m DeleteEventPopup) View() string {
 	} else {
 		content = renderDeleteContent(m)
 	}
-	help := renderHelpDelete(m.help, m.keys, m.width)
-	deletePopupContainer := lipgloss.NewStyle().
+	helpView := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height - lipgloss.Height(help)).
+		Padding(1).
+		AlignHorizontal(lipgloss.Center).
+		Render(m.help.View(m.keys))
+	container := lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height - lipgloss.Height(helpView)).
 		AlignHorizontal(lipgloss.Center).
 		AlignVertical(lipgloss.Center).
-		Render(deletePopupStyle.Render(content))
-	return lipgloss.JoinVertical(lipgloss.Center, deletePopupContainer, help)
+		Render(dialogStyle.Render(content))
+	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 
-func renderDeleteContent(m DeleteEventPopup) string {
+func renderDeleteContent(m DeleteDialog) string {
 	var (
 		yesStyle lipgloss.Style
 		noStyle  lipgloss.Style
@@ -147,16 +143,6 @@ func renderDeleteContent(m DeleteEventPopup) string {
 		lipgloss.JoinHorizontal(lipgloss.Top, yesButton, " ", noButton),
 	)
 }
-
-func renderHelpDelete(help help.Model, keys keyMapDelete, width int) string {
-	return lipgloss.NewStyle().
-		Width(width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(help.View(keys))
-}
-
-// Help
 
 type keyMapDelete struct {
 	Toggle  key.Binding

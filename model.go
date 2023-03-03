@@ -18,36 +18,33 @@ const (
 )
 
 type model struct {
-	calendarService  *calendar.Service
-	cache            *cache.Cache
-	state            sessionState
-	calendarView     tea.Model
-	createEventPopup tea.Model
-	deleteEventPopup tea.Model
-	gotoDatePopup    tea.Model
-	height           int
-	width            int
+	calendarService   *calendar.Service
+	cache             *cache.Cache
+	state             sessionState
+	calendarView      tea.Model
+	createEventDialog tea.Model
+	deleteEventDialog tea.Model
+	gotoDateDialog    tea.Model
+	height            int
+	width             int
 }
 
 func initialModel() model {
 	return model{
-		calendarService:  getService(),
-		cache:            cache.New(5*time.Minute, 10*time.Minute),
-		state:            calendarView,
-		calendarView:     newCal(0, 0),
-		createEventPopup: newCreatePopup(0, 0),
-		deleteEventPopup: newDeletePopup("", "", 0, 0),
-		gotoDatePopup:    newGotoDatePopup(0, 0),
-		height:           0,
-		width:            0,
+		calendarService:   getService(),
+		cache:             cache.New(5*time.Minute, 10*time.Minute),
+		state:             calendarView,
+		calendarView:      newCal(0, 0),
+		createEventDialog: newCreateDialog(0, 0),
+		deleteEventDialog: newDeleteDialog("", "", 0, 0),
+		gotoDateDialog:    newGotoDialog(0, 0),
+		height:            0,
+		width:             0,
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	var cmds []tea.Cmd
-	cmds = append(cmds, m.calendarView.Init())
-	cmds = append(cmds, m.createEventPopup.Init())
-	return tea.Batch(cmds...)
+	return m.calendarView.Init()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -65,11 +62,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height, m.width = msg.Height, msg.Width
 		m.calendarView, cmd = m.calendarView.Update(msg)
 		cmds = append(cmds, cmd)
-		m.createEventPopup, cmd = m.createEventPopup.Update(msg)
+		m.createEventDialog, cmd = m.createEventDialog.Update(msg)
 		cmds = append(cmds, cmd)
-		m.deleteEventPopup, cmd = m.deleteEventPopup.Update(msg)
+		m.deleteEventDialog, cmd = m.deleteEventDialog.Update(msg)
 		cmds = append(cmds, cmd)
-		m.gotoDatePopup, cmd = m.gotoDatePopup.Update(msg)
+		m.gotoDateDialog, cmd = m.gotoDateDialog.Update(msg)
 		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 	}
@@ -91,20 +88,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.calendarView, cmd = m.calendarView.Update(msg)
 		return m, cmd
 		// Navigation messages change the focused sub-model
-	case enterCreatePopupMsg:
+	case enterCreateDialogMsg:
 		m.state = creatingEvent
-		m.createEventPopup = newCreatePopup(m.width, m.height)
-	case exitCreatePopupMsg:
+		m.createEventDialog = newCreateDialog(m.width, m.height)
+	case exitCreateDialogMsg:
 		m.state = calendarView
-	case enterDeletePopupMsg:
+	case enterDeleteDialogMsg:
 		m.state = deletingEvent
-		m.deleteEventPopup = newDeletePopup(msg.calendarId, msg.eventId, m.width, m.height)
-	case exitDeletePopupMsg:
+		m.deleteEventDialog = newDeleteDialog(msg.calendarId, msg.eventId, m.width, m.height)
+	case exitDeleteDialogMsg:
 		m.state = calendarView
-	case enterGotoDatePopupMsg:
+	case enterGotoDialogMsg:
 		m.state = gotoDate
-		m.gotoDatePopup = newGotoDatePopup(m.width, m.height)
-	case exitGotoDatePopupMsg:
+		m.gotoDateDialog = newGotoDialog(m.width, m.height)
+	case exitGotoDialogMsg:
 		m.state = calendarView
 	}
 	// All other messages are relayed to the focused sub-model
@@ -112,11 +109,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case calendarView:
 		m.calendarView, cmd = m.calendarView.Update(msg)
 	case creatingEvent:
-		m.createEventPopup, cmd = m.createEventPopup.Update(msg)
+		m.createEventDialog, cmd = m.createEventDialog.Update(msg)
 	case deletingEvent:
-		m.deleteEventPopup, cmd = m.deleteEventPopup.Update(msg)
+		m.deleteEventDialog, cmd = m.deleteEventDialog.Update(msg)
 	case gotoDate:
-		m.gotoDatePopup, cmd = m.gotoDatePopup.Update(msg)
+		m.gotoDateDialog, cmd = m.gotoDateDialog.Update(msg)
 	}
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
@@ -127,11 +124,11 @@ func (m model) View() string {
 	case calendarView:
 		return m.calendarView.View()
 	case creatingEvent:
-		return m.createEventPopup.View()
+		return m.createEventDialog.View()
 	case deletingEvent:
-		return m.deleteEventPopup.View()
+		return m.deleteEventDialog.View()
 	case gotoDate:
-		return m.gotoDatePopup.View()
+		return m.gotoDateDialog.View()
 	}
 	return ""
 }

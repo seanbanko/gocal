@@ -69,9 +69,9 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.updateEvents(msg)
 		return m, nil
-	case exitCreatePopupMsg:
+	case exitCreateDialogMsg:
 		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
-	case exitDeletePopupMsg:
+	case exitDeleteDialogMsg:
 		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case gotoDateResponseMsg:
 		m.focusedDate = msg.date
@@ -96,9 +96,9 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "g":
-			return m, enterGotoDatePopupCmd
+			return m, enterGotoDialogCmd
 		case "c":
-			return m, enterCreatePopupCmd
+			return m, enterCreateDialogCmd
 		case "delete", "backspace":
 			listItem := m.eventsList.SelectedItem()
 			if listItem == nil {
@@ -108,7 +108,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !ok {
 				return m, nil
 			}
-			return m, enterDeletePopupCmd(item.event.calendarId, item.event.event.Id)
+			return m, enterDeleteDialogCmd(item.event.calendarId, item.event.event.Id)
 		case "?":
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil

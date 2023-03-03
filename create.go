@@ -18,13 +18,7 @@ const (
 	endTime
 )
 
-var createPopupStyle = lipgloss.NewStyle().
-    Padding(1).
-    AlignHorizontal(lipgloss.Center).
-    AlignVertical(lipgloss.Center).
-    Border(lipgloss.RoundedBorder())
-
-type CreateEventPopup struct {
+type CreateDialog struct {
 	inputs     []textinput.Model
 	focusIndex int
 	height     int
@@ -35,7 +29,7 @@ type CreateEventPopup struct {
 	keys       keyMapCreate
 }
 
-func newCreatePopup(width, height int) CreateEventPopup {
+func newCreateDialog(width, height int) CreateDialog {
 	inputs := make([]textinput.Model, 5)
 
 	inputs[title] = textinput.New()
@@ -43,7 +37,6 @@ func newCreatePopup(width, height int) CreateEventPopup {
 	inputs[title].Width = 40 // TODO make not arbitrary
 	inputs[title].Prompt = ""
 	inputs[title].PlaceholderStyle = textInputPlaceholderStyle
-	inputs[title].Focus()
 
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -73,9 +66,12 @@ func newCreatePopup(width, height int) CreateEventPopup {
 	inputs[endTime].Prompt = ""
 	inputs[endTime].PlaceholderStyle = textInputPlaceholderStyle
 
-	return CreateEventPopup{
+	focusIndex := title
+	inputs[focusIndex].Focus()
+
+	return CreateDialog{
 		inputs:     inputs,
-		focusIndex: title,
+		focusIndex: focusIndex,
 		height:     height,
 		width:      width,
 		success:    false,
@@ -85,11 +81,11 @@ func newCreatePopup(width, height int) CreateEventPopup {
 	}
 }
 
-func (m CreateEventPopup) Init() tea.Cmd {
+func (m CreateDialog) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m CreateDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
@@ -102,32 +98,29 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		// Prevent further updates after creating one event
-		if m.success == true {
-			return m, exitCreatePopupCmd
+		// Prevents further updates after creating one event
+		if m.success {
+			return m, exitCreateDialogCmd
 		}
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			return m, exitCreatePopupCmd
+			return m, exitCreateDialogCmd
 		case "enter", "ctrl+s":
-			title := m.inputs[title].Value()
-			startDate := m.inputs[startDate].Value()
-			startTime := m.inputs[startTime].Value()
-			endDate := m.inputs[endDate].Value()
-			endTime := m.inputs[endTime].Value()
-			cmd := createEventRequestCmd("primary", title, startDate, startTime, endDate, endTime)
-			return m, cmd
+			return m, createEventRequestCmd(
+				"primary",
+				m.inputs[title].Value(),
+				m.inputs[startDate].Value(),
+				m.inputs[startTime].Value(),
+				m.inputs[endDate].Value(),
+				m.inputs[endTime].Value(),
+			)
 		case "tab":
 			m.focusNext()
 		case "shift+tab":
 			m.focusPrev()
 		}
-		for i := range m.inputs {
-			m.inputs[i].Blur()
-		}
-		m.inputs[m.focusIndex].Focus()
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
 	for i := range m.inputs {
@@ -136,46 +129,56 @@ func (m CreateEventPopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *CreateEventPopup) focusNext() {
-    if len(m.inputs[m.focusIndex].Value()) == 0 {
-        m.inputs[m.focusIndex].SetValue(m.inputs[m.focusIndex].Placeholder)
-    }
+func (m *CreateDialog) focusNext() {
+	if len(m.inputs[m.focusIndex].Value()) == 0 {
+		m.inputs[m.focusIndex].SetValue(m.inputs[m.focusIndex].Placeholder)
+	}
 	m.focusIndex = (m.focusIndex + 1) % len(m.inputs)
+    refocus(m.inputs, m.focusIndex)
 }
 
-func (m *CreateEventPopup) focusPrev() {
-    if len(m.inputs[m.focusIndex].Value()) == 0 {
-        m.inputs[m.focusIndex].SetValue(m.inputs[m.focusIndex].Placeholder)
-    }
+func (m *CreateDialog) focusPrev() {
+	if len(m.inputs[m.focusIndex].Value()) == 0 {
+		m.inputs[m.focusIndex].SetValue(m.inputs[m.focusIndex].Placeholder)
+	}
 	m.focusIndex--
 	if m.focusIndex < 0 {
 		m.focusIndex = len(m.inputs) - 1
 	}
+    refocus(m.inputs, m.focusIndex)
 }
 
-func (m CreateEventPopup) View() string {
-	if m.width == 0 || m.height == 0 {
-		return "Loading..."
-	}
+func refocus(inputs []textinput.Model, focusIndex int) {
+    for i := range inputs {
+        inputs[i].Blur()
+    }
+    inputs[focusIndex].Focus()
+}
+
+func (m CreateDialog) View() string {
 	var content string
 	if m.err != nil {
 		content = "Error creating event. Press any key to return to calendar."
 	} else if m.success {
 		content = "Successfully created event. Press any key to return to calendar."
 	} else {
-		content = renderForm(m)
+		content = renderCreateContent(m)
 	}
-	help := renderHelpCreate(m.help, m.keys, m.width)
-	popupContainer := lipgloss.NewStyle().
+	helpView := lipgloss.NewStyle().
+        Width(m.width).
+        Padding(1).
+        AlignHorizontal(lipgloss.Center).
+        Render(m.help.View(m.keys))
+	container := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height - lipgloss.Height(help)).
+		Height(m.height - lipgloss.Height(helpView)).
 		AlignHorizontal(lipgloss.Center).
 		AlignVertical(lipgloss.Center).
-		Render(createPopupStyle.Render(content))
-	return lipgloss.JoinVertical(lipgloss.Center, popupContainer, help)
+		Render(dialogStyle.Render(content))
+	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 
-func renderForm(m CreateEventPopup) string {
+func renderCreateContent(m CreateDialog) string {
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
 		"Create Event",
@@ -185,26 +188,16 @@ func renderForm(m CreateEventPopup) string {
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			dateStyle.Render(m.inputs[startDate].View()),
-			"at ",
+			" at ",
 			timeStyle.Render(m.inputs[startTime].View()),
-			"to ",
+			" to ",
 			dateStyle.Render(m.inputs[endDate].View()),
-			"at ",
+			" at ",
 			timeStyle.Render(m.inputs[endTime].View()),
 			".", // TODO This is just here to the overall width doesn't change
 		),
 	)
 }
-
-func renderHelpCreate(help help.Model, keys keyMapCreate, width int) string {
-	return lipgloss.NewStyle().
-		Width(width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(help.View(keys))
-}
-
-// Help
 
 type keyMapCreate struct {
 	Next   key.Binding

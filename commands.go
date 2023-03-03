@@ -247,36 +247,36 @@ func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRe
 	}
 }
 
-type enterCreatePopupMsg struct{}
+type enterCreateDialogMsg struct{}
 
-func enterCreatePopupCmd() tea.Msg {
-	return enterCreatePopupMsg{}
+func enterCreateDialogCmd() tea.Msg {
+	return enterCreateDialogMsg{}
 }
 
-type exitCreatePopupMsg struct{}
+type exitCreateDialogMsg struct{}
 
-func exitCreatePopupCmd() tea.Msg {
-	return exitCreatePopupMsg{}
+func exitCreateDialogCmd() tea.Msg {
+	return exitCreateDialogMsg{}
 }
 
-type enterDeletePopupMsg struct {
+type enterDeleteDialogMsg struct {
 	calendarId string
 	eventId    string
 }
 
-func enterDeletePopupCmd(calendarId, eventId string) tea.Cmd {
+func enterDeleteDialogCmd(calendarId, eventId string) tea.Cmd {
 	return func() tea.Msg {
-		return enterDeletePopupMsg{
+		return enterDeleteDialogMsg{
 			calendarId: calendarId,
 			eventId:    eventId,
 		}
 	}
 }
 
-type exitDeletePopupMsg struct{}
+type exitDeleteDialogMsg struct{}
 
-func exitDeletePopupCmd() tea.Msg {
-	return exitDeletePopupMsg{}
+func exitDeleteDialogCmd() tea.Msg {
+	return exitDeleteDialogMsg{}
 }
 
 type gotoDateRequestMsg struct {
@@ -305,14 +305,14 @@ func gotoDateResponseCmd(date string) tea.Cmd {
 	}
 }
 
-type enterGotoDatePopupMsg struct{}
+type enterGotoDialogMsg struct{}
 
-func enterGotoDatePopupCmd() tea.Msg {
-	return enterGotoDatePopupMsg{}
+func enterGotoDialogCmd() tea.Msg {
+	return enterGotoDialogMsg{}
 }
 
-type exitGotoDatePopupMsg struct{}
+type exitGotoDialogMsg struct{}
 
-func exitGotoDatePopupCmd() tea.Msg {
-	return exitGotoDatePopupMsg{}
+func exitGotoDialogCmd() tea.Msg {
+	return exitGotoDialogMsg{}
 }

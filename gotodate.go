@@ -10,21 +10,15 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var gotoDatePopupStyle = lipgloss.NewStyle().
-    Padding(1).
-    AlignHorizontal(lipgloss.Center).
-    AlignVertical(lipgloss.Center).
-    Border(lipgloss.RoundedBorder())
-
-type GotoDatePopup struct {
-	input   textinput.Model
-	height  int
-	width   int
-	help    help.Model
-	keys    keyMapGotoDate
+type GotoDialog struct {
+	input  textinput.Model
+	height int
+	width  int
+	help   help.Model
+	keys   keyMapGoto
 }
 
-func newGotoDatePopup(width, height int) GotoDatePopup {
+func newGotoDialog(width, height int) GotoDialog {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
@@ -35,20 +29,20 @@ func newGotoDatePopup(width, height int) GotoDatePopup {
 	input.PlaceholderStyle = textInputPlaceholderStyle
 	input.Focus()
 
-	return GotoDatePopup{
-		input:   input,
-		height:  height,
-		width:   width,
-		help:    help.New(),
-		keys:    GotoDateKeymap,
+	return GotoDialog{
+		input:  input,
+		height: height,
+		width:  width,
+		help:   help.New(),
+		keys:   GotoKeymap,
 	}
 }
 
-func (m GotoDatePopup) Init() tea.Cmd {
+func (m GotoDialog) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m GotoDatePopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
@@ -58,11 +52,10 @@ func (m GotoDatePopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			return m, exitGotoDatePopupCmd
+			return m, exitGotoDialogCmd
 		case "enter", "ctrl+s":
 			date := m.input.Value()
-            // must be sequential to ensure gotoDateResponseMsg reaches calendar
-			return m, tea.Sequence(exitGotoDatePopupCmd, gotoDateRequestCmd(date))
+			return m, tea.Sequence(exitGotoDialogCmd, gotoDateRequestCmd(date))
 		}
 	}
 	var cmd tea.Cmd
@@ -70,42 +63,29 @@ func (m GotoDatePopup) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m GotoDatePopup) View() string {
-	if m.width == 0 || m.height == 0 {
-		return "Loading..."
-	}
-    content := lipgloss.JoinHorizontal(
-        lipgloss.Top,
-        "Go to Date: ",
-        dateStyle.Render(m.input.View()),
-    )
-	help := renderHelpGotoDate(m.help, m.keys, m.width)
-	popupContainer := lipgloss.NewStyle().
+func (m GotoDialog) View() string {
+	content := "Go to Date: " + dateStyle.Render(m.input.View())
+	helpView := lipgloss.NewStyle().
+        Width(m.width).
+        Padding(1).
+        AlignHorizontal(lipgloss.Center).
+        Render(m.help.View(m.keys))
+	container := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height - lipgloss.Height(help)).
+		Height(m.height - lipgloss.Height(helpView)).
 		AlignHorizontal(lipgloss.Center).
 		AlignVertical(lipgloss.Center).
-		Render(gotoDatePopupStyle.Render(content))
-	return lipgloss.JoinVertical(lipgloss.Center, popupContainer, help)
+		Render(dialogStyle.Render(content))
+	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 
-func renderHelpGotoDate(help help.Model, keys keyMapGotoDate, width int) string {
-	return lipgloss.NewStyle().
-		Width(width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(help.View(keys))
-}
-
-// Help
-
-type keyMapGotoDate struct {
+type keyMapGoto struct {
 	Go     key.Binding
 	Cancel key.Binding
 	Quit   key.Binding
 }
 
-var GotoDateKeymap = keyMapGotoDate{
+var GotoKeymap = keyMapGoto{
 	Go: key.NewBinding(
 		key.WithKeys("enter", "ctrl+s"),
 		key.WithHelp("enter/ctrl+s", "go"),
@@ -120,11 +100,11 @@ var GotoDateKeymap = keyMapGotoDate{
 	),
 }
 
-func (k keyMapGotoDate) ShortHelp() []key.Binding {
+func (k keyMapGoto) ShortHelp() []key.Binding {
 	return []key.Binding{k.Go, k.Cancel, k.Quit}
 }
 
-func (k keyMapGotoDate) FullHelp() [][]key.Binding {
+func (k keyMapGoto) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Go},
 		{k.Cancel},
