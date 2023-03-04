@@ -68,7 +68,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Prevents further updates after creating one event
 		if m.success {
-			return m, exitCreateDialogCmd
+			return m, exitDeleteDialogCmd
 		}
 		switch msg.String() {
 		case "ctrl+c":
