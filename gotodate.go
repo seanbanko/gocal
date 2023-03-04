@@ -18,10 +18,7 @@ type GotoDialog struct {
 	keys   keyMapGoto
 }
 
-func newGotoDialog(width, height int) GotoDialog {
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-
+func newGotoDialog(today time.Time, width, height int) GotoDialog {
 	input := textinput.New()
 	input.Placeholder = today.Format(AbbreviatedTextDate)
 	input.CharLimit = 11
@@ -66,13 +63,13 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m GotoDialog) View() string {
 	content := "Go to Date: " + dateStyle.Render(m.input.View())
 	helpView := lipgloss.NewStyle().
-        Width(m.width).
-        Padding(1).
-        AlignHorizontal(lipgloss.Center).
-        Render(m.help.View(m.keys))
+		Width(m.width).
+		Padding(1).
+		AlignHorizontal(lipgloss.Center).
+		Render(m.help.View(m.keys))
 	container := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height - lipgloss.Height(helpView)).
+		Height(m.height-lipgloss.Height(helpView)).
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(dialogStyle.Render(content))
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)

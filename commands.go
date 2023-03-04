@@ -285,6 +285,7 @@ type gotoDateRequestMsg struct {
 
 type gotoDateResponseMsg struct {
 	date time.Time
+	err error
 }
 
 func gotoDateRequestCmd(date string) tea.Cmd {
@@ -297,9 +298,7 @@ func gotoDateResponseCmd(date string) tea.Cmd {
 	return func() tea.Msg {
 		d, err := time.ParseInLocation(AbbreviatedTextDate, date, time.Local)
 		if err != nil {
-			now := time.Now()
-			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-			d = today
+            return gotoDateResponseMsg{err: err}
 		}
 		return gotoDateResponseMsg{date: d}
 	}

@@ -21,6 +21,7 @@ type model struct {
 	calendarService   *calendar.Service
 	cache             *cache.Cache
 	state             sessionState
+	today             time.Time
 	calendarView      tea.Model
 	createEventDialog tea.Model
 	deleteEventDialog tea.Model
@@ -30,14 +31,17 @@ type model struct {
 }
 
 func initialModel() model {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	return model{
 		calendarService:   getService(),
 		cache:             cache.New(5*time.Minute, 10*time.Minute),
 		state:             calendarView,
-		calendarView:      newCal(0, 0),
-		createEventDialog: newCreateDialog(0, 0),
+		today:             today,
+		calendarView:      newCal(today, 0, 0),
+		createEventDialog: newCreateDialog(today, 0, 0),
 		deleteEventDialog: newDeleteDialog("", "", 0, 0),
-		gotoDateDialog:    newGotoDialog(0, 0),
+		gotoDateDialog:    newGotoDialog(today, 0, 0),
 		height:            0,
 		width:             0,
 	}
@@ -100,7 +104,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = calendarView
 	case enterGotoDialogMsg:
 		m.state = gotoDate
-		m.gotoDateDialog = newGotoDialog(m.width, m.height)
+		m.gotoDateDialog = newGotoDialog(m.today, m.width, m.height)
 	case exitGotoDialogMsg:
 		m.state = calendarView
 	}

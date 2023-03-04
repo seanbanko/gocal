@@ -21,6 +21,7 @@ type Event struct {
 
 type cal struct {
 	calendars   []*calendar.CalendarListEntry
+	today       time.Time
 	focusedDate time.Time
 	events      []*calendar.Event
 	eventsList  list.Model
@@ -30,9 +31,7 @@ type cal struct {
 	width       int
 }
 
-func newCal(height, width int) cal {
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+func newCal(today time.Time, height, width int) cal {
 	eventsList := list.New(nil, list.NewDefaultDelegate(), 0, 0)
 	eventsList.Title = today.Format(AbbreviatedTextDateWithWeekday)
 	eventsList.SetShowStatusBar(false)
@@ -41,6 +40,7 @@ func newCal(height, width int) cal {
 	eventsList.DisableQuitKeybindings()
 	return cal{
 		calendars:   nil,
+		today:       today,
 		focusedDate: today,
 		events:      nil,
 		eventsList:  eventsList,
@@ -74,6 +74,9 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case exitDeleteDialogMsg:
 		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case gotoDateResponseMsg:
+        if msg.err != nil {
+            return m, nil
+        }
 		m.focusedDate = msg.date
 		m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
@@ -90,9 +93,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "t":
-			now := time.Now()
-			today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-			m.focusedDate = today
+			m.focusedDate = m.today
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 		case "g":

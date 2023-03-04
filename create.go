@@ -29,7 +29,7 @@ type CreateDialog struct {
 	keys       keyMapCreate
 }
 
-func newCreateDialog(width, height int) CreateDialog {
+func newCreateDialog(today time.Time, width, height int) CreateDialog {
 	inputs := make([]textinput.Model, 5)
 
 	inputs[title] = textinput.New()
@@ -37,9 +37,6 @@ func newCreateDialog(width, height int) CreateDialog {
 	inputs[title].Width = 40 // TODO make not arbitrary
 	inputs[title].Prompt = ""
 	inputs[title].PlaceholderStyle = textInputPlaceholderStyle
-
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 
 	inputs[startDate] = textinput.New()
 	inputs[startDate].Placeholder = today.Format(AbbreviatedTextDate)
