@@ -94,7 +94,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Navigation messages change the focused sub-model
 	case enterCreateDialogMsg:
 		m.state = creatingEvent
-		m.createEventDialog = newCreateDialog(m.width, m.height)
+		m.createEventDialog = newCreateDialog(m.today, m.width, m.height)
 	case exitCreateDialogMsg:
 		m.state = calendarView
 	case enterDeleteDialogMsg:
