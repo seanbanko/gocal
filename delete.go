@@ -117,8 +117,7 @@ func (m DeleteDialog) View() string {
 	container := lipgloss.NewStyle().
 		Width(m.width).
 		Height(m.height - lipgloss.Height(helpView)).
-		AlignHorizontal(lipgloss.Center).
-		AlignVertical(lipgloss.Center).
+		Align(lipgloss.Center, lipgloss.Center).
 		Render(dialogStyle.Render(content))
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }

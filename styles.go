@@ -6,8 +6,7 @@ var (
 	dialogStyle = lipgloss.NewStyle().
 			Padding(1).
 			Border(lipgloss.RoundedBorder()).
-			AlignHorizontal(lipgloss.Center).
-			AlignVertical(lipgloss.Center)
+			Align(lipgloss.Center, lipgloss.Center)
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
 	titleStyle                = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
 	dateStyle                 = lipgloss.NewStyle().Width(11)
