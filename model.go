@@ -26,24 +26,18 @@ type model struct {
 	createEventDialog tea.Model
 	deleteEventDialog tea.Model
 	gotoDateDialog    tea.Model
-	height            int
-	width             int
+	width, height     int
 }
 
-func initialModel() model {
+func newModel(service *calendar.Service, cache *cache.Cache) model {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	return model{
-		calendarService:   getService(),
-		cache:             cache.New(5*time.Minute, 10*time.Minute),
-		state:             calendarView,
-		today:             today,
-		calendarView:      newCal(today, 0, 0),
-		createEventDialog: newCreateDialog(today, 0, 0),
-		deleteEventDialog: newDeleteDialog("", "", 0, 0),
-		gotoDateDialog:    newGotoDialog(today, 0, 0),
-		height:            0,
-		width:             0,
+		calendarService: service,
+		cache:           cache,
+		state:           calendarView,
+		today:           today,
+		calendarView:    newCal(today, 0, 0),
 	}
 }
 
@@ -54,28 +48,12 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
-	// Handle global messages
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		// ctrl+c should quit from anywhere in the application
 		case "ctrl+c":
 			return m, tea.Quit
 		}
-	case tea.WindowSizeMsg:
-		m.height, m.width = msg.Height, msg.Width
-		m.calendarView, cmd = m.calendarView.Update(msg)
-		cmds = append(cmds, cmd)
-		m.createEventDialog, cmd = m.createEventDialog.Update(msg)
-		cmds = append(cmds, cmd)
-		m.deleteEventDialog, cmd = m.deleteEventDialog.Update(msg)
-		cmds = append(cmds, cmd)
-		m.gotoDateDialog, cmd = m.gotoDateDialog.Update(msg)
-		cmds = append(cmds, cmd)
-		return m, tea.Batch(cmds...)
-	}
-	switch msg := msg.(type) {
-	// API call request messages are handled by the top-level model
 	case getCalendarsListRequestMsg:
 		return m, getCalendarsListResponseCmd(m.calendarService, msg)
 	case getEventsRequestMsg:
@@ -91,22 +69,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case getCalendarsListResponseMsg:
 		m.calendarView, cmd = m.calendarView.Update(msg)
 		return m, cmd
-		// Navigation messages change the focused sub-model
 	case enterCreateDialogMsg:
 		m.state = creatingEvent
 		m.createEventDialog = newCreateDialog(m.today, m.width, m.height)
 	case exitCreateDialogMsg:
 		m.state = calendarView
+		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
+		m.calendarView, cmd = m.calendarView.Update(mes)
+		cmds = append(cmds, cmd)
 	case enterDeleteDialogMsg:
 		m.state = deletingEvent
 		m.deleteEventDialog = newDeleteDialog(msg.calendarId, msg.eventId, m.width, m.height)
 	case exitDeleteDialogMsg:
 		m.state = calendarView
+		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
+		m.calendarView, cmd = m.calendarView.Update(mes)
+		cmds = append(cmds, cmd)
 	case enterGotoDialogMsg:
 		m.state = gotoDate
 		m.gotoDateDialog = newGotoDialog(m.today, m.width, m.height)
 	case exitGotoDialogMsg:
 		m.state = calendarView
+		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
+		m.calendarView, cmd = m.calendarView.Update(mes)
+		cmds = append(cmds, cmd)
+	case tea.WindowSizeMsg:
+		m.height, m.width = msg.Height, msg.Width
 	}
 	// All other messages are relayed to the focused sub-model
 	switch m.state {

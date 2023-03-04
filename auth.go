@@ -25,7 +25,7 @@ import (
 // https://developers.google.com/youtube/v3/code_samples/go
 // ----------------------------------------------------------------------
 
-func getService() *calendar.Service {
+func newCalendarService() *calendar.Service {
 	ctx := context.Background()
 	f, err := os.ReadFile("credentials.json")
 	if err != nil {
