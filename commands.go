@@ -11,26 +11,26 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type getCalendarsListRequestMsg struct{}
+type calendarsListRequestMsg struct{}
 
-type getCalendarsListResponseMsg struct {
+type calendarsListResponseMsg struct {
 	calendars []*calendar.CalendarListEntry
 	err       error
 }
 
-func getCalendarsListRequestCmd() tea.Cmd {
+func calendarsListRequestCmd() tea.Cmd {
 	return func() tea.Msg {
-		return getCalendarsListRequestMsg{}
+		return calendarsListRequestMsg{}
 	}
 }
 
-func getCalendarsListResponseCmd(calendarService *calendar.Service, msg getCalendarsListRequestMsg) tea.Cmd {
+func calendarsListResponseCmd(calendarService *calendar.Service, msg calendarsListRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		response, err := calendarService.CalendarList.
 			List().
 			Do()
 		if err != nil {
-			return getCalendarsListResponseMsg{err: err}
+			return calendarsListResponseMsg{err: err}
 		}
 		var calendars []*calendar.CalendarListEntry
 		for _, calendar := range response.Items {
@@ -39,26 +39,26 @@ func getCalendarsListResponseCmd(calendarService *calendar.Service, msg getCalen
 			}
 			calendars = append(calendars, calendar)
 		}
-		return getCalendarsListResponseMsg{
+		return calendarsListResponseMsg{
 			calendars: calendars,
 			err:       err,
 		}
 	}
 }
 
-type getEventsRequestMsg struct {
+type eventsRequestMsg struct {
 	calendars []*calendar.CalendarListEntry
 	date      time.Time
 }
 
-type getEventsResponseMsg struct {
+type eventsResponseMsg struct {
 	events []*Event
 	errs   []error
 }
 
-func getEventsRequestCmd(calendars []*calendar.CalendarListEntry, date time.Time) tea.Cmd {
+func eventsRequestCmd(calendars []*calendar.CalendarListEntry, date time.Time) tea.Cmd {
 	return func() tea.Msg {
-		return getEventsRequestMsg{calendars: calendars, date: date}
+		return eventsRequestMsg{calendars: calendars, date: date}
 	}
 }
 
@@ -128,7 +128,7 @@ func getEvents(
 	}
 }
 
-func getEventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache, msg getEventsRequestMsg) tea.Cmd {
+func eventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache, msg eventsRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		eventCh := make(chan *Event)
 		errCh := make(chan error)
@@ -159,7 +159,7 @@ func getEventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache,
 			errs = append(errs, err)
 		}
 		sort.Sort(eventsSlice(events))
-		return getEventsResponseMsg{
+		return eventsResponseMsg{
 			events: events,
 			errs:   errs,
 		}
@@ -207,34 +207,13 @@ func enterDeleteDialogCmd(calendarId, eventId string) tea.Cmd {
 	}
 }
 
-type exitDeleteDialogMsg struct{}
-
-func exitDeleteDialogCmd() tea.Msg {
-	return exitDeleteDialogMsg{}
-}
-
-type gotoDateRequestMsg struct {
+type gotoDateMsg struct {
 	date string
 }
 
-type gotoDateResponseMsg struct {
-	date time.Time
-	err  error
-}
-
-func gotoDateRequestCmd(date string) tea.Cmd {
+func gotoDateCmd(date string) tea.Cmd {
 	return func() tea.Msg {
-		return gotoDateRequestMsg{date: date}
-	}
-}
-
-func gotoDateResponseCmd(date string) tea.Cmd {
-	return func() tea.Msg {
-		d, err := time.ParseInLocation(AbbreviatedTextDate, date, time.Local)
-		if err != nil {
-			return gotoDateResponseMsg{err: err}
-		}
-		return gotoDateResponseMsg{date: d}
+		return gotoDateMsg{date: date}
 	}
 }
 
@@ -242,12 +221,6 @@ type enterGotoDialogMsg struct{}
 
 func enterGotoDialogCmd() tea.Msg {
 	return enterGotoDialogMsg{}
-}
-
-type exitGotoDialogMsg struct{}
-
-func exitGotoDialogCmd() tea.Msg {
-	return exitGotoDialogMsg{}
 }
 
 type editEventRequestMsg struct {
@@ -324,8 +297,14 @@ func enterEditDialogCmd(event *Event) tea.Cmd {
 	}
 }
 
-type exitEditDialogMsg struct{}
+type enterCalendarViewMsg struct {}
 
-func exitEditDialogCmd() tea.Msg {
-	return exitEditDialogMsg{}
+func enterCalendarViewCmd() tea.Msg {
+    return enterCalendarViewMsg{}
+}
+
+type refreshEventsMsg struct {}
+
+func refreshEventsCmd() tea.Msg {
+    return refreshEventsMsg{}
 }

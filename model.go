@@ -23,9 +23,9 @@ type model struct {
 	state             sessionState
 	today             time.Time
 	calendarView      tea.Model
-	deleteEventDialog tea.Model
 	gotoDateDialog    tea.Model
 	editEventDialog   tea.Model
+	deleteEventDialog tea.Model
 	width, height     int
 }
 
@@ -49,63 +49,57 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		}
-	case getCalendarsListRequestMsg:
-		return m, getCalendarsListResponseCmd(m.calendarService, msg)
-	case getEventsRequestMsg:
-		return m, getEventsResponseCmd(m.calendarService, m.cache, msg)
+	case calendarsListRequestMsg:
+		return m, calendarsListResponseCmd(m.calendarService, msg)
+	case eventsRequestMsg:
+		return m, eventsResponseCmd(m.calendarService, m.cache, msg)
 	case deleteEventRequestMsg:
 		m.cache.Flush()
 		return m, deleteEventResponseCmd(m.calendarService, msg)
 	case editEventRequestMsg:
 		m.cache.Flush()
 		return m, editEventResponseCmd(m.calendarService, msg)
-	case gotoDateRequestMsg:
-		return m, gotoDateResponseCmd(msg.date)
-	case getCalendarsListResponseMsg:
+	case calendarsListResponseMsg, eventsResponseMsg, gotoDateMsg, refreshEventsMsg:
 		m.calendarView, cmd = m.calendarView.Update(msg)
 		return m, cmd
-	case enterDeleteDialogMsg:
-		m.state = deletingEvent
-		m.deleteEventDialog = newDeleteDialog(msg.calendarId, msg.eventId, m.width, m.height)
-	case exitDeleteDialogMsg:
-		m.state = calendarView
-		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
-		m.calendarView, cmd = m.calendarView.Update(mes)
-		cmds = append(cmds, cmd)
+	case editEventResponseMsg:
+		m.editEventDialog, cmd = m.editEventDialog.Update(msg)
+		return m, cmd
+	case deleteEventResponseMsg:
+		m.deleteEventDialog, cmd = m.deleteEventDialog.Update(msg)
+		return m, cmd
 	case enterGotoDialogMsg:
 		m.state = gotoDate
 		m.gotoDateDialog = newGotoDialog(m.today, m.width, m.height)
-	case exitGotoDialogMsg:
-		m.state = calendarView
-		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
-		m.calendarView, cmd = m.calendarView.Update(mes)
-		cmds = append(cmds, cmd)
 	case enterEditDialogMsg:
 		m.state = editingEvent
 		m.editEventDialog = newEditDialog(msg.event, m.today, m.width, m.height)
-	case exitEditDialogMsg:
+	case enterDeleteDialogMsg:
+		m.state = deletingEvent
+		m.deleteEventDialog = newDeleteDialog(msg.calendarId, msg.eventId, m.width, m.height)
+	case enterCalendarViewMsg:
 		m.state = calendarView
-		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
-		m.calendarView, cmd = m.calendarView.Update(mes)
+		m.calendarView, cmd = m.calendarView.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 		cmds = append(cmds, cmd)
+		cmds = append(cmds, refreshEventsCmd)
+        return m, tea.Batch(cmds...)
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c":
+			return m, tea.Quit
+		}
 	}
-	// All other messages are relayed to the focused sub-model
 	switch m.state {
 	case calendarView:
 		m.calendarView, cmd = m.calendarView.Update(msg)
-	case deletingEvent:
-		m.deleteEventDialog, cmd = m.deleteEventDialog.Update(msg)
 	case gotoDate:
 		m.gotoDateDialog, cmd = m.gotoDateDialog.Update(msg)
 	case editingEvent:
 		m.editEventDialog, cmd = m.editEventDialog.Update(msg)
+	case deletingEvent:
+		m.deleteEventDialog, cmd = m.deleteEventDialog.Update(msg)
 	}
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
@@ -115,12 +109,12 @@ func (m model) View() string {
 	switch m.state {
 	case calendarView:
 		return m.calendarView.View()
-	case deletingEvent:
-		return m.deleteEventDialog.View()
 	case gotoDate:
 		return m.gotoDateDialog.View()
 	case editingEvent:
 		return m.editEventDialog.View()
+	case deletingEvent:
+		return m.deleteEventDialog.View()
 	}
 	return ""
 }

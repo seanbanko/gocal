@@ -52,32 +52,33 @@ func newCal(today time.Time, height, width int) cal {
 }
 
 func (m cal) Init() tea.Cmd {
-	return getCalendarsListRequestCmd()
+	return calendarsListRequestCmd()
 }
 
 func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case getCalendarsListResponseMsg:
+	case calendarsListResponseMsg:
 		if msg.err != nil {
 			log.Fatalf("Error getting calendars list: %v", msg.err)
 		}
 		m.calendars = msg.calendars
-		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
-	case getEventsResponseMsg:
+		return m, eventsRequestCmd(m.calendars, m.focusedDate)
+	case eventsResponseMsg:
 		if len(msg.errs) != 0 {
 			log.Fatalf("Errors getting events: %v", msg.errs)
 		}
 		m.updateEvents(msg)
 		return m, nil
-	case exitDeleteDialogMsg, exitEditDialogMsg:
-		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
-	case gotoDateResponseMsg:
-        if msg.err != nil {
+	case gotoDateMsg:
+		date, err := time.ParseInLocation(AbbreviatedTextDate, msg.date, time.Local)
+        if err != nil {
             return m, nil
         }
-		m.focusedDate = msg.date
+		m.focusedDate = date
 		m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
+		return m, eventsRequestCmd(m.calendars, m.focusedDate)
+	case refreshEventsMsg:
+		return m, eventsRequestCmd(m.calendars, m.focusedDate)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -85,15 +86,15 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "n":
 			m.focusedDate = m.focusedDate.AddDate(0, 0, 1)
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
+			return m, eventsRequestCmd(m.calendars, m.focusedDate)
 		case "p":
 			m.focusedDate = m.focusedDate.AddDate(0, 0, -1)
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
+			return m, eventsRequestCmd(m.calendars, m.focusedDate)
 		case "t":
 			m.focusedDate = m.today
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-			return m, getEventsRequestCmd(m.calendars, m.focusedDate)
+			return m, eventsRequestCmd(m.calendars, m.focusedDate)
 		case "g":
 			return m, enterGotoDialogCmd
 		case "c":
@@ -132,7 +133,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *cal) updateEvents(msg getEventsResponseMsg) {
+func (m *cal) updateEvents(msg eventsResponseMsg) {
 	var items []list.Item
 	for _, event := range msg.events {
 		items = append(items, item{event: event})
