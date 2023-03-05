@@ -15,6 +15,7 @@ const (
 	creatingEvent
 	deletingEvent
 	gotoDate
+	editingEvent
 )
 
 type model struct {
@@ -26,6 +27,7 @@ type model struct {
 	createEventDialog tea.Model
 	deleteEventDialog tea.Model
 	gotoDateDialog    tea.Model
+	editEventDialog    tea.Model
 	width, height     int
 }
 
@@ -64,6 +66,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case deleteEventRequestMsg:
 		m.cache.Flush()
 		return m, deleteEventResponseCmd(m.calendarService, msg)
+	case editEventRequestMsg:
+		m.cache.Flush()
+		return m, editEventResponseCmd(m.calendarService, msg)
 	case gotoDateRequestMsg:
 		return m, gotoDateResponseCmd(msg.date)
 	case getCalendarsListResponseMsg:
@@ -93,6 +98,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
 		m.calendarView, cmd = m.calendarView.Update(mes)
 		cmds = append(cmds, cmd)
+	case enterEditDialogMsg:
+		m.state = editingEvent
+		m.editEventDialog = newEditDialog(msg.event, m.width, m.height)
+	case exitEditDialogMsg:
+		m.state = calendarView
+		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
+		m.calendarView, cmd = m.calendarView.Update(mes)
+		cmds = append(cmds, cmd)
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
 	}
@@ -106,6 +119,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.deleteEventDialog, cmd = m.deleteEventDialog.Update(msg)
 	case gotoDate:
 		m.gotoDateDialog, cmd = m.gotoDateDialog.Update(msg)
+	case editingEvent:
+		m.editEventDialog, cmd = m.editEventDialog.Update(msg)
 	}
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
@@ -121,6 +136,8 @@ func (m model) View() string {
 		return m.deleteEventDialog.View()
 	case gotoDate:
 		return m.gotoDateDialog.View()
+	case editingEvent:
+		return m.editEventDialog.View()
 	}
 	return ""
 }

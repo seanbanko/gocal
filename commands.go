@@ -285,7 +285,7 @@ type gotoDateRequestMsg struct {
 
 type gotoDateResponseMsg struct {
 	date time.Time
-	err error
+	err  error
 }
 
 func gotoDateRequestCmd(date string) tea.Cmd {
@@ -298,7 +298,7 @@ func gotoDateResponseCmd(date string) tea.Cmd {
 	return func() tea.Msg {
 		d, err := time.ParseInLocation(AbbreviatedTextDate, date, time.Local)
 		if err != nil {
-            return gotoDateResponseMsg{err: err}
+			return gotoDateResponseMsg{err: err}
 		}
 		return gotoDateResponseMsg{date: d}
 	}
@@ -314,4 +314,78 @@ type exitGotoDialogMsg struct{}
 
 func exitGotoDialogCmd() tea.Msg {
 	return exitGotoDialogMsg{}
+}
+
+type editEventRequestMsg struct {
+	calendarId string
+	eventId    string
+	title      string
+	startDate  string
+	startTime  string
+	endDate    string
+	endTime    string
+}
+
+type editEventResponseMsg struct {
+	event *calendar.Event
+	err   error
+}
+
+func editEventRequestCmd(calendarId, eventId, title, startDate, startTime, endDate, endTime string) tea.Cmd {
+	return func() tea.Msg {
+		return editEventRequestMsg{
+			calendarId: calendarId,
+			eventId:    eventId,
+			title:      title,
+			startDate:  startDate,
+			startTime:  startTime,
+			endDate:    endDate,
+			endTime:    endTime,
+		}
+	}
+}
+
+func editEventResponseCmd(calendarService *calendar.Service, msg editEventRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		start, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.startDate+" "+msg.startTime, time.Local)
+		if err != nil {
+			return editEventResponseMsg{err: err}
+		}
+		end, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.endDate+" "+msg.endTime, time.Local)
+		if err != nil {
+			return editEventResponseMsg{err: err}
+		}
+		event := calendar.Event{
+			Summary: msg.title,
+			Start: &calendar.EventDateTime{
+				DateTime: start.Format(time.RFC3339),
+			},
+			End: &calendar.EventDateTime{
+				DateTime: end.Format(time.RFC3339),
+			},
+		}
+		response, err := calendarService.Events.Update(msg.calendarId, msg.eventId, &event).Do()
+		return editEventResponseMsg{
+			event: response,
+			err:   err,
+		}
+	}
+}
+
+type enterEditDialogMsg struct {
+	event *Event
+}
+
+func enterEditDialogCmd(event *Event) tea.Cmd {
+	return func() tea.Msg {
+		return enterEditDialogMsg{
+			event: event,
+		}
+	}
+}
+
+type exitEditDialogMsg struct{}
+
+func exitEditDialogCmd() tea.Msg {
+	return exitEditDialogMsg{}
 }
