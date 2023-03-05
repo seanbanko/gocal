@@ -12,7 +12,6 @@ type sessionState int
 
 const (
 	calendarView sessionState = iota
-	creatingEvent
 	deletingEvent
 	gotoDate
 	editingEvent
@@ -24,10 +23,9 @@ type model struct {
 	state             sessionState
 	today             time.Time
 	calendarView      tea.Model
-	createEventDialog tea.Model
 	deleteEventDialog tea.Model
 	gotoDateDialog    tea.Model
-	editEventDialog    tea.Model
+	editEventDialog   tea.Model
 	width, height     int
 }
 
@@ -60,9 +58,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, getCalendarsListResponseCmd(m.calendarService, msg)
 	case getEventsRequestMsg:
 		return m, getEventsResponseCmd(m.calendarService, m.cache, msg)
-	case createEventRequestMsg:
-		m.cache.Flush()
-		return m, createEventResponseCmd(m.calendarService, msg)
 	case deleteEventRequestMsg:
 		m.cache.Flush()
 		return m, deleteEventResponseCmd(m.calendarService, msg)
@@ -74,14 +69,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case getCalendarsListResponseMsg:
 		m.calendarView, cmd = m.calendarView.Update(msg)
 		return m, cmd
-	case enterCreateDialogMsg:
-		m.state = creatingEvent
-		m.createEventDialog = newCreateDialog(m.today, m.width, m.height)
-	case exitCreateDialogMsg:
-		m.state = calendarView
-		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
-		m.calendarView, cmd = m.calendarView.Update(mes)
-		cmds = append(cmds, cmd)
 	case enterDeleteDialogMsg:
 		m.state = deletingEvent
 		m.deleteEventDialog = newDeleteDialog(msg.calendarId, msg.eventId, m.width, m.height)
@@ -100,7 +87,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case enterEditDialogMsg:
 		m.state = editingEvent
-		m.editEventDialog = newEditDialog(msg.event, m.width, m.height)
+		m.editEventDialog = newEditDialog(msg.event, m.today, m.width, m.height)
 	case exitEditDialogMsg:
 		m.state = calendarView
 		mes := tea.WindowSizeMsg{Width: m.width, Height: m.height}
@@ -113,8 +100,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case calendarView:
 		m.calendarView, cmd = m.calendarView.Update(msg)
-	case creatingEvent:
-		m.createEventDialog, cmd = m.createEventDialog.Update(msg)
 	case deletingEvent:
 		m.deleteEventDialog, cmd = m.deleteEventDialog.Update(msg)
 	case gotoDate:
@@ -130,8 +115,6 @@ func (m model) View() string {
 	switch m.state {
 	case calendarView:
 		return m.calendarView.View()
-	case creatingEvent:
-		return m.createEventDialog.View()
 	case deletingEvent:
 		return m.deleteEventDialog.View()
 	case gotoDate:

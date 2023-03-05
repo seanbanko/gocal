@@ -166,60 +166,6 @@ func getEventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache,
 	}
 }
 
-type createEventRequestMsg struct {
-	calendarId string
-	title      string
-	startDate  string
-	startTime  string
-	endDate    string
-	endTime    string
-}
-
-type createEventResponseMsg struct {
-	event *calendar.Event
-	err   error
-}
-
-func createEventRequestCmd(calendarId, title, startDate, startTime, endDate, endTime string) tea.Cmd {
-	return func() tea.Msg {
-		return createEventRequestMsg{
-			calendarId: calendarId,
-			title:      title,
-			startDate:  startDate,
-			startTime:  startTime,
-			endDate:    endDate,
-			endTime:    endTime,
-		}
-	}
-}
-
-func createEventResponseCmd(calendarService *calendar.Service, msg createEventRequestMsg) tea.Cmd {
-	return func() tea.Msg {
-		start, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.startDate+" "+msg.startTime, time.Local)
-		if err != nil {
-			return createEventResponseMsg{err: err}
-		}
-		end, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.endDate+" "+msg.endTime, time.Local)
-		if err != nil {
-			return createEventResponseMsg{err: err}
-		}
-		event := &calendar.Event{
-			Summary: msg.title,
-			Start: &calendar.EventDateTime{
-				DateTime: start.Format(time.RFC3339),
-			},
-			End: &calendar.EventDateTime{
-				DateTime: end.Format(time.RFC3339),
-			},
-		}
-		response, err := calendarService.Events.Insert(msg.calendarId, event).Do()
-		return createEventResponseMsg{
-			event: response,
-			err:   err,
-		}
-	}
-}
-
 type deleteEventRequestMsg struct {
 	calendarId string
 	eventId    string
@@ -245,18 +191,6 @@ func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRe
 			err: err,
 		}
 	}
-}
-
-type enterCreateDialogMsg struct{}
-
-func enterCreateDialogCmd() tea.Msg {
-	return enterCreateDialogMsg{}
-}
-
-type exitCreateDialogMsg struct{}
-
-func exitCreateDialogCmd() tea.Msg {
-	return exitCreateDialogMsg{}
 }
 
 type enterDeleteDialogMsg struct {
@@ -347,6 +281,7 @@ func editEventRequestCmd(calendarId, eventId, title, startDate, startTime, endDa
 
 func editEventResponseCmd(calendarService *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
+		var err error
 		start, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.startDate+" "+msg.startTime, time.Local)
 		if err != nil {
 			return editEventResponseMsg{err: err}
@@ -364,7 +299,12 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 				DateTime: end.Format(time.RFC3339),
 			},
 		}
-		response, err := calendarService.Events.Update(msg.calendarId, msg.eventId, &event).Do()
+		var response *calendar.Event
+		if msg.eventId == "" {
+			response, err = calendarService.Events.Insert(msg.calendarId, &event).Do()
+		} else {
+			response, err = calendarService.Events.Update(msg.calendarId, msg.eventId, &event).Do()
+		}
 		return editEventResponseMsg{
 			event: response,
 			err:   err,

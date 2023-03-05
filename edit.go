@@ -10,6 +10,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	title = iota
+	startDate
+	startTime
+	endDate
+	endTime
+)
+
 type EditDialog struct {
 	inputs     []textinput.Model
 	focusIndex int
@@ -23,48 +31,64 @@ type EditDialog struct {
 	keys       keyMapEdit
 }
 
-func newEditDialog(event *Event, width, height int) EditDialog {
+func newEditDialog(event *Event, today time.Time, width, height int) EditDialog {
 	inputs := make([]textinput.Model, 5)
 
 	inputs[title] = textinput.New()
-	inputs[title].SetValue(event.event.Summary)
+	inputs[title].Placeholder = "Title"
 	inputs[title].Width = 40 // TODO make not arbitrary
 	inputs[title].Prompt = ""
-
-	start, err := time.Parse(time.RFC3339, event.event.Start.DateTime)
-	var startD, startT string
-	if err == nil {
-		startD = start.In(time.Local).Format(AbbreviatedTextDate)
-		startT = start.In(time.Local).Format(HHMM24h)
-	}
-
-	end, err := time.Parse(time.RFC3339, event.event.End.DateTime)
-	var endD, endT string
-	if err == nil {
-		endD = end.In(time.Local).Format(AbbreviatedTextDate)
-		endT = end.In(time.Local).Format(HHMM24h)
-	}
+	inputs[title].PlaceholderStyle = textInputPlaceholderStyle
 
 	inputs[startDate] = textinput.New()
+	inputs[startDate].Placeholder = today.Format(AbbreviatedTextDate)
 	inputs[startDate].CharLimit = 11
 	inputs[startDate].Prompt = ""
-	inputs[startDate].SetValue(startD)
+	inputs[startDate].PlaceholderStyle = textInputPlaceholderStyle
 
 	inputs[startTime] = textinput.New()
+	inputs[startTime].Placeholder = today.Format(HHMM24h)
 	inputs[startTime].CharLimit = 5
 	inputs[startTime].Prompt = ""
-	inputs[startTime].SetValue(startT)
+	inputs[startTime].PlaceholderStyle = textInputPlaceholderStyle
 
 	inputs[endDate] = textinput.New()
+	inputs[endDate].Placeholder = today.Format(AbbreviatedTextDate)
 	inputs[endDate].CharLimit = 11
 	inputs[endDate].Prompt = ""
-	inputs[endDate].SetValue(endD)
+	inputs[endDate].PlaceholderStyle = textInputPlaceholderStyle
 
 	inputs[endTime] = textinput.New()
+	inputs[endTime].Placeholder = today.Format(HHMM24h)
 	inputs[endTime].CharLimit = 5
 	inputs[endTime].Width = 5
 	inputs[endTime].Prompt = ""
-	inputs[endTime].SetValue(endT)
+	inputs[endTime].PlaceholderStyle = textInputPlaceholderStyle
+
+    var calendarId, eventId string
+	if event != nil {
+        calendarId = event.calendarId
+        eventId = event.event.Id
+		inputs[title].SetValue(event.event.Summary)
+		start, err := time.Parse(time.RFC3339, event.event.Start.DateTime)
+		var startD, startT string
+		if err == nil {
+			startD = start.In(time.Local).Format(AbbreviatedTextDate)
+			startT = start.In(time.Local).Format(HHMM24h)
+		}
+		end, err := time.Parse(time.RFC3339, event.event.End.DateTime)
+		var endD, endT string
+		if err == nil {
+			endD = end.In(time.Local).Format(AbbreviatedTextDate)
+			endT = end.In(time.Local).Format(HHMM24h)
+		}
+		inputs[startDate].SetValue(startD)
+		inputs[startTime].SetValue(startT)
+		inputs[endDate].SetValue(endD)
+		inputs[endTime].SetValue(endT)
+	} else {
+        calendarId = "primary"
+    }
 
 	focusIndex := title
 	inputs[focusIndex].Focus()
@@ -72,8 +96,8 @@ func newEditDialog(event *Event, width, height int) EditDialog {
 	return EditDialog{
 		inputs:     inputs,
 		focusIndex: focusIndex,
-		calendarId: event.calendarId,
-		eventId:    event.event.Id,
+		calendarId: calendarId,
+		eventId:    eventId,
 		height:     height,
 		width:      width,
 		success:    false,
@@ -151,12 +175,19 @@ func (m *EditDialog) focusPrev() {
 	refocus(m.inputs, m.focusIndex)
 }
 
+func refocus(inputs []textinput.Model, focusIndex int) {
+	for i := range inputs {
+		inputs[i].Blur()
+	}
+	inputs[focusIndex].Focus()
+}
+
 func (m EditDialog) View() string {
 	var content string
 	if m.err != nil {
-		content = "Error editing event. Press any key to return to calendar."
+		content = "Error. Press any key to return to calendar."
 	} else if m.success {
-		content = "Successfully edited event. Press any key to return to calendar."
+		content = "Success. Press any key to return to calendar."
 	} else {
 		content = renderEditContent(m)
 	}
@@ -197,7 +228,7 @@ func renderEditContent(m EditDialog) string {
 type keyMapEdit struct {
 	Next   key.Binding
 	Prev   key.Binding
-	Edit   key.Binding
+	Save   key.Binding
 	Cancel key.Binding
 	Quit   key.Binding
 }
@@ -211,9 +242,9 @@ var EditKeyMap = keyMapEdit{
 		key.WithKeys("shift+tab"),
 		key.WithHelp("shift+tab", "previous field"),
 	),
-	Edit: key.NewBinding(
+	Save: key.NewBinding(
 		key.WithKeys("enter", "ctrl+s"),
-		key.WithHelp("enter/ctrl+s", "edit event"),
+		key.WithHelp("enter/ctrl+s", "save"),
 	),
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
@@ -226,13 +257,13 @@ var EditKeyMap = keyMapEdit{
 }
 
 func (k keyMapEdit) ShortHelp() []key.Binding {
-	return []key.Binding{k.Next, k.Prev, k.Edit, k.Cancel, k.Quit}
+	return []key.Binding{k.Next, k.Prev, k.Save, k.Cancel, k.Quit}
 }
 
 func (k keyMapEdit) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Next, k.Cancel},
 		{k.Prev, k.Quit},
-		{k.Edit},
+		{k.Save},
 	}
 }

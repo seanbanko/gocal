@@ -69,11 +69,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.updateEvents(msg)
 		return m, nil
-	case exitCreateDialogMsg:
-		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
-	case exitDeleteDialogMsg:
-		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
-	case exitEditDialogMsg:
+	case exitDeleteDialogMsg, exitEditDialogMsg:
 		return m, getEventsRequestCmd(m.calendars, m.focusedDate)
 	case gotoDateResponseMsg:
         if msg.err != nil {
@@ -101,7 +97,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "g":
 			return m, enterGotoDialogCmd
 		case "c":
-			return m, enterCreateDialogCmd
+			return m, enterEditDialogCmd(nil)
 		case "delete", "backspace":
 			listItem := m.eventsList.SelectedItem()
 			if listItem == nil {
