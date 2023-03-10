@@ -11,44 +11,39 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type calendarsListRequestMsg struct{}
+type calendarListRequestMsg struct{}
 
-type calendarsListResponseMsg struct {
+type calendarListResponseMsg struct {
 	calendars []*calendar.CalendarListEntry
 	err       error
 }
 
-func calendarsListRequestCmd() tea.Cmd {
+func calendarListRequestCmd() tea.Cmd {
 	return func() tea.Msg {
-		return calendarsListRequestMsg{}
+		return calendarListRequestMsg{}
 	}
 }
 
-func calendarsListResponseCmd(calendarService *calendar.Service, msg calendarsListRequestMsg) tea.Cmd {
+func calendarListResponseCmd(calendarService *calendar.Service, msg calendarListRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		response, err := calendarService.CalendarList.
 			List().
 			Do()
 		if err != nil {
-			return calendarsListResponseMsg{err: err}
+			return calendarListResponseMsg{err: err}
 		}
-		var calendars []*calendar.CalendarListEntry
-		for _, calendar := range response.Items {
-			if !calendar.Selected {
-				continue
-			}
-			calendars = append(calendars, calendar)
-		}
-		return calendarsListResponseMsg{
-			calendars: calendars,
+        sort.Slice(response.Items, func(i, j int) bool {
+          return response.Items[i].Summary < response.Items[j].Summary
+        })
+		return calendarListResponseMsg{
+			calendars: response.Items,
 			err:       err,
 		}
 	}
 }
 
 type eventsRequestMsg struct {
-	calendars []*calendar.CalendarListEntry
-	date      time.Time
+	date time.Time
 }
 
 type eventsResponseMsg struct {
@@ -56,9 +51,9 @@ type eventsResponseMsg struct {
 	errs   []error
 }
 
-func eventsRequestCmd(calendars []*calendar.CalendarListEntry, date time.Time) tea.Cmd {
+func eventsRequestCmd(date time.Time) tea.Cmd {
 	return func() tea.Msg {
-		return eventsRequestMsg{calendars: calendars, date: date}
+		return eventsRequestMsg{date: date}
 	}
 }
 
@@ -128,17 +123,22 @@ func getEvents(
 	}
 }
 
-func eventsResponseCmd(calendarService *calendar.Service, cache *cache.Cache, msg eventsRequestMsg) tea.Cmd {
+func eventsResponseCmd(
+	calendarService *calendar.Service,
+	cache *cache.Cache,
+	calendars []*calendar.CalendarListEntry,
+	msg eventsRequestMsg,
+) tea.Cmd {
 	return func() tea.Msg {
 		eventCh := make(chan *Event)
 		errCh := make(chan error)
 		done := make(chan struct{})
 		defer close(done)
 		var wg sync.WaitGroup
-		wg.Add(len(msg.calendars))
+		wg.Add(len(calendars))
 		start := msg.date
 		oneDayLater := start.AddDate(0, 0, 1)
-		for _, cal := range msg.calendars {
+		for _, cal := range calendars {
 			go func(id string) {
 				getEvents(calendarService, cache, id, start, oneDayLater, eventCh, errCh, done)
 				wg.Done()
@@ -297,14 +297,62 @@ func enterEditDialogCmd(event *Event) tea.Cmd {
 	}
 }
 
-type enterCalendarViewMsg struct {}
+type enterCalendarViewMsg struct{}
 
 func enterCalendarViewCmd() tea.Msg {
-    return enterCalendarViewMsg{}
+	return enterCalendarViewMsg{}
 }
 
-type refreshEventsMsg struct {}
+type refreshEventsMsg struct{}
 
 func refreshEventsCmd() tea.Msg {
-    return refreshEventsMsg{}
+	return refreshEventsMsg{}
+}
+
+type enterCalendarListMsg struct {
+	calendars []*calendar.CalendarListEntry
+}
+
+func enterCalendarListCmd(calendars []*calendar.CalendarListEntry) tea.Cmd {
+	return func() tea.Msg {
+		return enterCalendarListMsg{calendars: calendars}
+	}
+}
+
+type updateCalendarRequestMsg struct {
+	calendarId string
+	selected   bool
+}
+
+func updateCalendarRequestCmd(calendarId string, selected bool) tea.Cmd {
+	return func() tea.Msg {
+		return updateCalendarRequestMsg{
+			calendarId: calendarId,
+			selected:   selected,
+		}
+	}
+}
+
+type updateCalendarResponseMsg struct {
+	calendar *calendar.CalendarListEntry
+	err      error
+}
+
+
+func updateCalendarResponseCmd(calendarService *calendar.Service, msg updateCalendarRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		calendar, err := calendarService.CalendarList.Get(msg.calendarId).Do()
+		if err != nil {
+			return updateCalendarResponseMsg{err: err}
+		}
+		calendar.Selected = msg.selected
+		response, err := calendarService.CalendarList.Update(msg.calendarId, calendar).Do()
+		if err != nil {
+			return updateCalendarResponseMsg{err: err}
+		}
+		return updateCalendarResponseMsg{
+			calendar: response,
+			err:      err,
+		}
+	}
 }

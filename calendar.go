@@ -20,10 +20,8 @@ type Event struct {
 }
 
 type cal struct {
-	calendars   []*calendar.CalendarListEntry
 	today       time.Time
 	focusedDate time.Time
-	events      []*calendar.Event
 	eventsList  list.Model
 	keys        keyMap
 	help        help.Model
@@ -39,10 +37,8 @@ func newCal(today time.Time, height, width int) cal {
 	eventsList.SetShowHelp(false)
 	eventsList.DisableQuitKeybindings()
 	return cal{
-		calendars:   nil,
 		today:       today,
 		focusedDate: today,
-		events:      nil,
 		eventsList:  eventsList,
 		keys:        DefaultKeyMap,
 		help:        help.New(),
@@ -52,17 +48,16 @@ func newCal(today time.Time, height, width int) cal {
 }
 
 func (m cal) Init() tea.Cmd {
-	return calendarsListRequestCmd()
+	return nil
 }
 
 func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case calendarsListResponseMsg:
+	case calendarListResponseMsg:
 		if msg.err != nil {
 			log.Fatalf("Error getting calendars list: %v", msg.err)
 		}
-		m.calendars = msg.calendars
-		return m, eventsRequestCmd(m.calendars, m.focusedDate)
+		return m, eventsRequestCmd(m.focusedDate)
 	case eventsResponseMsg:
 		if len(msg.errs) != 0 {
 			log.Fatalf("Errors getting events: %v", msg.errs)
@@ -76,9 +71,9 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         }
 		m.focusedDate = date
 		m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-		return m, eventsRequestCmd(m.calendars, m.focusedDate)
+		return m, eventsRequestCmd(m.focusedDate)
 	case refreshEventsMsg:
-		return m, eventsRequestCmd(m.calendars, m.focusedDate)
+		return m, eventsRequestCmd(m.focusedDate)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -86,15 +81,15 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "n":
 			m.focusedDate = m.focusedDate.AddDate(0, 0, 1)
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-			return m, eventsRequestCmd(m.calendars, m.focusedDate)
+			return m, eventsRequestCmd(m.focusedDate)
 		case "p":
 			m.focusedDate = m.focusedDate.AddDate(0, 0, -1)
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-			return m, eventsRequestCmd(m.calendars, m.focusedDate)
+			return m, eventsRequestCmd(m.focusedDate)
 		case "t":
 			m.focusedDate = m.today
 			m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-			return m, eventsRequestCmd(m.calendars, m.focusedDate)
+			return m, eventsRequestCmd(m.focusedDate)
 		case "g":
 			return m, enterGotoDialogCmd
 		case "c":
@@ -104,7 +99,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if listItem == nil {
 				return m, nil
 			}
-			item, ok := listItem.(item)
+			item, ok := listItem.(eventItem)
 			if !ok {
 				return m, nil
 			}
@@ -114,11 +109,13 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if listItem == nil {
 				return m, nil
 			}
-			item, ok := listItem.(item)
+			item, ok := listItem.(eventItem)
 			if !ok {
 				return m, nil
 			}
 			return m, enterEditDialogCmd(item.event)
+		case "s":
+			return m, enterCalendarListCmd(nil)
 		case "?":
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
@@ -136,7 +133,7 @@ func (m cal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *cal) updateEvents(msg eventsResponseMsg) {
 	var items []list.Item
 	for _, event := range msg.events {
-		items = append(items, item{event: event})
+		items = append(items, eventItem{event: event})
 	}
 	m.eventsList.SetItems(items)
 }
@@ -213,15 +210,15 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	}
 }
 
-type item struct {
+type eventItem struct {
 	event *Event
 }
 
-func (i item) Title() string {
+func (i eventItem) Title() string {
 	return i.event.event.Summary
 }
 
-func (i item) Description() string {
+func (i eventItem) Description() string {
 	if i.event.event.Start.DateTime == "" {
 		return "all day"
 	}
@@ -238,6 +235,6 @@ func (i item) Description() string {
 	return fmt.Sprintf("%v - %v", s, e)
 }
 
-func (i item) FilterValue() string {
+func (i eventItem) FilterValue() string {
 	return i.event.event.Summary
 }
