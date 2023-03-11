@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	title = iota
+	summary = iota
 	startDate
 	startTime
 	endDate
@@ -34,11 +34,11 @@ type EditDialog struct {
 func newEditDialog(event *Event, today time.Time, width, height int) EditDialog {
 	inputs := make([]textinput.Model, 5)
 
-	inputs[title] = textinput.New()
-	inputs[title].Placeholder = "Title"
-	inputs[title].CharLimit = 40
-	inputs[title].Prompt = ""
-	inputs[title].PlaceholderStyle = textInputPlaceholderStyle
+	inputs[summary] = textinput.New()
+	inputs[summary].Placeholder = "Add title"
+	inputs[summary].CharLimit = 40
+	inputs[summary].Prompt = ""
+	inputs[summary].PlaceholderStyle = textInputPlaceholderStyle
 
 	inputs[startDate] = textinput.New()
 	inputs[startDate].Placeholder = today.Format(AbbreviatedTextDate)
@@ -69,7 +69,7 @@ func newEditDialog(event *Event, today time.Time, width, height int) EditDialog 
 	if event != nil {
         calendarId = event.calendarId
         eventId = event.event.Id
-		inputs[title].SetValue(event.event.Summary)
+		inputs[summary].SetValue(event.event.Summary)
 		start, err := time.Parse(time.RFC3339, event.event.Start.DateTime)
 		var startD, startT string
 		if err == nil {
@@ -90,7 +90,7 @@ func newEditDialog(event *Event, today time.Time, width, height int) EditDialog 
         calendarId = "primary"
     }
 
-	focusIndex := title
+	focusIndex := summary
     refocus(inputs, focusIndex)
 
 	return EditDialog{
@@ -137,7 +137,7 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, editEventRequestCmd(
 				m.calendarId,
 				m.eventId,
-				m.inputs[title].Value(),
+				m.inputs[summary].Value(),
 				m.inputs[startDate].Value(),
 				m.inputs[startTime].Value(),
 				m.inputs[endDate].Value(),
@@ -208,7 +208,7 @@ func renderEditContent(m EditDialog) string {
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
 		"Edit Event\n",
-		textInputTitleStle.Render(m.inputs[title].View()) + "\n",
+		textInputSummaryStyle.Render(m.inputs[summary].View()) + "\n",
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			textInputDateStyle.Render(m.inputs[startDate].View()),

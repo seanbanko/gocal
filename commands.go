@@ -184,7 +184,7 @@ func gotoDateCmd(date time.Time) tea.Cmd {
 type editEventRequestMsg struct {
 	calendarId string
 	eventId    string
-	title      string
+	summary      string
 	startDate  string
 	startTime  string
 	endDate    string
@@ -196,12 +196,12 @@ type editEventResponseMsg struct {
 	err   error
 }
 
-func editEventRequestCmd(calendarId, eventId, title, startDate, startTime, endDate, endTime string) tea.Cmd {
+func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, endDate, endTime string) tea.Cmd {
 	return func() tea.Msg {
 		return editEventRequestMsg{
 			calendarId: calendarId,
 			eventId:    eventId,
-			title:      title,
+			summary:      summary,
 			startDate:  startDate,
 			startTime:  startTime,
 			endDate:    endDate,
@@ -226,7 +226,7 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 		var response *calendar.Event
 		if msg.eventId == "" {
 			event := &calendar.Event{
-				Summary: msg.title,
+				Summary: msg.summary,
 				Start:   &calendar.EventDateTime{DateTime: startDateTime},
 				End:     &calendar.EventDateTime{DateTime: endDateTime},
 			}
@@ -236,7 +236,7 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 			if err != nil {
 				return editEventResponseMsg{err: err}
 			}
-			event.Summary = msg.title
+			event.Summary = msg.summary
 			event.Start.DateTime = startDateTime
 			event.End.DateTime = endDateTime
 			response, err = calendarService.Events.Update(msg.calendarId, msg.eventId, event).Do()
