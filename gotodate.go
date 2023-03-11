@@ -64,7 +64,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m GotoDialog) View() string {
-	content := "Go to Date: " + dateStyle.Render(m.input.View())
+	content := "Go to Date: " + textInputDateStyle.Render(m.input.View())
 	helpView := lipgloss.NewStyle().
 		Width(m.width).
 		Padding(1).

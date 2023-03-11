@@ -36,7 +36,7 @@ func newEditDialog(event *Event, today time.Time, width, height int) EditDialog 
 
 	inputs[title] = textinput.New()
 	inputs[title].Placeholder = "Title"
-	inputs[title].Width = 40 // TODO make not arbitrary
+	inputs[title].CharLimit = 40
 	inputs[title].Prompt = ""
 	inputs[title].PlaceholderStyle = textInputPlaceholderStyle
 
@@ -91,7 +91,7 @@ func newEditDialog(event *Event, today time.Time, width, height int) EditDialog 
     }
 
 	focusIndex := title
-	inputs[focusIndex].Focus()
+    refocus(inputs, focusIndex)
 
 	return EditDialog{
 		inputs:     inputs,
@@ -207,20 +207,17 @@ func (m EditDialog) View() string {
 func renderEditContent(m EditDialog) string {
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		"Edit Event",
-		"\n",
-		titleStyle.Render(m.inputs[title].View()),
-		"\n",
+		"Edit Event\n",
+		textInputTitleStle.Render(m.inputs[title].View()) + "\n",
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
-			dateStyle.Render(m.inputs[startDate].View()),
-			" at ",
-			timeStyle.Render(m.inputs[startTime].View()),
-			" to ",
-			dateStyle.Render(m.inputs[endDate].View()),
-			" at ",
-			timeStyle.Render(m.inputs[endTime].View()),
-			".", // TODO This is just here to the overall width doesn't change
+			textInputDateStyle.Render(m.inputs[startDate].View()),
+			"at ",
+			textInputTimeStyle.Render(m.inputs[startTime].View()),
+			"to ",
+			textInputDateStyle.Render(m.inputs[endDate].View()),
+			"at ",
+			textInputTimeStyle.Render(m.inputs[endTime].View()),
 		),
 	)
 }

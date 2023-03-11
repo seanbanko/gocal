@@ -8,7 +8,7 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			Align(lipgloss.Center, lipgloss.Center)
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
-	titleStyle                = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
-	dateStyle                 = lipgloss.NewStyle().Width(11)
-	timeStyle                 = lipgloss.NewStyle().Width(6)
+	textInputTitleStle        = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
+	textInputDateStyle        = lipgloss.NewStyle().Width(12)
+	textInputTimeStyle        = lipgloss.NewStyle().Width(6)
 )
