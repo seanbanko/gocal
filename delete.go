@@ -15,12 +15,8 @@ const (
 )
 
 var (
-	buttonStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("241")).
-			Padding(0, 3)
-	selectedButtonStyle = buttonStyle.Copy().
-				Background(lipgloss.Color("62")).
-				Underline(true)
+	buttonStyle         = lipgloss.NewStyle().Background(lipgloss.Color("241")).Padding(0, 3)
+	selectedButtonStyle = buttonStyle.Copy().Background(googleBlue).Underline(true)
 )
 
 type DeleteDialog struct {
@@ -116,7 +112,7 @@ func (m DeleteDialog) View() string {
 		Render(m.help.View(m.keys))
 	container := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height - lipgloss.Height(helpView) - 3).
+		Height(m.height-lipgloss.Height(helpView)-3).
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(dialogStyle.Render(content))
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)

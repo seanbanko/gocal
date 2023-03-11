@@ -79,12 +79,18 @@ type model struct {
 func newModel(service *calendar.Service, cache *cache.Cache) model {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	l := list.New(nil, list.NewDefaultDelegate(), 0, 0)
-	l.Title = today.Format(AbbreviatedTextDateWithWeekday)
+    delegate := list.NewDefaultDelegate()
+    delegate.Styles.SelectedTitle.Foreground(googleBlue)
+    delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
+    delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
+    delegate.Styles.SelectedDesc.Foreground(googleBlue)
+	l := list.New(nil, delegate, 0, 0)
 	l.SetShowStatusBar(false)
 	l.SetStatusBarItemName("event", "events")
 	l.SetShowHelp(false)
 	l.DisableQuitKeybindings()
+	l.Title = today.Format(AbbreviatedTextDateWithWeekday)
+	l.Styles.Title.Background(googleBlue)
 	return model{
 		calendarService: service,
 		cache:           cache,

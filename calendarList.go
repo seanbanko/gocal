@@ -18,14 +18,19 @@ type CalendarListDialog struct {
 }
 
 func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, height int) CalendarListDialog {
-	d := list.NewDefaultDelegate()
-	d.ShowDescription = false
-	l := list.New(nil, d, 0, 0)
-	l.Title = "My calendars"
+    delegate := list.NewDefaultDelegate()
+    delegate.ShowDescription = false
+    delegate.Styles.SelectedTitle.Foreground(googleBlue)
+    delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
+    delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
+    delegate.Styles.SelectedDesc.Foreground(googleBlue)
+	l := list.New(nil, delegate, 0, 0)
 	l.SetShowStatusBar(false)
 	l.SetStatusBarItemName("calendar", "calendars")
 	l.SetShowHelp(false)
 	l.DisableQuitKeybindings()
+	l.Title = "My calendars"
+	l.Styles.Title.Background(googleBlue)
 	updateCalendars(&l, calendars)
 	return CalendarListDialog{
 		list:   l,

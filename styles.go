@@ -11,4 +11,5 @@ var (
 	textInputSummaryStyle        = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
 	textInputDateStyle        = lipgloss.NewStyle().Width(12)
 	textInputTimeStyle        = lipgloss.NewStyle().Width(6)
+    googleBlue = lipgloss.Color("#4285F4")
 )
