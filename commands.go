@@ -11,49 +11,70 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type calendarListRequestMsg struct{}
-
-type calendarListResponseMsg struct {
+type calendarListMsg struct {
 	calendars []*calendar.CalendarListEntry
 	err       error
 }
 
-func calendarListRequestCmd() tea.Cmd {
+func calendarListCmd(calendarService *calendar.Service) tea.Cmd {
 	return func() tea.Msg {
-		return calendarListRequestMsg{}
-	}
-}
-
-func calendarListResponseCmd(calendarService *calendar.Service, msg calendarListRequestMsg) tea.Cmd {
-	return func() tea.Msg {
-		response, err := calendarService.CalendarList.
-			List().
-			Do()
+		response, err := calendarService.CalendarList.List().Do()
 		if err != nil {
-			return calendarListResponseMsg{err: err}
+			return calendarListMsg{err: err}
 		}
-        sort.Slice(response.Items, func(i, j int) bool {
-          return response.Items[i].Summary < response.Items[j].Summary
-        })
-		return calendarListResponseMsg{
+		sort.Slice(response.Items, func(i, j int) bool {
+			return response.Items[i].Summary < response.Items[j].Summary
+		})
+		return calendarListMsg{
 			calendars: response.Items,
 			err:       err,
 		}
 	}
 }
 
-type eventsRequestMsg struct {
-	date time.Time
-}
-
-type eventsResponseMsg struct {
+type eventsListMsg struct {
 	events []*Event
 	errs   []error
 }
 
-func eventsRequestCmd(date time.Time) tea.Cmd {
+func eventsListCmd(
+	calendarService *calendar.Service,
+	cache *cache.Cache,
+	calendars []*calendar.CalendarListEntry,
+	date time.Time,
+) tea.Cmd {
 	return func() tea.Msg {
-		return eventsRequestMsg{date: date}
+		eventCh := make(chan *Event)
+		errCh := make(chan error)
+		done := make(chan struct{})
+		defer close(done)
+		var wg sync.WaitGroup
+		wg.Add(len(calendars))
+		oneDayLater := date.AddDate(0, 0, 1)
+		for _, cal := range calendars {
+			go func(id string) {
+				forwardEvents(calendarService, cache, id, date, oneDayLater, eventCh, errCh, done)
+				wg.Done()
+			}(cal.Id)
+		}
+		go func() {
+			wg.Wait()
+			close(eventCh)
+			close(errCh)
+		}()
+		var events []*Event
+		for event := range eventCh {
+			events = append(events, event)
+		}
+		var errs []error
+		for err := range errCh {
+			errs = append(errs, err)
+		}
+		sort.Sort(eventsSlice(events))
+		return eventsListMsg{
+			events: events,
+			errs:   errs,
+		}
 	}
 }
 
@@ -83,7 +104,7 @@ func cacheKey(ss ...string) string {
 	return strings.Join(ss, "-")
 }
 
-func getEvents(
+func forwardEvents(
 	calendarService *calendar.Service,
 	cache *cache.Cache,
 	calendarId string,
@@ -123,49 +144,6 @@ func getEvents(
 	}
 }
 
-func eventsResponseCmd(
-	calendarService *calendar.Service,
-	cache *cache.Cache,
-	calendars []*calendar.CalendarListEntry,
-	msg eventsRequestMsg,
-) tea.Cmd {
-	return func() tea.Msg {
-		eventCh := make(chan *Event)
-		errCh := make(chan error)
-		done := make(chan struct{})
-		defer close(done)
-		var wg sync.WaitGroup
-		wg.Add(len(calendars))
-		start := msg.date
-		oneDayLater := start.AddDate(0, 0, 1)
-		for _, cal := range calendars {
-			go func(id string) {
-				getEvents(calendarService, cache, id, start, oneDayLater, eventCh, errCh, done)
-				wg.Done()
-			}(cal.Id)
-		}
-		go func() {
-			wg.Wait()
-			close(eventCh)
-			close(errCh)
-		}()
-
-		var events []*Event
-		for event := range eventCh {
-			events = append(events, event)
-		}
-		var errs []error
-		for err := range errCh {
-			errs = append(errs, err)
-		}
-		sort.Sort(eventsSlice(events))
-		return eventsResponseMsg{
-			events: events,
-			errs:   errs,
-		}
-	}
-}
-
 type deleteEventRequestMsg struct {
 	calendarId string
 	eventId    string
@@ -193,14 +171,14 @@ func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRe
 	}
 }
 
-type enterDeleteDialogMsg struct {
+type showDeleteDialogMsg struct {
 	calendarId string
 	eventId    string
 }
 
 func enterDeleteDialogCmd(calendarId, eventId string) tea.Cmd {
 	return func() tea.Msg {
-		return enterDeleteDialogMsg{
+		return showDeleteDialogMsg{
 			calendarId: calendarId,
 			eventId:    eventId,
 		}
@@ -208,19 +186,19 @@ func enterDeleteDialogCmd(calendarId, eventId string) tea.Cmd {
 }
 
 type gotoDateMsg struct {
-	date string
+	date time.Time
 }
 
-func gotoDateCmd(date string) tea.Cmd {
+func gotoDateCmd(date time.Time) tea.Cmd {
 	return func() tea.Msg {
 		return gotoDateMsg{date: date}
 	}
 }
 
-type enterGotoDialogMsg struct{}
+type showGotoDialogMsg struct{}
 
 func enterGotoDialogCmd() tea.Msg {
-	return enterGotoDialogMsg{}
+	return showGotoDialogMsg{}
 }
 
 type editEventRequestMsg struct {
@@ -259,24 +237,29 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 		if err != nil {
 			return editEventResponseMsg{err: err}
 		}
+        startDateTime := start.Format(time.RFC3339)
 		end, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.endDate+" "+msg.endTime, time.Local)
 		if err != nil {
 			return editEventResponseMsg{err: err}
 		}
-		event := calendar.Event{
-			Summary: msg.title,
-			Start: &calendar.EventDateTime{
-				DateTime: start.Format(time.RFC3339),
-			},
-			End: &calendar.EventDateTime{
-				DateTime: end.Format(time.RFC3339),
-			},
-		}
+        endDateTime := end.Format(time.RFC3339)
 		var response *calendar.Event
 		if msg.eventId == "" {
-			response, err = calendarService.Events.Insert(msg.calendarId, &event).Do()
+			event := &calendar.Event{
+				Summary: msg.title,
+				Start:   &calendar.EventDateTime{DateTime: startDateTime},
+				End:     &calendar.EventDateTime{DateTime: endDateTime},
+			}
+			response, err = calendarService.Events.Insert(msg.calendarId, event).Do()
 		} else {
-			response, err = calendarService.Events.Update(msg.calendarId, msg.eventId, &event).Do()
+			event, err := calendarService.Events.Get(msg.calendarId, msg.eventId).Do()
+			if err != nil {
+				return editEventResponseMsg{err: err}
+			}
+			event.Summary = msg.title
+			event.Start.DateTime = startDateTime
+			event.End.DateTime = endDateTime
+			response, err = calendarService.Events.Update(msg.calendarId, msg.eventId, event).Do()
 		}
 		return editEventResponseMsg{
 			event: response,
@@ -285,22 +268,22 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 	}
 }
 
-type enterEditDialogMsg struct {
+type showEditDialogMsg struct {
 	event *Event
 }
 
 func enterEditDialogCmd(event *Event) tea.Cmd {
 	return func() tea.Msg {
-		return enterEditDialogMsg{
+		return showEditDialogMsg{
 			event: event,
 		}
 	}
 }
 
-type enterCalendarViewMsg struct{}
+type showCalendarMsg struct{}
 
 func enterCalendarViewCmd() tea.Msg {
-	return enterCalendarViewMsg{}
+	return showCalendarMsg{}
 }
 
 type refreshEventsMsg struct{}
@@ -309,13 +292,13 @@ func refreshEventsCmd() tea.Msg {
 	return refreshEventsMsg{}
 }
 
-type enterCalendarListMsg struct {
+type showCalendarListMsg struct {
 	calendars []*calendar.CalendarListEntry
 }
 
-func enterCalendarListCmd(calendars []*calendar.CalendarListEntry) tea.Cmd {
+func showCalendarsListCmd(calendars []*calendar.CalendarListEntry) tea.Cmd {
 	return func() tea.Msg {
-		return enterCalendarListMsg{calendars: calendars}
+		return showCalendarListMsg{calendars: calendars}
 	}
 }
 

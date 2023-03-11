@@ -42,7 +42,7 @@ func (m CalendarListDialog) Init() tea.Cmd {
 
 func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case calendarListResponseMsg:
+	case calendarListMsg:
 		updateCalendars(&m.list, msg.calendars)
 		return m, nil
 	case tea.KeyMsg:
