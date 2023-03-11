@@ -68,18 +68,18 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Prevents further updates after creating one event
 		if m.success {
-			return m, enterCalendarViewCmd
+			return m, showCalendarViewCmd
 		}
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			return m, enterCalendarViewCmd
+			return m, showCalendarViewCmd
 		case "enter":
 			if m.selection == yes {
 				return m, deleteEventRequestCmd(m.calendarId, m.eventId)
 			} else {
-				return m, enterCalendarViewCmd
+				return m, showCalendarViewCmd
 			}
 		case "tab", "shift+tab":
 			m.toggleSelection()

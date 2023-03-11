@@ -116,22 +116,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case showCalendarMsg:
 		m.focusedModel = calendarView
 		return m, tea.Batch(tea.ClearScreen, refreshEventsCmd)
-	case showGotoDialogMsg:
-		m.focusedModel = gotoDateDialog
-		m.gotoDialog = newGotoDialog(m.currentDate, m.width, m.height)
-		return m, nil
-	case showEditDialogMsg:
-		m.focusedModel = editDialog
-		m.editDialog = newEditDialog(msg.event, m.currentDate, m.width, m.height)
-		return m, nil
-	case showDeleteDialogMsg:
-		m.focusedModel = deleteDialog
-		m.deleteDialog = newDeleteDialog(msg.calendarId, msg.eventId, m.width, m.height)
-		return m, nil
-	case showCalendarListMsg:
-		m.focusedModel = calendarList
-		m.calendarList = newCalendarListDialog(msg.calendars, m.width, m.height)
-		return m, nil
 	case calendarListMsg:
 		if msg.err != nil {
 			log.Printf("Error getting calendar list: %v", msg.err)
@@ -140,9 +124,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.calendars = msg.calendars
 		if m.focusedModel == calendarList {
 			m.calendarList, cmd = m.calendarList.Update(msg)
-            cmds = append(cmds, cmd)
+			cmds = append(cmds, cmd)
 		}
-        cmds = append(cmds, refreshEventsCmd)
+		cmds = append(cmds, refreshEventsCmd)
 		return m, tea.Batch(cmds...)
 	case eventsListMsg:
 		if len(msg.errs) != 0 {
@@ -195,31 +179,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "t":
 				return m, gotoDateCmd(m.currentDate)
 			case "g":
-				return m, enterGotoDialogCmd
+                m.focusedModel = gotoDateDialog
+                m.gotoDialog = newGotoDialog(m.currentDate, m.width, m.height)
+                return m, nil
 			case "c":
-				return m, enterEditDialogCmd(nil)
+				m.focusedModel = editDialog
+				m.editDialog = newEditDialog(nil, m.focusedDate, m.width, m.height)
+				return m, nil
 			case "e":
-				listItem := m.calendarView.SelectedItem()
-				if listItem == nil {
-					return m, nil
-				}
-				eventItem, ok := listItem.(eventItem)
+				item, ok := m.calendarView.SelectedItem().(eventItem)
 				if !ok {
 					return m, nil
 				}
-				return m, enterEditDialogCmd(eventItem.event)
+				m.focusedModel = editDialog
+				m.editDialog = newEditDialog(item.event, m.focusedDate, m.width, m.height)
+				return m, nil
 			case "delete", "backspace":
-				listItem := m.calendarView.SelectedItem()
-				if listItem == nil {
-					return m, nil
-				}
-				eventItem, ok := listItem.(eventItem)
+				item, ok := m.calendarView.SelectedItem().(eventItem)
 				if !ok {
 					return m, nil
 				}
-				return m, enterDeleteDialogCmd(eventItem.event.calendarId, eventItem.event.event.Id)
+				m.focusedModel = deleteDialog
+				m.deleteDialog = newDeleteDialog(item.event.calendarId, item.event.event.Id, m.width, m.height)
+				return m, nil
 			case "s":
-				return m, showCalendarsListCmd(m.calendars)
+				m.focusedModel = calendarList
+				m.calendarList = newCalendarListDialog(m.calendars, m.width, m.height)
+				return m, nil
 			case "q":
 				return m, tea.Quit
 			case "?":
@@ -233,16 +219,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case gotoDateDialog:
 		m.gotoDialog, cmd = m.gotoDialog.Update(msg)
-        return m, cmd
+		return m, cmd
 	case editDialog:
 		m.editDialog, cmd = m.editDialog.Update(msg)
-        return m, cmd
+		return m, cmd
 	case deleteDialog:
 		m.deleteDialog, cmd = m.deleteDialog.Update(msg)
-        return m, cmd
+		return m, cmd
 	case calendarList:
 		m.calendarList, cmd = m.calendarList.Update(msg)
-        return m, cmd
+		return m, cmd
 	}
 	return m, tea.Batch(cmds...)
 }

@@ -49,14 +49,14 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			return m, enterCalendarViewCmd
+			return m, showCalendarViewCmd
 		case "enter", "ctrl+s":
 			text := m.input.Value()
             date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
             if err != nil {
-                return m, enterCalendarViewCmd
+                return m, showCalendarViewCmd
             }
-			return m, tea.Batch(enterCalendarViewCmd, gotoDateCmd(date))
+			return m, tea.Batch(showCalendarViewCmd, gotoDateCmd(date))
 		}
 	}
 	var cmd tea.Cmd

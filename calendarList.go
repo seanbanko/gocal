@@ -50,7 +50,7 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "esc":
-			return m, enterCalendarViewCmd
+			return m, showCalendarViewCmd
 		case "enter":
 			listItem := m.list.SelectedItem()
 			if listItem == nil {

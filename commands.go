@@ -171,20 +171,6 @@ func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRe
 	}
 }
 
-type showDeleteDialogMsg struct {
-	calendarId string
-	eventId    string
-}
-
-func enterDeleteDialogCmd(calendarId, eventId string) tea.Cmd {
-	return func() tea.Msg {
-		return showDeleteDialogMsg{
-			calendarId: calendarId,
-			eventId:    eventId,
-		}
-	}
-}
-
 type gotoDateMsg struct {
 	date time.Time
 }
@@ -193,12 +179,6 @@ func gotoDateCmd(date time.Time) tea.Cmd {
 	return func() tea.Msg {
 		return gotoDateMsg{date: date}
 	}
-}
-
-type showGotoDialogMsg struct{}
-
-func enterGotoDialogCmd() tea.Msg {
-	return showGotoDialogMsg{}
 }
 
 type editEventRequestMsg struct {
@@ -237,12 +217,12 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 		if err != nil {
 			return editEventResponseMsg{err: err}
 		}
-        startDateTime := start.Format(time.RFC3339)
+		startDateTime := start.Format(time.RFC3339)
 		end, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.endDate+" "+msg.endTime, time.Local)
 		if err != nil {
 			return editEventResponseMsg{err: err}
 		}
-        endDateTime := end.Format(time.RFC3339)
+		endDateTime := end.Format(time.RFC3339)
 		var response *calendar.Event
 		if msg.eventId == "" {
 			event := &calendar.Event{
@@ -268,21 +248,9 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 	}
 }
 
-type showEditDialogMsg struct {
-	event *Event
-}
-
-func enterEditDialogCmd(event *Event) tea.Cmd {
-	return func() tea.Msg {
-		return showEditDialogMsg{
-			event: event,
-		}
-	}
-}
-
 type showCalendarMsg struct{}
 
-func enterCalendarViewCmd() tea.Msg {
+func showCalendarViewCmd() tea.Msg {
 	return showCalendarMsg{}
 }
 
@@ -290,16 +258,6 @@ type refreshEventsMsg struct{}
 
 func refreshEventsCmd() tea.Msg {
 	return refreshEventsMsg{}
-}
-
-type showCalendarListMsg struct {
-	calendars []*calendar.CalendarListEntry
-}
-
-func showCalendarsListCmd(calendars []*calendar.CalendarListEntry) tea.Cmd {
-	return func() tea.Msg {
-		return showCalendarListMsg{calendars: calendars}
-	}
 }
 
 type updateCalendarRequestMsg struct {
@@ -320,7 +278,6 @@ type updateCalendarResponseMsg struct {
 	calendar *calendar.CalendarListEntry
 	err      error
 }
-
 
 func updateCalendarResponseCmd(calendarService *calendar.Service, msg updateCalendarRequestMsg) tea.Cmd {
 	return func() tea.Msg {
