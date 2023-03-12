@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -10,24 +11,38 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	month = iota
+	day
+	year
+)
+
 type GotoDialog struct {
-	input  textinput.Model
-	height int
-	width  int
-	help   help.Model
-	keys   keyMapGoto
+	inputs     []textinput.Model
+	focusIndex int
+	height     int
+	width      int
+	help       help.Model
+	keys       keyMapGoto
 }
 
-func newGotoDialog(today time.Time, width, height int) GotoDialog {
-	input := newDateTextInput()
-	input.Placeholder = today.Format(AbbreviatedTextDate)
-	input.Focus()
+func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
+	inputs := make([]textinput.Model, 3)
+	inputs[month] = newMonthTextInput()
+	inputs[month].Placeholder = focusedDate.Month().String()[:3]
+	inputs[day] = newDayTextInput()
+	inputs[day].Placeholder = fmt.Sprintf("%02d", focusedDate.Day())
+	inputs[year] = newYearTextInput()
+	inputs[year].Placeholder = fmt.Sprintf("%d", focusedDate.Year())
+	focusIndex := month
+	refocus(inputs, focusIndex)
 	return GotoDialog{
-		input:  input,
-		height: height,
-		width:  width,
-		help:   help.New(),
-		keys:   gotoKeymap,
+		inputs:     inputs,
+		focusIndex: focusIndex,
+		height:     height,
+		width:      width,
+		help:       help.New(),
+		keys:       gotoKeymap,
 	}
 }
 
@@ -42,8 +57,18 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, m.keys.Next):
+			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+		case key.Matches(msg, m.keys.Prev):
+			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 		case key.Matches(msg, m.keys.Go):
-			text := m.input.Value()
+			autofillPlaceholders(m.inputs)
+			text := fmt.Sprintf(
+				"%s %s %s",
+				m.inputs[month].Value(),
+				m.inputs[day].Value(),
+				m.inputs[year].Value(),
+			)
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
 			if err != nil {
 				return m, showCalendarViewCmd
@@ -53,13 +78,23 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, showCalendarViewCmd
 		}
 	}
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
-	return m, cmd
+	cmds := make([]tea.Cmd, len(m.inputs))
+	for i := range m.inputs {
+		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
+	}
+	return m, tea.Batch(cmds...)
 }
 
 func (m GotoDialog) View() string {
-	content := "Go to Date: " + textInputDateStyle.Render(m.input.View())
+	content := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		"Go to Date: ",
+		textInputMonthStyle.Render(m.inputs[month].View()),
+		" ",
+		textInputDayStyle.Render(m.inputs[day].View()),
+		" ",
+		textInputYearStyle.Render(m.inputs[year].View()),
+	)
 	helpView := lipgloss.NewStyle().
 		Width(m.width).
 		Padding(1).
@@ -74,11 +109,21 @@ func (m GotoDialog) View() string {
 }
 
 type keyMapGoto struct {
+	Next   key.Binding
+	Prev   key.Binding
 	Go     key.Binding
 	Cancel key.Binding
 }
 
 var gotoKeymap = keyMapGoto{
+	Next: key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "next field"),
+	),
+	Prev: key.NewBinding(
+		key.WithKeys("shift+tab"),
+		key.WithHelp("shift+tab", "previous field"),
+	),
 	Go: key.NewBinding(
 		key.WithKeys("enter", "ctrl+s"),
 		key.WithHelp("enter", "go"),

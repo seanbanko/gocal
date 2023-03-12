@@ -189,7 +189,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, gotoDateCmd(m.currentDate)
 			case key.Matches(msg, m.keys.GotoDate):
 				m.focusedModel = gotoDateDialog
-				m.gotoDialog = newGotoDialog(m.currentDate, m.width, m.height)
+				m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Create):
 				m.focusedModel = editDialog
