@@ -40,35 +40,22 @@ func newEditDialog(event *Event, today time.Time, width, height int) EditDialog 
 	inputs[summary].Prompt = ""
 	inputs[summary].PlaceholderStyle = textInputPlaceholderStyle
 
-	inputs[startDate] = textinput.New()
+	inputs[startDate] = newDateTextInput()
 	inputs[startDate].Placeholder = today.Format(AbbreviatedTextDate)
-	inputs[startDate].CharLimit = 11
-	inputs[startDate].Prompt = ""
-	inputs[startDate].PlaceholderStyle = textInputPlaceholderStyle
 
-	inputs[startTime] = textinput.New()
+	inputs[startTime] = newTimeTextInput()
 	inputs[startTime].Placeholder = today.Format(HHMM24h)
-	inputs[startTime].CharLimit = 5
-	inputs[startTime].Prompt = ""
-	inputs[startTime].PlaceholderStyle = textInputPlaceholderStyle
 
-	inputs[endDate] = textinput.New()
+	inputs[endDate] = newDateTextInput()
 	inputs[endDate].Placeholder = today.Format(AbbreviatedTextDate)
-	inputs[endDate].CharLimit = 11
-	inputs[endDate].Prompt = ""
-	inputs[endDate].PlaceholderStyle = textInputPlaceholderStyle
 
-	inputs[endTime] = textinput.New()
+	inputs[endTime] = newTimeTextInput()
 	inputs[endTime].Placeholder = today.Format(HHMM24h)
-	inputs[endTime].CharLimit = 5
-	inputs[endTime].Width = 5
-	inputs[endTime].Prompt = ""
-	inputs[endTime].PlaceholderStyle = textInputPlaceholderStyle
 
-    var calendarId, eventId string
+	var calendarId, eventId string
 	if event != nil {
-        calendarId = event.calendarId
-        eventId = event.event.Id
+		calendarId = event.calendarId
+		eventId = event.event.Id
 		inputs[summary].SetValue(event.event.Summary)
 		start, err := time.Parse(time.RFC3339, event.event.Start.DateTime)
 		var startD, startT string
@@ -87,11 +74,11 @@ func newEditDialog(event *Event, today time.Time, width, height int) EditDialog 
 		inputs[endDate].SetValue(endD)
 		inputs[endTime].SetValue(endT)
 	} else {
-        calendarId = "primary"
-    }
+		calendarId = "primary"
+	}
 
 	focusIndex := summary
-    refocus(inputs, focusIndex)
+	refocus(inputs, focusIndex)
 
 	return EditDialog{
 		inputs:     inputs,
@@ -105,6 +92,22 @@ func newEditDialog(event *Event, today time.Time, width, height int) EditDialog 
 		help:       help.New(),
 		keys:       EditKeyMap,
 	}
+}
+
+func newDateTextInput() textinput.Model {
+	input := textinput.New()
+	input.CharLimit = 11
+	input.PlaceholderStyle = textInputPlaceholderStyle
+	input.Prompt = ""
+	return input
+}
+
+func newTimeTextInput() textinput.Model {
+	input := textinput.New()
+	input.CharLimit = 5
+	input.PlaceholderStyle = textInputPlaceholderStyle
+	input.Prompt = ""
+	return input
 }
 
 func (m EditDialog) Init() tea.Cmd {
@@ -198,7 +201,7 @@ func (m EditDialog) View() string {
 		Render(m.help.View(m.keys))
 	container := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height-lipgloss.Height(helpView) - 3).
+		Height(m.height-lipgloss.Height(helpView)-3).
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(dialogStyle.Render(content))
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
@@ -208,7 +211,7 @@ func renderEditContent(m EditDialog) string {
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
 		"Edit Event\n",
-		textInputSummaryStyle.Render(m.inputs[summary].View()) + "\n",
+		textInputSummaryStyle.Render(m.inputs[summary].View())+"\n",
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			textInputDateStyle.Render(m.inputs[startDate].View()),

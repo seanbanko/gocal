@@ -19,11 +19,8 @@ type GotoDialog struct {
 }
 
 func newGotoDialog(today time.Time, width, height int) GotoDialog {
-	input := textinput.New()
+	input := newDateTextInput()
 	input.Placeholder = today.Format(AbbreviatedTextDate)
-	input.CharLimit = 11
-	input.Prompt = ""
-	input.PlaceholderStyle = textInputPlaceholderStyle
 	input.Focus()
 	return GotoDialog{
 		input:  input,

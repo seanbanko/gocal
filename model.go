@@ -77,11 +77,11 @@ type model struct {
 func newModel(service *calendar.Service, cache *cache.Cache) model {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-    delegate := list.NewDefaultDelegate()
-    delegate.Styles.SelectedTitle.Foreground(googleBlue)
-    delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
-    delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
-    delegate.Styles.SelectedDesc.Foreground(googleBlue)
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle.Foreground(googleBlue)
+	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
+	delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
+	delegate.Styles.SelectedDesc.Foreground(googleBlue)
 	l := list.New(nil, delegate, 0, 0)
 	l.SetShowStatusBar(false)
 	l.SetStatusBarItemName("event", "events")
@@ -183,9 +183,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "t":
 				return m, gotoDateCmd(m.currentDate)
 			case "g":
-                m.focusedModel = gotoDateDialog
-                m.gotoDialog = newGotoDialog(m.currentDate, m.width, m.height)
-                return m, nil
+				m.focusedModel = gotoDateDialog
+				m.gotoDialog = newGotoDialog(m.currentDate, m.width, m.height)
+				return m, nil
 			case "c":
 				m.focusedModel = editDialog
 				m.editDialog = newEditDialog(nil, m.focusedDate, m.width, m.height)
