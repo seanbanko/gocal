@@ -235,6 +235,15 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		case key.Matches(msg, m.keys.Cancel):
 			return m, showCalendarViewCmd
+		case !(msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete) && ((m.focusIndex == startHour && len(m.inputs[startHour].Value()) == m.inputs[startHour].CharLimit) ||
+			(m.focusIndex == endHour && len(m.inputs[endHour].Value()) == m.inputs[endHour].CharLimit)):
+			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+		case msg.Type == tea.KeySpace && (m.focusIndex == startMonth || m.focusIndex == startDay || m.focusIndex == endMonth || m.focusIndex == endDay):
+			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+			return m, nil
+		case msg.Type == tea.KeyBackspace && (m.inputs[m.focusIndex].Cursor() == 0) && m.focusIndex != summary:
+			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
+			return m, nil
 		}
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
