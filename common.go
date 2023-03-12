@@ -1,5 +1,7 @@
 package main
 
+import "github.com/charmbracelet/lipgloss"
+
 const (
 	YYYYMMDD                       = "2006-01-02"
 	MMDDYYYY                       = "01/02/2006"
@@ -15,3 +17,17 @@ const (
 	AbbreviatedTextDate24h         = "Jan 2 2006 15:04"
 )
 
+const (
+	googleBlue = lipgloss.Color("#4285F4")
+)
+
+var (
+	dialogStyle = lipgloss.NewStyle().
+			Padding(1).
+			Border(lipgloss.RoundedBorder()).
+			Align(lipgloss.Center, lipgloss.Center)
+	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
+	textInputSummaryStyle     = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
+	textInputDateStyle        = lipgloss.NewStyle().Width(12)
+	textInputTimeStyle        = lipgloss.NewStyle().Width(6)
+)
