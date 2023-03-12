@@ -14,10 +14,8 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type modelInView int
-
 const (
-	calendarView modelInView = iota
+	calendarView = iota
 	deleteDialog
 	gotoDateDialog
 	editDialog
@@ -65,7 +63,7 @@ type model struct {
 	focusedDate     time.Time
 	events          []*Event
 	calendars       []*calendar.CalendarListEntry
-	focusedModel    modelInView // TODO can this be a pointer?
+	focusedModel    int
 	calendarView    list.Model
 	gotoDialog      tea.Model
 	editDialog      tea.Model

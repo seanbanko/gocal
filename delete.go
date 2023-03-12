@@ -7,10 +7,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type selection int
-
 const (
-	yes selection = iota
+	yes = iota
 	no
 )
 
@@ -22,7 +20,7 @@ var (
 type DeleteDialog struct {
 	calendarId string
 	eventId    string
-	selection  selection
+	selection  int
 	height     int
 	width      int
 	success    bool
