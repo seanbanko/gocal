@@ -76,6 +76,13 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(showCalendarViewCmd, gotoDateCmd(date))
 		case key.Matches(msg, m.keys.Cancel):
 			return m, showCalendarViewCmd
+
+		case msg.Type == tea.KeySpace && (m.focusIndex == month || m.focusIndex == day):
+			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+			return m, nil
+		case msg.Type == tea.KeyBackspace && (m.inputs[m.focusIndex].Cursor() == 0) && m.focusIndex != 0:
+			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
+			return m, nil
 		}
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
