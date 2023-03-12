@@ -127,7 +127,7 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		if m.success {
+		if m.success || m.err != nil {
 			return m, showCalendarViewCmd
 		}
 		switch {
