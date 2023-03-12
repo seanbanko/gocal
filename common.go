@@ -21,15 +21,38 @@ const (
 	googleBlue = lipgloss.Color("#4285F4")
 )
 
+const (
+	summaryWidth = 40
+	monthWidth   = 3
+	dayWidth     = 2
+	yearWidth    = 4
+	timeWidth    = 2
+)
+
 var (
 	dialogStyle = lipgloss.NewStyle().
 			Padding(1).
 			Border(lipgloss.RoundedBorder()).
 			Align(lipgloss.Center, lipgloss.Center)
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
-	textInputSummaryStyle     = lipgloss.NewStyle().AlignHorizontal(lipgloss.Center)
-	textInputMonthStyle       = lipgloss.NewStyle().MaxWidth(3).MaxHeight(1)
-	textInputDayStyle         = lipgloss.NewStyle().MaxWidth(2).MaxHeight(1)
-	textInputYearStyle        = lipgloss.NewStyle().MaxWidth(4).MaxHeight(1)
-	textInputTimeStyle        = lipgloss.NewStyle().MaxWidth(2).MaxHeight(1)
+	textInputSummaryStyle = lipgloss.NewStyle().
+				Width(summaryWidth + 2).
+				PaddingLeft(1).
+				Border(lipgloss.RoundedBorder())
+	textInputMonthStyle = lipgloss.NewStyle().
+				Width(monthWidth + 2).
+				PaddingLeft(1).
+				Border(lipgloss.RoundedBorder())
+	textInputDayStyle = lipgloss.NewStyle().
+				Width(dayWidth + 2).
+				PaddingLeft(1).
+				Border(lipgloss.RoundedBorder())
+	textInputYearStyle = lipgloss.NewStyle().
+				Width(yearWidth + 2).
+				PaddingLeft(1).
+				Border(lipgloss.RoundedBorder())
+	textInputTimeStyle = lipgloss.NewStyle().
+				Width(timeWidth + 2).
+				PaddingLeft(1).
+				Border(lipgloss.RoundedBorder())
 )

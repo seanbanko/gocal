@@ -87,7 +87,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m GotoDialog) View() string {
 	content := lipgloss.JoinHorizontal(
-		lipgloss.Top,
+		lipgloss.Center,
 		"Go to Date: ",
 		textInputMonthStyle.Render(m.inputs[month].View()),
 		" ",
@@ -104,7 +104,7 @@ func (m GotoDialog) View() string {
 		Width(m.width).
 		Height(m.height-lipgloss.Height(helpView)-3).
 		Align(lipgloss.Center, lipgloss.Center).
-		Render(dialogStyle.Render(content))
+		Render(content)
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 

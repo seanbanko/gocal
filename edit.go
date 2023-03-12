@@ -43,7 +43,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 
 	inputs[summary] = textinput.New()
 	inputs[summary].Placeholder = "Add title"
-	inputs[summary].CharLimit = 40
+	inputs[summary].Width = summaryWidth
 	inputs[summary].Prompt = ""
 	inputs[summary].PlaceholderStyle = textInputPlaceholderStyle
 
@@ -135,8 +135,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 
 func newMonthTextInput() textinput.Model {
 	input := textinput.New()
-	input.Width = 3
-	input.CharLimit = 3
+	input.CharLimit = monthWidth
 	input.PlaceholderStyle = textInputPlaceholderStyle
 	input.Prompt = ""
 	return input
@@ -144,8 +143,7 @@ func newMonthTextInput() textinput.Model {
 
 func newDayTextInput() textinput.Model {
 	input := textinput.New()
-	input.Width = 2
-	input.CharLimit = 2
+	input.CharLimit = dayWidth
 	input.PlaceholderStyle = textInputPlaceholderStyle
 	input.Prompt = ""
 	return input
@@ -153,8 +151,7 @@ func newDayTextInput() textinput.Model {
 
 func newYearTextInput() textinput.Model {
 	input := textinput.New()
-	input.Width = 4
-	input.CharLimit = 4
+	input.CharLimit = yearWidth
 	input.PlaceholderStyle = textInputPlaceholderStyle
 	input.Prompt = ""
 	return input
@@ -162,8 +159,7 @@ func newYearTextInput() textinput.Model {
 
 func newTimeTextInput() textinput.Model {
 	input := textinput.New()
-	input.Width = 2
-	input.CharLimit = 2
+	input.CharLimit = timeWidth
 	input.PlaceholderStyle = textInputPlaceholderStyle
 	input.Prompt = ""
 	return input
@@ -299,7 +295,7 @@ func (m EditDialog) View() string {
 		Width(m.width).
 		Height(m.height-lipgloss.Height(helpView)-3).
 		Align(lipgloss.Center, lipgloss.Center).
-		Render(dialogStyle.Render(content))
+		Render(content)
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 
@@ -309,7 +305,7 @@ func renderEditContent(m EditDialog) string {
 		"Create/Edit Event\n",
 		textInputSummaryStyle.Render(m.inputs[summary].View())+"\n",
 		lipgloss.JoinHorizontal(
-			lipgloss.Top,
+			lipgloss.Center,
 			textInputMonthStyle.Render(m.inputs[startMonth].View()),
 			" ",
 			textInputDayStyle.Render(m.inputs[startDay].View()),
