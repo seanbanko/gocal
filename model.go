@@ -64,7 +64,7 @@ type model struct {
 	events          []*Event
 	calendars       []*calendar.CalendarListEntry
 	focusedModel    int
-	calendarView    list.Model
+	eventsList      list.Model
 	gotoDialog      tea.Model
 	editDialog      tea.Model
 	deleteDialog    tea.Model
@@ -82,20 +82,20 @@ func newModel(service *calendar.Service, cache *cache.Cache) model {
 	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
 	delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
 	delegate.Styles.SelectedDesc.Foreground(googleBlue)
-	l := list.New(nil, delegate, 0, 0)
-	l.SetShowStatusBar(false)
-	l.SetStatusBarItemName("event", "events")
-	l.SetShowHelp(false)
-	l.DisableQuitKeybindings()
-	l.Title = today.Format(AbbreviatedTextDateWithWeekday)
-	l.Styles.Title.Background(googleBlue)
+	eventsList := list.New(nil, delegate, 0, 0)
+	eventsList.SetShowStatusBar(false)
+	eventsList.SetStatusBarItemName("event", "events")
+	eventsList.SetShowHelp(false)
+	eventsList.DisableQuitKeybindings()
+	eventsList.Title = today.Format(AbbreviatedTextDateWithWeekday)
+	eventsList.Styles.Title.Background(googleBlue)
 	return model{
 		calendarService: service,
 		cache:           cache,
 		currentDate:     today,
 		focusedDate:     today,
 		focusedModel:    calendarView,
-		calendarView:    l,
+		eventsList:      eventsList,
 		keys:            defaultKeyMap,
 		help:            help.New(),
 	}
@@ -139,11 +139,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.events = msg.events
 		items := toItems(msg.events)
-		m.calendarView.SetItems(items)
+		m.eventsList.SetItems(items)
 		return m, nil
 	case gotoDateMsg:
 		m.focusedDate = msg.date
-		m.calendarView.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
+		m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 		return m, refreshEventsCmd
 	case refreshEventsMsg:
 		var calendars []*calendar.CalendarListEntry
@@ -196,7 +196,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.editDialog = newEditDialog(nil, m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Edit):
-				item, ok := m.calendarView.SelectedItem().(eventItem)
+				item, ok := m.eventsList.SelectedItem().(eventItem)
 				if !ok {
 					return m, nil
 				}
@@ -204,7 +204,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.editDialog = newEditDialog(item.event, m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Delete):
-				item, ok := m.calendarView.SelectedItem().(eventItem)
+				item, ok := m.eventsList.SelectedItem().(eventItem)
 				if !ok {
 					return m, nil
 				}
@@ -222,7 +222,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			default:
 				var cmd tea.Cmd
-				m.calendarView, cmd = m.calendarView.Update(msg)
+				m.eventsList, cmd = m.eventsList.Update(msg)
 				return m, cmd
 			}
 		}
@@ -267,8 +267,8 @@ func (m model) View() string {
 			Padding(1).
 			AlignHorizontal(lipgloss.Center).
 			Render(m.help.View(m.keys))
-		m.calendarView.SetSize(m.width, m.height-lipgloss.Height(titleBar)-lipgloss.Height(helpView))
-		body = lipgloss.JoinVertical(lipgloss.Left, m.calendarView.View(), helpView)
+		m.eventsList.SetSize(m.width, m.height-lipgloss.Height(titleBar)-lipgloss.Height(helpView))
+		body = lipgloss.JoinVertical(lipgloss.Left, m.eventsList.View(), helpView)
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
 	case editDialog:
