@@ -18,12 +18,12 @@ type CalendarListDialog struct {
 }
 
 func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, height int) CalendarListDialog {
-    delegate := list.NewDefaultDelegate()
-    delegate.ShowDescription = false
-    delegate.Styles.SelectedTitle.Foreground(googleBlue)
-    delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
-    delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
-    delegate.Styles.SelectedDesc.Foreground(googleBlue)
+	delegate := list.NewDefaultDelegate()
+	delegate.ShowDescription = false
+	delegate.Styles.SelectedTitle.Foreground(googleBlue)
+	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
+	delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
+	delegate.Styles.SelectedDesc.Foreground(googleBlue)
 	l := list.New(nil, delegate, 0, 0)
 	l.SetShowStatusBar(false)
 	l.SetStatusBarItemName("calendar", "calendars")
@@ -37,7 +37,7 @@ func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, heigh
 		height: height,
 		width:  width,
 		help:   help.New(),
-		keys:   CalendarsListKeyMap,
+		keys:   calendarsListKeyMap,
 	}
 }
 
@@ -51,12 +51,10 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		updateCalendars(&m.list, msg.calendars)
 		return m, nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "esc":
+		switch {
+		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
-		case "enter":
+		case key.Matches(msg, m.keys.Toggle):
 			listItem := m.list.SelectedItem()
 			if listItem == nil {
 				return m, nil
@@ -92,46 +90,37 @@ func (m CalendarListDialog) View() string {
 }
 
 type keyMapCalendarsList struct {
-	Next   key.Binding
-	Prev   key.Binding
+	Down   key.Binding
+	Up     key.Binding
 	Toggle key.Binding
-	Cancel key.Binding
-	Quit   key.Binding
+	Exit   key.Binding
 }
 
-var CalendarsListKeyMap = keyMapCalendarsList{
-	Next: key.NewBinding(
-		key.WithKeys("j"),
-		key.WithHelp("j", "down"),
+var calendarsListKeyMap = keyMapCalendarsList{
+	Down: key.NewBinding(
+		key.WithKeys("j", "down"),
+		key.WithHelp("↓/j", "down"),
 	),
-	Prev: key.NewBinding(
-		key.WithKeys("k"),
-		key.WithHelp("k", "up"),
+	Up: key.NewBinding(
+		key.WithKeys("k", "up"),
+		key.WithHelp("↑/k", "up"),
 	),
 	Toggle: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "toggle"),
 	),
-	Cancel: key.NewBinding(
+	Exit: key.NewBinding(
 		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel"),
-	),
-	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c", "q"),
-		key.WithHelp("ctrl+c/q", "quit"),
+		key.WithHelp("esc", "exit"),
 	),
 }
 
 func (k keyMapCalendarsList) ShortHelp() []key.Binding {
-	return []key.Binding{k.Next, k.Prev, k.Toggle, k.Cancel, k.Quit}
+	return []key.Binding{k.Down, k.Up, k.Toggle, k.Exit}
 }
 
 func (k keyMapCalendarsList) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Next, k.Cancel},
-		{k.Prev, k.Quit},
-		{k.Toggle},
-	}
+	return [][]key.Binding{{k.Down}, {k.Up}, {k.Toggle}, {k.Exit}}
 }
 
 type calendarItem struct {

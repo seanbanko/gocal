@@ -90,7 +90,7 @@ func newEditDialog(event *Event, today time.Time, width, height int) EditDialog 
 		success:    false,
 		err:        nil,
 		help:       help.New(),
-		keys:       EditKeyMap,
+		keys:       editKeyMap,
 	}
 }
 
@@ -127,16 +127,15 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		// Prevents further updates after creating one event
 		if m.success {
 			return m, showCalendarViewCmd
 		}
-		switch msg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		case "esc":
-			return m, showCalendarViewCmd
-		case "enter", "ctrl+s":
+		switch {
+		case key.Matches(msg, m.keys.Next):
+			m.focusNext()
+		case key.Matches(msg, m.keys.Prev):
+			m.focusPrev()
+		case key.Matches(msg, m.keys.Save):
 			return m, editEventRequestCmd(
 				m.calendarId,
 				m.eventId,
@@ -146,10 +145,8 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputs[endDate].Value(),
 				m.inputs[endTime].Value(),
 			)
-		case "tab":
-			m.focusNext()
-		case "shift+tab":
-			m.focusPrev()
+		case key.Matches(msg, m.keys.Cancel):
+			return m, showCalendarViewCmd
 		}
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
@@ -230,10 +227,9 @@ type keyMapEdit struct {
 	Prev   key.Binding
 	Save   key.Binding
 	Cancel key.Binding
-	Quit   key.Binding
 }
 
-var EditKeyMap = keyMapEdit{
+var editKeyMap = keyMapEdit{
 	Next: key.NewBinding(
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "next field"),
@@ -250,20 +246,12 @@ var EditKeyMap = keyMapEdit{
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
 	),
-	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c", "q"),
-		key.WithHelp("ctrl+c/q", "quit"),
-	),
 }
 
 func (k keyMapEdit) ShortHelp() []key.Binding {
-	return []key.Binding{k.Next, k.Prev, k.Save, k.Cancel, k.Quit}
+	return []key.Binding{k.Next, k.Prev, k.Save, k.Cancel}
 }
 
 func (k keyMapEdit) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Next, k.Cancel},
-		{k.Prev, k.Quit},
-		{k.Save},
-	}
+	return [][]key.Binding{{k.Next}, {k.Prev}, {k.Save}, {k.Cancel}}
 }

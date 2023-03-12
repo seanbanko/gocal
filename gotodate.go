@@ -27,7 +27,7 @@ func newGotoDialog(today time.Time, width, height int) GotoDialog {
 		height: height,
 		width:  width,
 		help:   help.New(),
-		keys:   GotoKeymap,
+		keys:   gotoKeymap,
 	}
 }
 
@@ -41,18 +41,16 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height, m.width = msg.Height, msg.Width
 		return m, nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		case "esc":
-			return m, showCalendarViewCmd
-		case "enter", "ctrl+s":
+		switch {
+		case key.Matches(msg, m.keys.Go):
 			text := m.input.Value()
-            date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
-            if err != nil {
-                return m, showCalendarViewCmd
-            }
+			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
+			if err != nil {
+				return m, showCalendarViewCmd
+			}
 			return m, tea.Batch(showCalendarViewCmd, gotoDateCmd(date))
+		case key.Matches(msg, m.keys.Cancel):
+			return m, showCalendarViewCmd
 		}
 	}
 	var cmd tea.Cmd
@@ -69,7 +67,7 @@ func (m GotoDialog) View() string {
 		Render(m.help.View(m.keys))
 	container := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height-lipgloss.Height(helpView) - 3).
+		Height(m.height-lipgloss.Height(helpView)-3).
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(dialogStyle.Render(content))
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
@@ -78,32 +76,23 @@ func (m GotoDialog) View() string {
 type keyMapGoto struct {
 	Go     key.Binding
 	Cancel key.Binding
-	Quit   key.Binding
 }
 
-var GotoKeymap = keyMapGoto{
+var gotoKeymap = keyMapGoto{
 	Go: key.NewBinding(
 		key.WithKeys("enter", "ctrl+s"),
-		key.WithHelp("enter/ctrl+s", "go"),
+		key.WithHelp("enter", "go"),
 	),
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
 	),
-	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c", "q"),
-		key.WithHelp("ctrl+c/q", "quit"),
-	),
 }
 
 func (k keyMapGoto) ShortHelp() []key.Binding {
-	return []key.Binding{k.Go, k.Cancel, k.Quit}
+	return []key.Binding{k.Go, k.Cancel}
 }
 
 func (k keyMapGoto) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Go},
-		{k.Cancel},
-		{k.Quit},
-	}
+	return [][]key.Binding{{k.Go}, {k.Cancel}}
 }

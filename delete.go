@@ -39,7 +39,7 @@ func newDeleteDialog(calendarId, eventId string, width, height int) DeleteDialog
 		success:    false,
 		err:        nil,
 		help:       help.New(),
-		keys:       DeleteKeyMap,
+		keys:       deleteKeyMap,
 	}
 }
 
@@ -60,27 +60,24 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		// Prevents further updates after creating one event
 		if m.success {
 			return m, showCalendarViewCmd
 		}
-		switch msg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		case "esc":
-			return m, showCalendarViewCmd
-		case "enter":
+		switch {
+		case key.Matches(msg, m.keys.Toggle):
+			m.toggleSelection()
+		case key.Matches(msg, m.keys.Yes):
+			m.selection = yes
+		case key.Matches(msg, m.keys.No):
+			m.selection = no
+		case key.Matches(msg, m.keys.Confirm):
 			if m.selection == yes {
 				return m, deleteEventRequestCmd(m.calendarId, m.eventId)
 			} else {
 				return m, showCalendarViewCmd
 			}
-		case "tab", "shift+tab":
-			m.toggleSelection()
-		case "y":
-			m.selection = yes
-		case "n":
-			m.selection = no
+		case key.Matches(msg, m.keys.Cancel):
+			return m, showCalendarViewCmd
 		}
 	}
 	return m, nil
@@ -146,18 +143,18 @@ type keyMapDelete struct {
 	Quit    key.Binding
 }
 
-var DeleteKeyMap = keyMapDelete{
+var deleteKeyMap = keyMapDelete{
 	Toggle: key.NewBinding(
 		key.WithKeys("tab", "shift+tab"),
 		key.WithHelp("tab", "toggle"),
 	),
 	Yes: key.NewBinding(
 		key.WithKeys("y"),
-		key.WithHelp("yes", "yes"),
+		key.WithHelp("y", "yes"),
 	),
 	No: key.NewBinding(
 		key.WithKeys("n"),
-		key.WithHelp("no", "no"),
+		key.WithHelp("n", "no"),
 	),
 	Confirm: key.NewBinding(
 		key.WithKeys("enter"),
@@ -167,20 +164,16 @@ var DeleteKeyMap = keyMapDelete{
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
 	),
-	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c", "q"),
-		key.WithHelp("ctrl+c/q", "quit"),
-	),
 }
 
 func (k keyMapDelete) ShortHelp() []key.Binding {
-	return []key.Binding{k.Toggle, k.Yes, k.No, k.Confirm, k.Cancel, k.Quit}
+	return []key.Binding{k.Toggle, k.Yes, k.No, k.Confirm, k.Cancel}
 }
 
 func (k keyMapDelete) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Toggle, k.Confirm},
 		{k.Yes, k.Cancel},
-		{k.No, k.Quit},
+		{k.No},
 	}
 }

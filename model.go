@@ -96,7 +96,7 @@ func newModel(service *calendar.Service, cache *cache.Cache) model {
 		focusedDate:     today,
 		focusedModel:    calendarView,
 		calendarView:    l,
-		keys:            DefaultKeyMap,
+		keys:            defaultKeyMap,
 		help:            help.New(),
 	}
 }
@@ -175,22 +175,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case calendarView:
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
-			switch msg.String() {
-			case "n":
+			switch {
+			case key.Matches(msg, m.keys.Next):
 				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
-			case "p":
+			case key.Matches(msg, m.keys.Prev):
 				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -1))
-			case "t":
+			case key.Matches(msg, m.keys.Today):
 				return m, gotoDateCmd(m.currentDate)
-			case "g":
+			case key.Matches(msg, m.keys.GotoDate):
 				m.focusedModel = gotoDateDialog
 				m.gotoDialog = newGotoDialog(m.currentDate, m.width, m.height)
 				return m, nil
-			case "c":
+			case key.Matches(msg, m.keys.Create):
 				m.focusedModel = editDialog
 				m.editDialog = newEditDialog(nil, m.focusedDate, m.width, m.height)
 				return m, nil
-			case "e":
+			case key.Matches(msg, m.keys.Edit):
 				item, ok := m.calendarView.SelectedItem().(eventItem)
 				if !ok {
 					return m, nil
@@ -198,7 +198,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.focusedModel = editDialog
 				m.editDialog = newEditDialog(item.event, m.focusedDate, m.width, m.height)
 				return m, nil
-			case "delete", "backspace":
+			case key.Matches(msg, m.keys.Delete):
 				item, ok := m.calendarView.SelectedItem().(eventItem)
 				if !ok {
 					return m, nil
@@ -206,15 +206,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.focusedModel = deleteDialog
 				m.deleteDialog = newDeleteDialog(item.event.calendarId, item.event.event.Id, m.width, m.height)
 				return m, nil
-			case "s":
+			case key.Matches(msg, m.keys.CalendarList):
 				m.focusedModel = calendarList
 				m.calendarList = newCalendarListDialog(m.calendars, m.width, m.height)
 				return m, nil
-			case "q":
-				return m, tea.Quit
-			case "?":
+			case key.Matches(msg, m.keys.Help):
 				m.help.ShowAll = !m.help.ShowAll
 				return m, nil
+			case key.Matches(msg, m.keys.Quit):
+				return m, tea.Quit
 			default:
 				var cmd tea.Cmd
 				m.calendarView, cmd = m.calendarView.Update(msg)
@@ -277,17 +277,19 @@ func (m model) View() string {
 }
 
 type keyMapDefault struct {
-	Next     key.Binding
-	Prev     key.Binding
-	Today    key.Binding
-	GotoDate key.Binding
-	Create   key.Binding
-	Delete   key.Binding
-	Help     key.Binding
-	Quit     key.Binding
+	Next         key.Binding
+	Prev         key.Binding
+	Today        key.Binding
+	GotoDate     key.Binding
+	Create       key.Binding
+	Edit         key.Binding
+	Delete       key.Binding
+	CalendarList key.Binding
+	Help         key.Binding
+	Quit         key.Binding
 }
 
-var DefaultKeyMap = keyMapDefault{
+var defaultKeyMap = keyMapDefault{
 	Next: key.NewBinding(
 		key.WithKeys("n"),
 		key.WithHelp("n", "next period"),
@@ -308,9 +310,17 @@ var DefaultKeyMap = keyMapDefault{
 		key.WithKeys("c"),
 		key.WithHelp("c", "create event"),
 	),
+	Edit: key.NewBinding(
+		key.WithKeys("e"),
+		key.WithHelp("e", "edit event"),
+	),
 	Delete: key.NewBinding(
 		key.WithKeys("backspace", "delete"),
 		key.WithHelp("del", "delete event"),
+	),
+	CalendarList: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "show calendar list"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
@@ -318,7 +328,7 @@ var DefaultKeyMap = keyMapDefault{
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c", "q"),
-		key.WithHelp("ctrl+c/q", "quit"),
+		key.WithHelp("q", "quit"),
 	),
 }
 
@@ -328,11 +338,11 @@ func (k keyMapDefault) ShortHelp() []key.Binding {
 
 func (k keyMapDefault) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Next, k.Help},
-		{k.Prev, k.Quit},
-		{k.Today},
-		{k.GotoDate},
+		{k.Next, k.GotoDate},
+		{k.Prev, k.CalendarList},
+		{k.Today, k.Help},
+		{k.GotoDate, k.Quit},
 		{k.Create},
-		{k.Delete},
+		{k.Edit},
 	}
 }
