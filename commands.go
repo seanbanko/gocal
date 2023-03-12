@@ -70,9 +70,22 @@ func eventsListCmd(
 		for err := range errCh {
 			errs = append(errs, err)
 		}
-		sort.Sort(eventsSlice(events))
+		var allDayEvents []*Event
+		var timeEvents []*Event
+		for _, event := range events {
+			if event.event.Start.Date != "" {
+				allDayEvents = append(allDayEvents, event)
+			} else {
+				timeEvents = append(timeEvents, event)
+			}
+		}
+		sort.Slice(allDayEvents, func(i, j int) bool {
+			return allDayEvents[i].event.Summary < allDayEvents[j].event.Summary
+		})
+        sort.Sort(eventsSlice(timeEvents))
+		allEvents := append(allDayEvents, timeEvents...)
 		return eventsListMsg{
-			events: events,
+			events: allEvents,
 			errs:   errs,
 		}
 	}
@@ -184,7 +197,7 @@ func gotoDateCmd(date time.Time) tea.Cmd {
 type editEventRequestMsg struct {
 	calendarId string
 	eventId    string
-	summary      string
+	summary    string
 	startDate  string
 	startTime  string
 	endDate    string
@@ -201,7 +214,7 @@ func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, end
 		return editEventRequestMsg{
 			calendarId: calendarId,
 			eventId:    eventId,
-			summary:      summary,
+			summary:    summary,
 			startDate:  startDate,
 			startTime:  startTime,
 			endDate:    endDate,
