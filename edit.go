@@ -18,11 +18,11 @@ const (
 	startYear
 	startHour
 	startMinute
+	endHour
+	endMinute
 	endMonth
 	endDay
 	endYear
-	endHour
-	endMinute
 )
 
 type EditDialog struct {
@@ -312,19 +312,19 @@ func renderEditContent(m EditDialog) string {
 			" ",
 			textInputYearStyle.Render(m.inputs[startYear].View()),
 			" at ",
-			textInputTimeStyle.Render(m.inputs[startHour].View()),
-			":",
-			textInputTimeStyle.Render(m.inputs[startMinute].View()),
+			textInputTimeStyle.Copy().BorderRight(false).Render(m.inputs[startHour].View()),
+			lipgloss.NewStyle().BorderTop(true).BorderBottom(true).BorderStyle(lipgloss.RoundedBorder()).Render(":"),
+			textInputTimeStyle.Copy().BorderLeft(false).Render(m.inputs[startMinute].View()),
 			" to ",
+			textInputTimeStyle.Copy().BorderRight(false).Render(m.inputs[endHour].View()),
+			lipgloss.NewStyle().BorderTop(true).BorderBottom(true).BorderStyle(lipgloss.RoundedBorder()).Render(":"),
+			textInputTimeStyle.Copy().BorderLeft(false).Render(m.inputs[endMinute].View()),
+			" on ",
 			textInputMonthStyle.Render(m.inputs[endMonth].View()),
 			" ",
 			textInputDayStyle.Render(m.inputs[endDay].View()),
 			" ",
 			textInputYearStyle.Render(m.inputs[endYear].View()),
-			" at ",
-			textInputTimeStyle.Render(m.inputs[endHour].View()),
-			":",
-			textInputTimeStyle.Render(m.inputs[endMinute].View()),
 		),
 	)
 }
