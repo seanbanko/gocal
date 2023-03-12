@@ -173,6 +173,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	switch m.focusedModel {
 	case calendarView:
+		if m.eventsList.SettingFilter() {
+			var cmd tea.Cmd
+			m.eventsList, cmd = m.eventsList.Update(msg)
+			return m, cmd
+		}
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch {
