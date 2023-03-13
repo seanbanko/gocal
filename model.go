@@ -57,21 +57,21 @@ func (i eventItem) FilterValue() string {
 }
 
 type model struct {
-	calendarService *calendar.Service
-	cache           *cache.Cache
-	currentDate     time.Time
-	focusedDate     time.Time
-	events          []*Event
-	calendars       []*calendar.CalendarListEntry
-	focusedModel    int
-	eventsList      list.Model
-	gotoDialog      tea.Model
-	editDialog      tea.Model
-	deleteDialog    tea.Model
-	calendarList    tea.Model
-	keys            keyMapDefault
-	help            help.Model
-	width, height   int
+	srv           *calendar.Service
+	cache         *cache.Cache
+	currentDate   time.Time
+	focusedDate   time.Time
+	events        []*Event
+	calendars     []*calendar.CalendarListEntry
+	focusedModel  int
+	eventsList    list.Model
+	gotoDialog    tea.Model
+	editDialog    tea.Model
+	deleteDialog  tea.Model
+	calendarList  tea.Model
+	keys          keyMapDefault
+	help          help.Model
+	width, height int
 }
 
 func newModel(service *calendar.Service, cache *cache.Cache) model {
@@ -90,19 +90,19 @@ func newModel(service *calendar.Service, cache *cache.Cache) model {
 	eventsList.Title = today.Format(AbbreviatedTextDateWithWeekday)
 	eventsList.Styles.Title.Background(googleBlue)
 	return model{
-		calendarService: service,
-		cache:           cache,
-		currentDate:     today,
-		focusedDate:     today,
-		focusedModel:    calendarView,
-		eventsList:      eventsList,
-		keys:            defaultKeyMap,
-		help:            help.New(),
+		srv:          service,
+		cache:        cache,
+		currentDate:  today,
+		focusedDate:  today,
+		focusedModel: calendarView,
+		eventsList:   eventsList,
+		keys:         defaultKeyMap,
+		help:         help.New(),
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return calendarListCmd(m.calendarService)
+	return calendarListCmd(m.srv)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -148,19 +148,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			calendars = append(calendars, calendar)
 		}
-		return m, eventsListCmd(m.calendarService, m.cache, calendars, m.focusedDate)
+		return m, eventsListCmd(m.srv, m.cache, calendars, m.focusedDate)
 	case editEventRequestMsg:
-		return m, editEventResponseCmd(m.calendarService, msg)
+		return m, editEventResponseCmd(m.srv, msg)
 	case deleteEventRequestMsg:
-		return m, deleteEventResponseCmd(m.calendarService, msg)
+		return m, deleteEventResponseCmd(m.srv, msg)
 	case updateCalendarRequestMsg:
-		return m, updateCalendarResponseCmd(m.calendarService, msg)
+		return m, updateCalendarResponseCmd(m.srv, msg)
 	case successMsg:
 		switch m.focusedModel {
 		case editDialog, deleteDialog:
 			m.cache.Flush()
 		case calendarList:
-			return m, calendarListCmd(m.calendarService)
+			return m, calendarListCmd(m.srv)
 		}
 	}
 	switch m.focusedModel {

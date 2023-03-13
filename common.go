@@ -1,6 +1,9 @@
 package main
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/lipgloss"
+)
 
 const (
 	YYYYMMDD                       = "2006-01-02"
@@ -35,10 +38,10 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			Align(lipgloss.Center, lipgloss.Center)
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
-	textInputSummaryStyle = lipgloss.NewStyle().
-				Width(summaryWidth + 2).
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder())
+	textInputSummaryStyle     = lipgloss.NewStyle().
+					Width(summaryWidth + 2).
+					PaddingLeft(1).
+					Border(lipgloss.RoundedBorder())
 	textInputMonthStyle = lipgloss.NewStyle().
 				Width(monthWidth + 2).
 				PaddingLeft(1).
@@ -56,3 +59,44 @@ var (
 				PaddingLeft(1).
 				Border(lipgloss.RoundedBorder())
 )
+
+func newTextInput(charLimit int) textinput.Model {
+	input := textinput.New()
+	input.CharLimit = charLimit
+	input.PlaceholderStyle = textInputPlaceholderStyle
+	input.Prompt = ""
+	return input
+}
+
+func focusNext(inputs []textinput.Model, focusIndex int) int {
+	if len(inputs[focusIndex].Value()) == 0 {
+		inputs[focusIndex].SetValue(inputs[focusIndex].Placeholder)
+	}
+	newIndex := (focusIndex + 1) % len(inputs)
+	refocus(inputs, newIndex)
+	return newIndex
+}
+
+func focusPrev(inputs []textinput.Model, focusIndex int) int {
+	newIndex := focusIndex - 1
+	if newIndex < 0 {
+		newIndex = len(inputs) - 1
+	}
+	refocus(inputs, newIndex)
+	return newIndex
+}
+
+func refocus(inputs []textinput.Model, focusIndex int) {
+	for i := range inputs {
+		inputs[i].Blur()
+	}
+	inputs[focusIndex].Focus()
+}
+
+func autofillPlaceholders(inputs []textinput.Model) {
+	for i := range inputs {
+		if len(inputs[i].Value()) == 0 {
+			inputs[i].SetValue(inputs[i].Placeholder)
+		}
+	}
+}

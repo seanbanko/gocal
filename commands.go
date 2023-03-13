@@ -55,9 +55,9 @@ func gotoDateCmd(date time.Time) tea.Cmd {
 	}
 }
 
-func calendarListCmd(calendarService *calendar.Service) tea.Cmd {
+func calendarListCmd(srv *calendar.Service) tea.Cmd {
 	return func() tea.Msg {
-		response, err := calendarService.CalendarList.List().Do()
+		response, err := srv.CalendarList.List().Do()
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -68,7 +68,7 @@ func calendarListCmd(calendarService *calendar.Service) tea.Cmd {
 	}
 }
 
-func eventsListCmd(calendarService *calendar.Service, cache *cache.Cache, calendars []*calendar.CalendarListEntry, date time.Time) tea.Cmd {
+func eventsListCmd(srv *calendar.Service, cache *cache.Cache, calendars []*calendar.CalendarListEntry, date time.Time) tea.Cmd {
 	return func() tea.Msg {
 		eventCh := make(chan *Event)
 		errCh := make(chan error)
@@ -79,7 +79,7 @@ func eventsListCmd(calendarService *calendar.Service, cache *cache.Cache, calend
 		oneDayLater := date.AddDate(0, 0, 1)
 		for _, cal := range calendars {
 			go func(id string) {
-				forwardEvents(calendarService, cache, id, date, oneDayLater, eventCh, errCh, done)
+				forwardEvents(srv, cache, id, date, oneDayLater, eventCh, errCh, done)
 				wg.Done()
 			}(cal.Id)
 		}
@@ -145,7 +145,7 @@ func cacheKey(ss ...string) string {
 }
 
 func forwardEvents(
-	calendarService *calendar.Service,
+	srv *calendar.Service,
 	cache *cache.Cache,
 	calendarId string,
 	timeMin, timeMax time.Time,
@@ -159,7 +159,7 @@ func forwardEvents(
 	if found {
 		events = x.([]*Event)
 	} else {
-		response, err := calendarService.Events.
+		response, err := srv.Events.
 			List(calendarId).
 			SingleEvents(true).
 			TimeMin(timeMin.Format(time.RFC3339)).
@@ -198,7 +198,7 @@ func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, end
 	}
 }
 
-func editEventResponseCmd(calendarService *calendar.Service, msg editEventRequestMsg) tea.Cmd {
+func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		var err error
 		start, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.startDate+" "+msg.startTime, time.Local)
@@ -217,16 +217,19 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 				Start:   &calendar.EventDateTime{DateTime: startDateTime},
 				End:     &calendar.EventDateTime{DateTime: endDateTime},
 			}
-			_, err = calendarService.Events.Insert(msg.calendarId, event).Do()
+			_, err = srv.Events.Insert(msg.calendarId, event).Do()
+			if err != nil {
+				return errMsg{err: err}
+			}
 		} else {
-			event, err := calendarService.Events.Get(msg.calendarId, msg.eventId).Do()
+			event, err := srv.Events.Get(msg.calendarId, msg.eventId).Do()
 			if err != nil {
 				return errMsg{err: err}
 			}
 			event.Summary = msg.summary
 			event.Start.DateTime = startDateTime
 			event.End.DateTime = endDateTime
-			_, err = calendarService.Events.Update(msg.calendarId, msg.eventId, event).Do()
+			_, err = srv.Events.Update(msg.calendarId, msg.eventId, event).Do()
 			if err != nil {
 				return errMsg{err: err}
 			}
@@ -244,9 +247,9 @@ func deleteEventRequestCmd(calendarId, eventId string) tea.Cmd {
 	}
 }
 
-func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRequestMsg) tea.Cmd {
+func deleteEventResponseCmd(srv *calendar.Service, msg deleteEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
-		err := calendarService.Events.Delete(msg.calendarId, msg.eventId).Do()
+		err := srv.Events.Delete(msg.calendarId, msg.eventId).Do()
 		if err != nil {
 			return errMsg{err: err}
 		}
@@ -263,14 +266,14 @@ func updateCalendarRequestCmd(calendarId string, selected bool) tea.Cmd {
 	}
 }
 
-func updateCalendarResponseCmd(calendarService *calendar.Service, msg updateCalendarRequestMsg) tea.Cmd {
+func updateCalendarResponseCmd(srv *calendar.Service, msg updateCalendarRequestMsg) tea.Cmd {
 	return func() tea.Msg {
-		calendar, err := calendarService.CalendarList.Get(msg.calendarId).Do()
+		calendar, err := srv.CalendarList.Get(msg.calendarId).Do()
 		if err != nil {
 			return errMsg{err: err}
 		}
 		calendar.Selected = msg.selected
-		_, err = calendarService.CalendarList.Update(msg.calendarId, calendar).Do()
+		_, err = srv.CalendarList.Update(msg.calendarId, calendar).Do()
 		if err != nil {
 			return errMsg{err: err}
 		}

@@ -48,16 +48,16 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	inputs[summary].Prompt = ""
 	inputs[summary].PlaceholderStyle = textInputPlaceholderStyle
 
-	inputs[startMonth] = newMonthTextInput()
-	inputs[startDay] = newDayTextInput()
-	inputs[startYear] = newYearTextInput()
-	inputs[startHour] = newTimeTextInput()
-	inputs[startMinute] = newTimeTextInput()
-	inputs[endMonth] = newMonthTextInput()
-	inputs[endDay] = newDayTextInput()
-	inputs[endYear] = newYearTextInput()
-	inputs[endHour] = newTimeTextInput()
-	inputs[endMinute] = newTimeTextInput()
+	inputs[startMonth] = newTextInput(monthWidth)
+	inputs[startDay] = newTextInput(dayWidth)
+	inputs[startYear] = newTextInput(yearWidth)
+	inputs[startHour] = newTextInput(timeWidth)
+	inputs[startMinute] = newTextInput(timeWidth)
+	inputs[endMonth] = newTextInput(monthWidth)
+	inputs[endDay] = newTextInput(dayWidth)
+	inputs[endYear] = newTextInput(yearWidth)
+	inputs[endHour] = newTextInput(timeWidth)
+	inputs[endMinute] = newTextInput(timeWidth)
 
 	var start, end time.Time
 	if event == nil {
@@ -139,38 +139,6 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	}
 }
 
-func newMonthTextInput() textinput.Model {
-	input := textinput.New()
-	input.CharLimit = monthWidth
-	input.PlaceholderStyle = textInputPlaceholderStyle
-	input.Prompt = ""
-	return input
-}
-
-func newDayTextInput() textinput.Model {
-	input := textinput.New()
-	input.CharLimit = dayWidth
-	input.PlaceholderStyle = textInputPlaceholderStyle
-	input.Prompt = ""
-	return input
-}
-
-func newYearTextInput() textinput.Model {
-	input := textinput.New()
-	input.CharLimit = yearWidth
-	input.PlaceholderStyle = textInputPlaceholderStyle
-	input.Prompt = ""
-	return input
-}
-
-func newTimeTextInput() textinput.Model {
-	input := textinput.New()
-	input.CharLimit = timeWidth
-	input.PlaceholderStyle = textInputPlaceholderStyle
-	input.Prompt = ""
-	return input
-}
-
 func (m EditDialog) Init() tea.Cmd {
 	return textinput.Blink
 }
@@ -181,10 +149,10 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height, m.width = msg.Height, msg.Width
 		return m, nil
 	case errMsg:
-        m.err = msg.err
+		m.err = msg.err
 		return m, nil
-    case successMsg:
-        m.success = true
+	case successMsg:
+		m.success = true
 		return m, nil
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
@@ -274,39 +242,6 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func focusNext(inputs []textinput.Model, focusIndex int) int {
-	if len(inputs[focusIndex].Value()) == 0 {
-		inputs[focusIndex].SetValue(inputs[focusIndex].Placeholder)
-	}
-	newIndex := (focusIndex + 1) % len(inputs)
-	refocus(inputs, newIndex)
-	return newIndex
-}
-
-func focusPrev(inputs []textinput.Model, focusIndex int) int {
-	newIndex := focusIndex - 1
-	if newIndex < 0 {
-		newIndex = len(inputs) - 1
-	}
-	refocus(inputs, newIndex)
-	return newIndex
-}
-
-func refocus(inputs []textinput.Model, focusIndex int) {
-	for i := range inputs {
-		inputs[i].Blur()
-	}
-	inputs[focusIndex].Focus()
-}
-
-func autofillPlaceholders(inputs []textinput.Model) {
-	for i := range inputs {
-		if len(inputs[i].Value()) == 0 {
-			inputs[i].SetValue(inputs[i].Placeholder)
-		}
-	}
-}
-
 func updateAutofillDuration(startTime, endTime string) time.Duration {
 	start, err := time.Parse(HHMM24h, startTime)
 	if err != nil {
@@ -343,7 +278,7 @@ func (m EditDialog) View() string {
 
 func renderEditContent(m EditDialog) string {
 	return lipgloss.JoinVertical(
-		lipgloss.Center,
+		lipgloss.Left,
 		"Create/Edit Event\n",
 		textInputSummaryStyle.Render(m.inputs[summary].View())+"\n",
 		lipgloss.JoinHorizontal(

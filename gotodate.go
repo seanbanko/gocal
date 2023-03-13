@@ -28,11 +28,11 @@ type GotoDialog struct {
 
 func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	inputs := make([]textinput.Model, 3)
-	inputs[month] = newMonthTextInput()
+	inputs[month] = newTextInput(monthWidth)
 	inputs[month].Placeholder = focusedDate.Month().String()[:3]
-	inputs[day] = newDayTextInput()
+	inputs[day] = newTextInput(dayWidth)
 	inputs[day].Placeholder = fmt.Sprintf("%02d", focusedDate.Day())
-	inputs[year] = newYearTextInput()
+	inputs[year] = newTextInput(yearWidth)
 	inputs[year].Placeholder = fmt.Sprintf("%d", focusedDate.Year())
 	focusIndex := month
 	refocus(inputs, focusIndex)
