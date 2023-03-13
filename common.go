@@ -67,11 +67,22 @@ var (
 				Border(lipgloss.RoundedBorder())
 )
 
+
 func abbreviatedMonthDayYear(date time.Time) (string, string, string) {
 	month := date.Month().String()[:3]
 	day := fmt.Sprintf("%02d", date.Day())
 	year := fmt.Sprintf("%d", date.Year())
 	return month, day, year
+}
+
+
+func toFields(date time.Time) (string, string, string, string, string) {
+	month := date.Month().String()[:3]
+	day := fmt.Sprintf("%02d", date.Day())
+	year := fmt.Sprintf("%d", date.Year())
+	hour := fmt.Sprintf("%02d", date.Hour())
+	minute := fmt.Sprintf("%02d", date.Minute())
+	return month, day, year, hour, minute
 }
 
 func checkbox(label string, checked bool) string {
@@ -126,4 +137,8 @@ func autofillAll(inputs []textinput.Model) {
 			autofill(&inputs[i])
 		}
 	}
+}
+
+func isFull(input textinput.Model) bool {
+	return len(input.Value()) == input.CharLimit
 }

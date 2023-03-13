@@ -26,10 +26,8 @@ type (
 		calendarId string
 		eventId    string
 		summary    string
-		startDate  string
-		startTime  string
-		endDate    string
-		endTime    string
+		start      time.Time
+		end        time.Time
 		allDay     bool
 	}
 	deleteEventRequestMsg struct {
@@ -185,16 +183,14 @@ func forwardEvents(
 	}
 }
 
-func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, endDate, endTime string, allDay bool) tea.Cmd {
+func editEventRequestCmd(calendarId, eventId, summary string, start, end time.Time, allDay bool) tea.Cmd {
 	return func() tea.Msg {
 		return editEventRequestMsg{
 			calendarId: calendarId,
 			eventId:    eventId,
 			summary:    summary,
-			startDate:  startDate,
-			startTime:  startTime,
-			endDate:    endDate,
-			endTime:    endTime,
+			start:      start,
+			end:        end,
 			allDay:     allDay,
 		}
 	}
@@ -202,26 +198,17 @@ func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, end
 
 func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
-		var err error
-		start, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.startDate+" "+msg.startTime, time.Local)
-		if err != nil {
-			return errMsg{err: err}
-		}
-		end, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.endDate+" "+msg.endTime, time.Local)
-		if err != nil {
-			return errMsg{err: err}
-		}
 		var startDate, startDateTime, endDate, endDateTime string
 		if msg.allDay {
-			startDate = start.Format(YYYYMMDD)
-			endDate = end.Format(YYYYMMDD)
+			startDate = msg.start.Format(YYYYMMDD)
+			endDate = msg.end.Format(YYYYMMDD)
 			startDateTime = ""
 			endDateTime = ""
 		} else {
 			startDate = ""
 			endDate = ""
-			startDateTime = start.Format(time.RFC3339)
-			endDateTime = end.Format(time.RFC3339)
+			startDateTime = msg.start.Format(time.RFC3339)
+			endDateTime = msg.end.Format(time.RFC3339)
 		}
 		if msg.eventId == "" {
 			var startEventDateTime, endEventDatetime *calendar.EventDateTime
@@ -237,7 +224,7 @@ func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cm
 				Start:   startEventDateTime,
 				End:     endEventDatetime,
 			}
-			_, err = srv.Events.Insert(msg.calendarId, event).Do()
+            _, err := srv.Events.Insert(msg.calendarId, event).Do()
 			if err != nil {
 				return errMsg{err: err}
 			}

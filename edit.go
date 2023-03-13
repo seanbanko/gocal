@@ -173,145 +173,68 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				autofill(&m.inputs[m.focusIndex])
 			}
 			if isOnStart(m.focusIndex) {
-				textStart := fmt.Sprintf(
-					"%s %s %s %s:%s",
-					m.inputs[startMonth].Value(),
-					m.inputs[startDay].Value(),
-					m.inputs[startYear].Value(),
-					m.inputs[startHour].Value(),
-					m.inputs[startMinute].Value(),
-				)
-				start, err := time.Parse(AbbreviatedTextDate24h, textStart)
-				if err == nil {
-					end := start.Add(m.duration)
-					endMonthText, endDayText, endYearText := abbreviatedMonthDayYear(end)
-					m.inputs[endMonth].SetValue(endMonthText)
-					m.inputs[endDay].SetValue(endDayText)
-					m.inputs[endYear].SetValue(endYearText)
-					m.inputs[endHour].SetValue(fmt.Sprintf("%02d", end.Hour()))
-					m.inputs[endMinute].SetValue(fmt.Sprintf("%02d", end.Minute()))
-				}
+				m.autofillEnd()
 			} else if isOnEnd(m.focusIndex) {
-				textStart := fmt.Sprintf(
-					"%s %s %s %s:%s",
-					m.inputs[startMonth].Value(),
-					m.inputs[startDay].Value(),
-					m.inputs[startYear].Value(),
-					m.inputs[startHour].Value(),
-					m.inputs[startMinute].Value(),
-				)
-				textEnd := fmt.Sprintf(
-					"%s %s %s %s:%s",
-					m.inputs[endMonth].Value(),
-					m.inputs[endDay].Value(),
-					m.inputs[endYear].Value(),
-					m.inputs[endHour].Value(),
-					m.inputs[endMinute].Value(),
-				)
-				m.duration = updateDuration(m.duration, textStart, textEnd)
+				m.updateDuration()
 			}
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 			if m.allDay && isOnTimeInput(m.focusIndex) {
 				m.focusIndex = endMonth
 				refocus(m.inputs, m.focusIndex)
 			}
+			return m, nil
 		case key.Matches(msg, m.keys.Prev):
 			if isOnEnd(m.focusIndex) {
-				textStart := fmt.Sprintf(
-					"%s %s %s %s:%s",
-					m.inputs[startMonth].Value(),
-					m.inputs[startDay].Value(),
-					m.inputs[startYear].Value(),
-					m.inputs[startHour].Value(),
-					m.inputs[startMinute].Value(),
-				)
-				textEnd := fmt.Sprintf(
-					"%s %s %s %s:%s",
-					m.inputs[endMonth].Value(),
-					m.inputs[endDay].Value(),
-					m.inputs[endYear].Value(),
-					m.inputs[endHour].Value(),
-					m.inputs[endMinute].Value(),
-				)
-				m.duration = updateDuration(m.duration, textStart, textEnd)
+				m.updateDuration()
 			}
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 			if m.allDay && isOnTimeInput(m.focusIndex) {
 				m.focusIndex = startYear
 				refocus(m.inputs, m.focusIndex)
 			}
-		case key.Matches(msg, m.keys.Save):
-			autofillAll(m.inputs)
-			startDate := fmt.Sprintf(
-				"%s %s %s",
-				m.inputs[startMonth].Value(),
-				m.inputs[startDay].Value(),
-				m.inputs[startYear].Value(),
-			)
-			startTime := fmt.Sprintf(
-				"%s:%s",
-				m.inputs[startHour].Value(),
-				m.inputs[startMinute].Value(),
-			)
-			endDate := fmt.Sprintf(
-				"%s %s %s",
-				m.inputs[endMonth].Value(),
-				m.inputs[endDay].Value(),
-				m.inputs[endYear].Value(),
-			)
-			endTime := fmt.Sprintf(
-				"%s:%s",
-				m.inputs[endHour].Value(),
-				m.inputs[endMinute].Value(),
-			)
-			return m, editEventRequestCmd(
-				m.calendarId,
-				m.eventId,
-				m.inputs[summary].Value(),
-				startDate,
-				startTime,
-				endDate,
-				endTime,
-				m.allDay,
-			)
-		case key.Matches(msg, m.keys.Cancel):
-			return m, showCalendarViewCmd
+			return m, nil
 		case key.Matches(msg, m.keys.ToggleAllDay):
-			if m.allDay {
-				m.allDay = false
-                // TODO make this work with arbitrary duration
-				start := time.Now().Round(time.Hour)
-				end := start.Add(time.Hour)
-				var (
-					startHourText   = fmt.Sprintf("%02d", start.Hour())
-					startMinuteText = fmt.Sprintf("%02d", start.Minute())
-					endHourText     = fmt.Sprintf("%02d", end.Hour())
-					endMinuteText   = fmt.Sprintf("%02d", end.Minute())
-				)
-				m.inputs[startHour].SetValue(startHourText)
-				m.inputs[startMinute].SetValue(startMinuteText)
-				m.inputs[endHour].SetValue(endHourText)
-				m.inputs[endMinute].SetValue(endMinuteText)
-				startTime := fmt.Sprintf("%s:%s", m.inputs[startHour].Value(), m.inputs[startMinute].Value())
-				endTime := fmt.Sprintf("%s:%s", m.inputs[endHour].Value(), m.inputs[endMinute].Value())
-				m.duration = updateDuration(m.duration, startTime, endTime)
-			} else {
-				m.allDay = true
-			}
-			if m.allDay && startHour <= m.focusIndex && m.focusIndex <= endMinute {
-				m.focusIndex = endMonth
+			m.allDay = !m.allDay
+			if m.allDay && isOnTimeInput(m.focusIndex) {
+				m.focusIndex = startYear
 			}
 			refocus(m.inputs, m.focusIndex)
 			return m, nil
-		case !(msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete) && ((m.focusIndex == startHour && len(m.inputs[startHour].Value()) == m.inputs[startHour].CharLimit) ||
-			(m.focusIndex == endHour && len(m.inputs[endHour].Value()) == m.inputs[endHour].CharLimit)):
-			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+		case key.Matches(msg, m.keys.Save):
+			autofillAll(m.inputs)
+			summary := m.inputs[summary].Value()
+			start, err := toDate(
+				m.inputs[startMonth].Value(),
+				m.inputs[startDay].Value(),
+				m.inputs[startYear].Value(),
+				m.inputs[startHour].Value(),
+				m.inputs[startMinute].Value(),
+			)
+			if err != nil {
+				return m, func() tea.Msg { return errMsg{err: err} }
+			}
+			end, err := toDate(
+				m.inputs[endMonth].Value(),
+				m.inputs[endDay].Value(),
+				m.inputs[endYear].Value(),
+				m.inputs[endHour].Value(),
+				m.inputs[endMinute].Value(),
+			)
+			if err != nil {
+				return m, func() tea.Msg { return errMsg{err: err} }
+			}
+			return m, editEventRequestCmd(m.calendarId, m.eventId, summary, start, end, m.allDay)
+		case key.Matches(msg, m.keys.Cancel):
+			return m, showCalendarViewCmd
 		case msg.Type == tea.KeySpace && (m.focusIndex == startMonth || m.focusIndex == startDay || m.focusIndex == endMonth || m.focusIndex == endDay):
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 			return m, nil
-		case msg.Type == tea.KeyBackspace && (m.inputs[m.focusIndex].Cursor() == 0) && m.focusIndex != 0:
+		case msg.Type == tea.KeyBackspace && m.inputs[m.focusIndex].Cursor() == 0 && m.focusIndex != 0:
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 			return m, nil
+		case ((m.focusIndex == startHour && isFull(m.inputs[startHour])) || (m.focusIndex == endHour && isFull(m.inputs[endHour]))) &&
+			!(msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete):
+			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 		}
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
@@ -319,6 +242,55 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
 	return m, tea.Batch(cmds...)
+}
+
+func (m *EditDialog) updateDuration() {
+	start, err := toDate(
+		m.inputs[startMonth].Value(),
+		m.inputs[startDay].Value(),
+		m.inputs[startYear].Value(),
+		m.inputs[startHour].Value(),
+		m.inputs[startMinute].Value(),
+	)
+	if err != nil {
+		return
+	}
+	end, err := toDate(
+		m.inputs[endMonth].Value(),
+		m.inputs[endDay].Value(),
+		m.inputs[endYear].Value(),
+		m.inputs[endHour].Value(),
+		m.inputs[endMinute].Value(),
+	)
+	if err != nil {
+		return
+	}
+	m.duration = end.Sub(start)
+}
+
+func (m *EditDialog) autofillEnd() {
+	start, err := toDate(
+		m.inputs[startMonth].Value(),
+		m.inputs[startDay].Value(),
+		m.inputs[startYear].Value(),
+		m.inputs[startHour].Value(),
+		m.inputs[startMinute].Value(),
+	)
+	if err != nil {
+		return
+	}
+	end := start.Add(m.duration)
+	month, day, year, hour, minute := toFields(end)
+	m.inputs[endMonth].SetValue(month)
+	m.inputs[endDay].SetValue(day)
+	m.inputs[endYear].SetValue(year)
+	m.inputs[endHour].SetValue(hour)
+	m.inputs[endMinute].SetValue(minute)
+}
+
+func toDate(month, day, year, hour, minute string) (time.Time, error) {
+	text := fmt.Sprintf("%s %s %s %s:%s", month, day, year, hour, minute)
+	return time.ParseInLocation(AbbreviatedTextDate24h, text, time.Local)
 }
 
 func isOnStart(focusIndex int) bool {
@@ -339,18 +311,6 @@ func isOnEnd(focusIndex int) bool {
 
 func isOnTimeInput(focusIndex int) bool {
 	return focusIndex == startHour || focusIndex == startMinute || focusIndex == endHour || focusIndex == endMinute
-}
-
-func updateDuration(fallback time.Duration, startTime, endTime string) time.Duration {
-	start, err := time.Parse(AbbreviatedTextDate24h, startTime)
-	if err != nil {
-		return fallback
-	}
-	end, err := time.Parse(AbbreviatedTextDate24h, endTime)
-	if err != nil {
-		return fallback
-	}
-	return end.Sub(start)
 }
 
 func (m EditDialog) View() string {
