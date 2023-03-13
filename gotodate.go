@@ -58,11 +58,14 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Next):
+			if len(m.inputs[m.focusIndex].Value()) == 0 {
+				autofill(&m.inputs[m.focusIndex])
+			}
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 		case key.Matches(msg, m.keys.Prev):
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 		case key.Matches(msg, m.keys.Go):
-			autofillPlaceholders(m.inputs)
+			autofillAll(m.inputs)
 			text := fmt.Sprintf(
 				"%s %s %s",
 				m.inputs[month].Value(),

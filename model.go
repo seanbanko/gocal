@@ -27,16 +27,12 @@ type Event struct {
 	event      *calendar.Event
 }
 
-type eventItem struct {
-	event *Event
-}
-
-func (i eventItem) Title() string {
-	return i.event.event.Summary
-}
-
+// Implement list.DefaultItem interface
+type eventItem struct{ event *Event }
+func (i eventItem) FilterValue() string { return i.event.event.Summary }
+func (i eventItem) Title() string       { return i.event.event.Summary }
 func (i eventItem) Description() string {
-	if i.event.event.Start.DateTime == "" {
+	if isAllDay(i.event.event) {
 		return "all day"
 	}
 	start, err := time.Parse(time.RFC3339, i.event.event.Start.DateTime)
@@ -50,10 +46,6 @@ func (i eventItem) Description() string {
 	}
 	e := end.In(time.Local).Format(time.Kitchen)
 	return fmt.Sprintf("%v - %v", s, e)
-}
-
-func (i eventItem) FilterValue() string {
-	return i.event.event.Summary
 }
 
 type model struct {
@@ -232,14 +224,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, tea.Batch(cmds...)
-}
-
-func toItems(events []*Event) []list.Item {
-	var items []list.Item
-	for _, event := range events {
-		items = append(items, eventItem{event: event})
-	}
-	return items
 }
 
 func (m model) View() string {

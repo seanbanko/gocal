@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -30,6 +31,7 @@ type (
 		startTime  string
 		endDate    string
 		endTime    string
+		allDay     bool
 	}
 	deleteEventRequestMsg struct {
 		calendarId string
@@ -184,7 +186,7 @@ func forwardEvents(
 	}
 }
 
-func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, endDate, endTime string) tea.Cmd {
+func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, endDate, endTime string, allDay bool) tea.Cmd {
 	return func() tea.Msg {
 		return editEventRequestMsg{
 			calendarId: calendarId,
@@ -194,6 +196,7 @@ func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, end
 			startTime:  startTime,
 			endDate:    endDate,
 			endTime:    endTime,
+			allDay:     allDay,
 		}
 	}
 }
@@ -205,18 +208,37 @@ func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cm
 		if err != nil {
 			return errMsg{err: err}
 		}
-		startDateTime := start.Format(time.RFC3339)
 		end, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.endDate+" "+msg.endTime, time.Local)
 		if err != nil {
 			return errMsg{err: err}
 		}
-		endDateTime := end.Format(time.RFC3339)
+		var startDate, startDateTime, endDate, endDateTime string
+		if msg.allDay {
+			startDate = start.Format(YYYYMMDD)
+			endDate = end.Format(YYYYMMDD)
+			startDateTime = ""
+			endDateTime = ""
+		} else {
+			startDate = ""
+			endDate = ""
+			startDateTime = start.Format(time.RFC3339)
+			endDateTime = end.Format(time.RFC3339)
+		}
 		if msg.eventId == "" {
+			var startEventDateTime, endEventDatetime *calendar.EventDateTime
+			if msg.allDay {
+				startEventDateTime = &calendar.EventDateTime{Date: startDate}
+				endEventDatetime = &calendar.EventDateTime{Date: endDate}
+			} else {
+				startEventDateTime = &calendar.EventDateTime{DateTime: startDateTime}
+				endEventDatetime = &calendar.EventDateTime{DateTime: endDateTime}
+			}
 			event := &calendar.Event{
 				Summary: msg.summary,
-				Start:   &calendar.EventDateTime{DateTime: startDateTime},
-				End:     &calendar.EventDateTime{DateTime: endDateTime},
+				Start:   startEventDateTime,
+				End:     endEventDatetime,
 			}
+            log.Printf("creating event: %#v", event)
 			_, err = srv.Events.Insert(msg.calendarId, event).Do()
 			if err != nil {
 				return errMsg{err: err}
@@ -227,8 +249,15 @@ func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cm
 				return errMsg{err: err}
 			}
 			event.Summary = msg.summary
+			event.Start.Date = startDate
+			event.End.Date = endDate
 			event.Start.DateTime = startDateTime
 			event.End.DateTime = endDateTime
+            log.Printf("startDate: %v", startDate)
+            log.Printf("endDate: %v", endDate)
+            log.Printf("startDateTime: %v", startDateTime)
+            log.Printf("endDateTime: %v", endDateTime)
+            log.Printf("updating event: %#v", event)
 			_, err = srv.Events.Update(msg.calendarId, msg.eventId, event).Do()
 			if err != nil {
 				return errMsg{err: err}

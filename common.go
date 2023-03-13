@@ -1,8 +1,10 @@
 package main
 
 import (
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
+	"google.golang.org/api/calendar/v3"
 )
 
 const (
@@ -38,10 +40,13 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			Align(lipgloss.Center, lipgloss.Center)
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
-	textInputSummaryStyle     = lipgloss.NewStyle().
-					Width(summaryWidth + 2).
+	textInputStyle            = lipgloss.NewStyle().
 					PaddingLeft(1).
 					Border(lipgloss.RoundedBorder())
+	textInputSummaryStyle = lipgloss.NewStyle().
+				Width(summaryWidth + 2).
+				PaddingLeft(1).
+				Border(lipgloss.RoundedBorder())
 	textInputMonthStyle = lipgloss.NewStyle().
 				Width(monthWidth + 2).
 				PaddingLeft(1).
@@ -60,6 +65,18 @@ var (
 				Border(lipgloss.RoundedBorder())
 )
 
+func toItems(events []*Event) []list.Item {
+	var items []list.Item
+	for _, event := range events {
+		items = append(items, eventItem{event: event})
+	}
+	return items
+}
+
+func isAllDay(event *calendar.Event) bool {
+	return event.Start.Date != ""
+}
+
 func newTextInput(charLimit int) textinput.Model {
 	input := textinput.New()
 	input.CharLimit = charLimit
@@ -69,9 +86,6 @@ func newTextInput(charLimit int) textinput.Model {
 }
 
 func focusNext(inputs []textinput.Model, focusIndex int) int {
-	if len(inputs[focusIndex].Value()) == 0 {
-		inputs[focusIndex].SetValue(inputs[focusIndex].Placeholder)
-	}
 	newIndex := (focusIndex + 1) % len(inputs)
 	refocus(inputs, newIndex)
 	return newIndex
@@ -93,10 +107,14 @@ func refocus(inputs []textinput.Model, focusIndex int) {
 	inputs[focusIndex].Focus()
 }
 
-func autofillPlaceholders(inputs []textinput.Model) {
+func autofill(input *textinput.Model) {
+	input.SetValue(input.Placeholder)
+}
+
+func autofillAll(inputs []textinput.Model) {
 	for i := range inputs {
 		if len(inputs[i].Value()) == 0 {
-			inputs[i].SetValue(inputs[i].Placeholder)
+            autofill(&inputs[i])
 		}
 	}
 }
