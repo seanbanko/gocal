@@ -31,7 +31,7 @@ func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	inputs[month] = newTextInput(monthWidth)
 	inputs[day] = newTextInput(dayWidth)
 	inputs[year] = newTextInput(yearWidth)
-	monthText, dayText, yearText := abbreviatedMonthDayYear(focusedDate)
+	monthText, dayText, yearText := toMonthDayYear(focusedDate)
 	inputs[month].Placeholder = monthText
 	inputs[day].Placeholder = dayText
 	inputs[year].Placeholder = yearText
@@ -63,7 +63,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Next):
 			if len(m.inputs[m.focusIndex].Value()) == 0 {
-				autofill(&m.inputs[m.focusIndex])
+				autofillPlaceholder(&m.inputs[m.focusIndex])
 			}
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 		case key.Matches(msg, m.keys.Prev):
@@ -75,7 +75,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, 1)
-			monthText, dayText, yearText := abbreviatedMonthDayYear(date)
+			monthText, dayText, yearText := toMonthDayYear(date)
 			m.inputs[month].SetValue(monthText)
 			m.inputs[day].SetValue(dayText)
 			m.inputs[year].SetValue(yearText)
@@ -87,13 +87,13 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, -1)
-			monthText, dayText, yearText := abbreviatedMonthDayYear(date)
+			monthText, dayText, yearText := toMonthDayYear(date)
 			m.inputs[month].SetValue(monthText)
 			m.inputs[day].SetValue(dayText)
 			m.inputs[year].SetValue(yearText)
 			return m, nil
 		case key.Matches(msg, m.keys.Go):
-			autofillAll(m.inputs)
+			autofillAllPlaceholders(m.inputs)
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
 			if err != nil {

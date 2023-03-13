@@ -67,16 +67,19 @@ var (
 				Border(lipgloss.RoundedBorder())
 )
 
+func toDate(month, day, year, hour, minute string) (time.Time, error) {
+	text := fmt.Sprintf("%s %s %s %s:%s", month, day, year, hour, minute)
+	return time.ParseInLocation(AbbreviatedTextDate24h, text, time.Local)
+}
 
-func abbreviatedMonthDayYear(date time.Time) (string, string, string) {
+func toMonthDayYear(date time.Time) (string, string, string) {
 	month := date.Month().String()[:3]
 	day := fmt.Sprintf("%02d", date.Day())
 	year := fmt.Sprintf("%d", date.Year())
 	return month, day, year
 }
 
-
-func toFields(date time.Time) (string, string, string, string, string) {
+func toMonthDayYearHourMinute(date time.Time) (string, string, string, string, string) {
 	month := date.Month().String()[:3]
 	day := fmt.Sprintf("%02d", date.Day())
 	year := fmt.Sprintf("%d", date.Year())
@@ -127,14 +130,14 @@ func refocus(inputs []textinput.Model, focusIndex int) {
 	inputs[focusIndex].Focus()
 }
 
-func autofill(input *textinput.Model) {
+func autofillPlaceholder(input *textinput.Model) {
 	input.SetValue(input.Placeholder)
 }
 
-func autofillAll(inputs []textinput.Model) {
+func autofillAllPlaceholders(inputs []textinput.Model) {
 	for i := range inputs {
 		if len(inputs[i].Value()) == 0 {
-			autofill(&inputs[i])
+			autofillPlaceholder(&inputs[i])
 		}
 	}
 }
