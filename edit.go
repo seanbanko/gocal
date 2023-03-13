@@ -79,6 +79,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	inputs[endMinute].Placeholder = "00"
 
 	var calendarId, eventId string
+	var autofillDuration time.Duration
 	if event != nil {
 		calendarId = event.calendarId
 		eventId = event.event.Id
@@ -115,8 +116,10 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 		inputs[endYear].SetValue(eYear)
 		inputs[endHour].SetValue(eHour)
 		inputs[endMinute].SetValue(eMin)
+		autofillDuration = end.Sub(start)
 	} else {
 		calendarId = "primary"
+		autofillDuration = time.Hour
 	}
 
 	focusIndex := summary
@@ -127,7 +130,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 		focusIndex:       focusIndex,
 		calendarId:       calendarId,
 		eventId:          eventId,
-		autofillDuration: time.Hour,
+		autofillDuration: autofillDuration,
 		height:           height,
 		width:            width,
 		success:          false,
@@ -213,7 +216,7 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.autofillDuration = updateAutofillDuration(startTime, endTime)
 			}
 		case key.Matches(msg, m.keys.Prev):
-            prevIndex := m.focusIndex
+			prevIndex := m.focusIndex
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 			if prevIndex == endHour || prevIndex == endMinute {
 				startTime := fmt.Sprintf("%s:%s", m.inputs[startHour].Value(), m.inputs[startMinute].Value())
