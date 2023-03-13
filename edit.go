@@ -278,7 +278,7 @@ func (m EditDialog) View() string {
 
 func renderEditContent(m EditDialog) string {
 	return lipgloss.JoinVertical(
-		lipgloss.Left,
+		lipgloss.Center,
 		"Create/Edit Event\n",
 		textInputSummaryStyle.Render(m.inputs[summary].View())+"\n",
 		lipgloss.JoinHorizontal(
