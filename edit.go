@@ -329,12 +329,12 @@ func (m EditDialog) View() string {
 func renderEditContent(m EditDialog) string {
 	var allDayBox, duration, startTimeInputs, endTimeInputs string
 	if m.allDay {
-		allDayBox = " X "
+		allDayBox = "[X]"
 		duration = "all day"
 		startTimeInputs = ""
 		endTimeInputs = ""
 	} else {
-		allDayBox = "   "
+		allDayBox = "[ ]"
 		duration = m.duration.String()
 		startTimeInputs = lipgloss.JoinHorizontal(lipgloss.Center,
 			" at ",
@@ -358,7 +358,8 @@ func renderEditContent(m EditDialog) string {
 			lipgloss.Center,
 			textInputSummaryStyle.Render(m.inputs[summary].View()),
 			" ",
-			lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Render(allDayBox),
+			allDayBox,
+			// lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Render(allDayBox),
 			" All Day",
 		),
 		lipgloss.JoinHorizontal(
