@@ -117,14 +117,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		}
+	case errMsg:
+		log.Fatalf("Error: %v", msg.err)
+		return m, tea.Quit
 	case showCalendarMsg:
 		m.focusedModel = calendarView
 		return m, tea.Batch(tea.ClearScreen, refreshEventsCmd)
 	case calendarListMsg:
-		if msg.err != nil {
-			log.Printf("Error getting calendar list: %v", msg.err)
-			return m, nil
-		}
 		m.calendars = msg.calendars
 		if m.focusedModel == calendarList {
 			m.calendarList, cmd = m.calendarList.Update(msg)
@@ -132,11 +131,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, refreshEventsCmd)
 		return m, tea.Batch(cmds...)
-	case eventsListMsg:
-		if len(msg.errs) != 0 {
-			log.Printf("Errors getting events: %v", msg.errs)
-			return m, nil
-		}
+	case eventsMsg:
 		m.events = msg.events
 		items := toItems(msg.events)
 		m.eventsList.SetItems(items)
@@ -155,21 +150,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, eventsListCmd(m.calendarService, m.cache, calendars, m.focusedDate)
 	case editEventRequestMsg:
-		m.cache.Flush()
 		return m, editEventResponseCmd(m.calendarService, msg)
-	case editEventResponseMsg:
-		m.editDialog, cmd = m.editDialog.Update(msg)
-		return m, cmd
 	case deleteEventRequestMsg:
-		m.cache.Flush()
 		return m, deleteEventResponseCmd(m.calendarService, msg)
-	case deleteEventResponseMsg:
-		m.deleteDialog, cmd = m.deleteDialog.Update(msg)
-		return m, cmd
 	case updateCalendarRequestMsg:
 		return m, updateCalendarResponseCmd(m.calendarService, msg)
-	case updateCalendarResponseMsg:
-		return m, calendarListCmd(m.calendarService)
+	case successMsg:
+		switch m.focusedModel {
+		case editDialog, deleteDialog:
+			m.cache.Flush()
+		case calendarList:
+			return m, calendarListCmd(m.calendarService)
+		}
 	}
 	switch m.focusedModel {
 	case calendarView:
@@ -268,7 +260,7 @@ func (m model) View() string {
 			AlignHorizontal(lipgloss.Center).
 			Render(m.help.View(m.keys))
 		m.eventsList.SetSize(m.width, m.height-lipgloss.Height(titleBar)-lipgloss.Height(helpView))
-        eventsView := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, m.eventsList.View())
+		eventsView := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, m.eventsList.View())
 		body = lipgloss.JoinVertical(lipgloss.Center, eventsView, helpView)
 	case gotoDateDialog:
 		body = m.gotoDialog.View()

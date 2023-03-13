@@ -11,38 +11,64 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type calendarListMsg struct {
-	calendars []*calendar.CalendarListEntry
-	err       error
+type (
+	gotoDateMsg     struct{ date time.Time }
+	showCalendarMsg struct{}
+)
+
+type (
+	errMsg              struct{ err error }
+	successMsg          struct{}
+	calendarListMsg     struct{ calendars []*calendar.CalendarListEntry }
+	eventsMsg           struct{ events []*Event }
+	refreshEventsMsg    struct{}
+	editEventRequestMsg struct {
+		calendarId string
+		eventId    string
+		summary    string
+		startDate  string
+		startTime  string
+		endDate    string
+		endTime    string
+	}
+	deleteEventRequestMsg struct {
+		calendarId string
+		eventId    string
+	}
+	updateCalendarRequestMsg struct {
+		calendarId string
+		selected   bool
+	}
+)
+
+func showCalendarViewCmd() tea.Msg {
+	return showCalendarMsg{}
+}
+
+func refreshEventsCmd() tea.Msg {
+	return refreshEventsMsg{}
+}
+
+func gotoDateCmd(date time.Time) tea.Cmd {
+	return func() tea.Msg {
+		return gotoDateMsg{date: date}
+	}
 }
 
 func calendarListCmd(calendarService *calendar.Service) tea.Cmd {
 	return func() tea.Msg {
 		response, err := calendarService.CalendarList.List().Do()
 		if err != nil {
-			return calendarListMsg{err: err}
+			return errMsg{err: err}
 		}
 		sort.Slice(response.Items, func(i, j int) bool {
 			return response.Items[i].Summary < response.Items[j].Summary
 		})
-		return calendarListMsg{
-			calendars: response.Items,
-			err:       err,
-		}
+		return calendarListMsg{calendars: response.Items}
 	}
 }
 
-type eventsListMsg struct {
-	events []*Event
-	errs   []error
-}
-
-func eventsListCmd(
-	calendarService *calendar.Service,
-	cache *cache.Cache,
-	calendars []*calendar.CalendarListEntry,
-	date time.Time,
-) tea.Cmd {
+func eventsListCmd(calendarService *calendar.Service, cache *cache.Cache, calendars []*calendar.CalendarListEntry, date time.Time) tea.Cmd {
 	return func() tea.Msg {
 		eventCh := make(chan *Event)
 		errCh := make(chan error)
@@ -70,6 +96,10 @@ func eventsListCmd(
 		for err := range errCh {
 			errs = append(errs, err)
 		}
+		if len(errs) >= 1 {
+			return errMsg{err: errs[0]}
+		}
+
 		var allDayEvents []*Event
 		var timeEvents []*Event
 		for _, event := range events {
@@ -82,12 +112,9 @@ func eventsListCmd(
 		sort.Slice(allDayEvents, func(i, j int) bool {
 			return allDayEvents[i].event.Summary < allDayEvents[j].event.Summary
 		})
-        sort.Sort(eventsSlice(timeEvents))
+		sort.Sort(eventsSlice(timeEvents))
 		allEvents := append(allDayEvents, timeEvents...)
-		return eventsListMsg{
-			events: allEvents,
-			errs:   errs,
-		}
+		return eventsMsg{events: allEvents}
 	}
 }
 
@@ -157,58 +184,6 @@ func forwardEvents(
 	}
 }
 
-type deleteEventRequestMsg struct {
-	calendarId string
-	eventId    string
-}
-
-func deleteEventRequestCmd(calendarId, eventId string) tea.Cmd {
-	return func() tea.Msg {
-		return deleteEventRequestMsg{
-			calendarId: calendarId,
-			eventId:    eventId,
-		}
-	}
-}
-
-type deleteEventResponseMsg struct {
-	err error
-}
-
-func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRequestMsg) tea.Cmd {
-	return func() tea.Msg {
-		err := calendarService.Events.Delete(msg.calendarId, msg.eventId).Do()
-		return deleteEventResponseMsg{
-			err: err,
-		}
-	}
-}
-
-type gotoDateMsg struct {
-	date time.Time
-}
-
-func gotoDateCmd(date time.Time) tea.Cmd {
-	return func() tea.Msg {
-		return gotoDateMsg{date: date}
-	}
-}
-
-type editEventRequestMsg struct {
-	calendarId string
-	eventId    string
-	summary    string
-	startDate  string
-	startTime  string
-	endDate    string
-	endTime    string
-}
-
-type editEventResponseMsg struct {
-	event *calendar.Event
-	err   error
-}
-
 func editEventRequestCmd(calendarId, eventId, summary, startDate, startTime, endDate, endTime string) tea.Cmd {
 	return func() tea.Msg {
 		return editEventRequestMsg{
@@ -228,54 +203,55 @@ func editEventResponseCmd(calendarService *calendar.Service, msg editEventReques
 		var err error
 		start, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.startDate+" "+msg.startTime, time.Local)
 		if err != nil {
-			return editEventResponseMsg{err: err}
+			return errMsg{err: err}
 		}
 		startDateTime := start.Format(time.RFC3339)
 		end, err := time.ParseInLocation(AbbreviatedTextDate24h, msg.endDate+" "+msg.endTime, time.Local)
 		if err != nil {
-			return editEventResponseMsg{err: err}
+			return errMsg{err: err}
 		}
 		endDateTime := end.Format(time.RFC3339)
-		var response *calendar.Event
 		if msg.eventId == "" {
 			event := &calendar.Event{
 				Summary: msg.summary,
 				Start:   &calendar.EventDateTime{DateTime: startDateTime},
 				End:     &calendar.EventDateTime{DateTime: endDateTime},
 			}
-			response, err = calendarService.Events.Insert(msg.calendarId, event).Do()
+			_, err = calendarService.Events.Insert(msg.calendarId, event).Do()
 		} else {
 			event, err := calendarService.Events.Get(msg.calendarId, msg.eventId).Do()
 			if err != nil {
-				return editEventResponseMsg{err: err}
+				return errMsg{err: err}
 			}
 			event.Summary = msg.summary
 			event.Start.DateTime = startDateTime
 			event.End.DateTime = endDateTime
-			response, err = calendarService.Events.Update(msg.calendarId, msg.eventId, event).Do()
+			_, err = calendarService.Events.Update(msg.calendarId, msg.eventId, event).Do()
+			if err != nil {
+				return errMsg{err: err}
+			}
 		}
-		return editEventResponseMsg{
-			event: response,
-			err:   err,
+		return successMsg{}
+	}
+}
+
+func deleteEventRequestCmd(calendarId, eventId string) tea.Cmd {
+	return func() tea.Msg {
+		return deleteEventRequestMsg{
+			calendarId: calendarId,
+			eventId:    eventId,
 		}
 	}
 }
 
-type showCalendarMsg struct{}
-
-func showCalendarViewCmd() tea.Msg {
-	return showCalendarMsg{}
-}
-
-type refreshEventsMsg struct{}
-
-func refreshEventsCmd() tea.Msg {
-	return refreshEventsMsg{}
-}
-
-type updateCalendarRequestMsg struct {
-	calendarId string
-	selected   bool
+func deleteEventResponseCmd(calendarService *calendar.Service, msg deleteEventRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		err := calendarService.Events.Delete(msg.calendarId, msg.eventId).Do()
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return successMsg{}
+	}
 }
 
 func updateCalendarRequestCmd(calendarId string, selected bool) tea.Cmd {
@@ -287,25 +263,17 @@ func updateCalendarRequestCmd(calendarId string, selected bool) tea.Cmd {
 	}
 }
 
-type updateCalendarResponseMsg struct {
-	calendar *calendar.CalendarListEntry
-	err      error
-}
-
 func updateCalendarResponseCmd(calendarService *calendar.Service, msg updateCalendarRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		calendar, err := calendarService.CalendarList.Get(msg.calendarId).Do()
 		if err != nil {
-			return updateCalendarResponseMsg{err: err}
+			return errMsg{err: err}
 		}
 		calendar.Selected = msg.selected
-		response, err := calendarService.CalendarList.Update(msg.calendarId, calendar).Do()
+		_, err = calendarService.CalendarList.Update(msg.calendarId, calendar).Do()
 		if err != nil {
-			return updateCalendarResponseMsg{err: err}
+			return errMsg{err: err}
 		}
-		return updateCalendarResponseMsg{
-			calendar: response,
-			err:      err,
-		}
+		return successMsg{}
 	}
 }

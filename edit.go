@@ -180,12 +180,11 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
 		return m, nil
-	case editEventResponseMsg:
-		if msg.err != nil {
-			m.err = msg.err
-		} else {
-			m.success = true
-		}
+	case errMsg:
+        m.err = msg.err
+		return m, nil
+    case successMsg:
+        m.success = true
 		return m, nil
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
