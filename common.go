@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 	"google.golang.org/api/calendar/v3"
@@ -63,6 +66,13 @@ var (
 				PaddingLeft(1).
 				Border(lipgloss.RoundedBorder())
 )
+
+func abbreviatedMonthDayYear(date time.Time) (string, string, string) {
+	month := date.Month().String()[:3]
+	day := fmt.Sprintf("%02d", date.Day())
+	year := fmt.Sprintf("%d", date.Year())
+	return month, day, year
+}
 
 func checkbox(label string, checked bool) string {
 	if checked {

@@ -31,9 +31,7 @@ func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	inputs[month] = newTextInput(monthWidth)
 	inputs[day] = newTextInput(dayWidth)
 	inputs[year] = newTextInput(yearWidth)
-	monthText := focusedDate.Month().String()[:3]
-	dayText := fmt.Sprintf("%02d", focusedDate.Day())
-	yearText := fmt.Sprintf("%d", focusedDate.Year())
+	monthText, dayText, yearText := abbreviatedMonthDayYear(focusedDate)
 	inputs[month].Placeholder = monthText
 	inputs[day].Placeholder = dayText
 	inputs[year].Placeholder = yearText
@@ -71,51 +69,32 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Prev):
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 		case key.Matches(msg, m.keys.Increment):
-			text := fmt.Sprintf(
-				"%s %s %s",
-				m.inputs[month].Value(),
-				m.inputs[day].Value(),
-				m.inputs[year].Value(),
-			)
+			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
 			if err != nil {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, 1)
-			monthText := date.Month().String()[:3]
-			dayText := fmt.Sprintf("%02d", date.Day())
-			yearText := fmt.Sprintf("%d", date.Year())
+			monthText, dayText, yearText := abbreviatedMonthDayYear(date)
 			m.inputs[month].SetValue(monthText)
 			m.inputs[day].SetValue(dayText)
 			m.inputs[year].SetValue(yearText)
 			return m, nil
 		case key.Matches(msg, m.keys.Decrement):
-			text := fmt.Sprintf(
-				"%s %s %s",
-				m.inputs[month].Value(),
-				m.inputs[day].Value(),
-				m.inputs[year].Value(),
-			)
+			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
 			if err != nil {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, -1)
-			monthText := date.Month().String()[:3]
-			dayText := fmt.Sprintf("%02d", date.Day())
-			yearText := fmt.Sprintf("%d", date.Year())
+			monthText, dayText, yearText := abbreviatedMonthDayYear(date)
 			m.inputs[month].SetValue(monthText)
 			m.inputs[day].SetValue(dayText)
 			m.inputs[year].SetValue(yearText)
 			return m, nil
 		case key.Matches(msg, m.keys.Go):
 			autofillAll(m.inputs)
-			text := fmt.Sprintf(
-				"%s %s %s",
-				m.inputs[month].Value(),
-				m.inputs[day].Value(),
-				m.inputs[year].Value(),
-			)
+			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
 			if err != nil {
 				return m, showCalendarViewCmd
