@@ -9,6 +9,15 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+type calendarItem struct {
+	calendar *calendar.CalendarListEntry
+}
+
+// Implement list.Item interface
+func (i calendarItem) FilterValue() string { return i.Title() }
+func (i calendarItem) Title() string       { return checkbox(i.calendar.Summary, i.calendar.Selected) }
+func (i calendarItem) Description() string { return i.calendar.Description }
+
 type CalendarListDialog struct {
 	list   list.Model
 	height int
@@ -31,7 +40,7 @@ func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, heigh
 	l.DisableQuitKeybindings()
 	l.Title = "My calendars"
 	l.Styles.Title.Background(googleBlue)
-	updateCalendars(&l, calendars)
+	setCalendarListItems(&l, calendars)
 	return CalendarListDialog{
 		list:   l,
 		height: height,
@@ -48,7 +57,7 @@ func (m CalendarListDialog) Init() tea.Cmd {
 func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case calendarListMsg:
-		updateCalendars(&m.list, msg.calendars)
+		setCalendarListItems(&m.list, msg.calendars)
 		return m, nil
 	case tea.KeyMsg:
 		switch {
@@ -72,6 +81,14 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
+}
+
+func setCalendarListItems(l *list.Model, calendars []*calendar.CalendarListEntry) {
+	var items []list.Item
+	for _, calendar := range calendars {
+		items = append(items, calendarItem{calendar: calendar})
+	}
+	l.SetItems(items)
 }
 
 func (m CalendarListDialog) View() string {
@@ -123,34 +140,3 @@ func (k keyMapCalendarsList) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{k.Down}, {k.Up}, {k.Toggle}, {k.Exit}}
 }
 
-type calendarItem struct {
-	calendar *calendar.CalendarListEntry
-}
-
-func (i calendarItem) Title() string {
-	return checkbox(i.calendar.Summary, i.calendar.Selected)
-}
-
-func checkbox(label string, checked bool) string {
-	if checked {
-		return "[X] " + label
-	} else {
-		return "[ ] " + label
-	}
-}
-
-func (i calendarItem) Description() string {
-	return i.calendar.Description
-}
-
-func (i calendarItem) FilterValue() string {
-	return i.Title()
-}
-
-func updateCalendars(l *list.Model, calendars []*calendar.CalendarListEntry) {
-	var items []list.Item
-	for _, calendar := range calendars {
-		items = append(items, calendarItem{calendar: calendar})
-	}
-	l.SetItems(items)
-}

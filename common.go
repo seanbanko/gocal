@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 	"google.golang.org/api/calendar/v3"
@@ -65,12 +64,12 @@ var (
 				Border(lipgloss.RoundedBorder())
 )
 
-func toItems(events []*Event) []list.Item {
-	var items []list.Item
-	for _, event := range events {
-		items = append(items, eventItem{event: event})
+func checkbox(label string, checked bool) string {
+	if checked {
+		return "[X] " + label
+	} else {
+		return "[ ] " + label
 	}
-	return items
 }
 
 func isAllDay(event *calendar.Event) bool {
@@ -114,7 +113,7 @@ func autofill(input *textinput.Model) {
 func autofillAll(inputs []textinput.Model) {
 	for i := range inputs {
 		if len(inputs[i].Value()) == 0 {
-            autofill(&inputs[i])
+			autofill(&inputs[i])
 		}
 	}
 }

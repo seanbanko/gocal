@@ -27,20 +27,19 @@ type Event struct {
 	event      *calendar.Event
 }
 
-// Implement list.DefaultItem interface
-type eventItem struct{ event *Event }
-func (i eventItem) FilterValue() string { return i.event.event.Summary }
-func (i eventItem) Title() string       { return i.event.event.Summary }
-func (i eventItem) Description() string {
-	if isAllDay(i.event.event) {
+// Implement list.Item interface
+func (event Event) FilterValue() string { return event.event.Summary }
+func (event Event) Title() string       { return event.event.Summary }
+func (event Event) Description() string {
+	if isAllDay(event.event) {
 		return "all day"
 	}
-	start, err := time.Parse(time.RFC3339, i.event.event.Start.DateTime)
+	start, err := time.Parse(time.RFC3339, event.event.Start.DateTime)
 	if err != nil {
 		return err.Error()
 	}
 	s := start.In(time.Local).Format(time.Kitchen)
-	end, err := time.Parse(time.RFC3339, i.event.event.End.DateTime)
+	end, err := time.Parse(time.RFC3339, event.event.End.DateTime)
 	if err != nil {
 		return err.Error()
 	}
@@ -125,7 +124,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	case eventsMsg:
 		m.events = msg.events
-		items := toItems(msg.events)
+		var items []list.Item
+		for _, event := range msg.events {
+			items = append(items, event)
+		}
 		m.eventsList.SetItems(items)
 		return m, nil
 	case gotoDateMsg:
@@ -180,20 +182,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.editDialog = newEditDialog(nil, m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Edit):
-				item, ok := m.eventsList.SelectedItem().(eventItem)
+				event, ok := m.eventsList.SelectedItem().(*Event)
 				if !ok {
-					return m, nil
+					return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
 				}
 				m.focusedModel = editDialog
-				m.editDialog = newEditDialog(item.event, m.focusedDate, m.width, m.height)
+				m.editDialog = newEditDialog(event, m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Delete):
-				item, ok := m.eventsList.SelectedItem().(eventItem)
+				event, ok := m.eventsList.SelectedItem().(*Event)
 				if !ok {
-					return m, nil
+					return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
 				}
 				m.focusedModel = deleteDialog
-				m.deleteDialog = newDeleteDialog(item.event.calendarId, item.event.event.Id, m.width, m.height)
+				m.deleteDialog = newDeleteDialog(event.calendarId, event.event.Id, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.CalendarList):
 				m.focusedModel = calendarList
