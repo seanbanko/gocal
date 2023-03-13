@@ -268,7 +268,7 @@ func (m model) View() string {
 			AlignHorizontal(lipgloss.Center).
 			Render(m.help.View(m.keys))
 		m.eventsList.SetSize(m.width, m.height-lipgloss.Height(titleBar)-lipgloss.Height(helpView))
-		body = lipgloss.JoinVertical(lipgloss.Left, m.eventsList.View(), helpView)
+		body = lipgloss.JoinVertical(lipgloss.Center, m.eventsList.View(), helpView)
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
 	case editDialog:
@@ -278,7 +278,7 @@ func (m model) View() string {
 	case calendarList:
 		body = m.calendarList.View()
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, titleBar, body)
+	return lipgloss.JoinVertical(lipgloss.Center, titleBar, body)
 }
 
 type keyMapDefault struct {
