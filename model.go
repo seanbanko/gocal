@@ -327,11 +327,11 @@ func (k keyMapDefault) ShortHelp() []key.Binding {
 
 func (k keyMapDefault) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Next, k.GotoDate},
-		{k.Prev, k.CalendarList},
-		{k.Today, k.Help},
-		{k.GotoDate, k.Quit},
-		{k.Create},
+		{k.Next, k.Delete},
+		{k.Prev, k.GotoDate},
+		{k.Today, k.CalendarList},
+		{k.GotoDate, k.Help},
+		{k.Create, k.Quit},
 		{k.Edit},
 	}
 }
