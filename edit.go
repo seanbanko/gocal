@@ -85,6 +85,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 		inputs[summary].SetValue(event.event.Summary)
 
 		start, err := time.Parse(time.RFC3339, event.event.Start.DateTime)
+		start = start.In(time.Local)
 		var sMonth, sDay, sYear, sHour, sMin string
 		if err == nil {
 			sMonth = start.Month().String()[:3]
@@ -100,6 +101,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 		inputs[startMinute].SetValue(sMin)
 
 		end, err := time.Parse(time.RFC3339, event.event.End.DateTime)
+		end = end.In(time.Local)
 		var eMonth, eDay, eYear, eHour, eMin string
 		if err == nil {
 			eMonth = end.Month().String()[:3]
