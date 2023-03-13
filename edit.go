@@ -49,77 +49,76 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	inputs[summary].PlaceholderStyle = textInputPlaceholderStyle
 
 	inputs[startMonth] = newMonthTextInput()
-	inputs[startMonth].Placeholder = focusedDate.Month().String()[:3]
-
 	inputs[startDay] = newDayTextInput()
-	inputs[startDay].Placeholder = fmt.Sprintf("%02d", focusedDate.Day())
-
 	inputs[startYear] = newYearTextInput()
-	inputs[startYear].Placeholder = fmt.Sprintf("%d", focusedDate.Year())
-
 	inputs[startHour] = newTimeTextInput()
-	inputs[startHour].Placeholder = fmt.Sprintf("%02d", time.Now().Hour())
-
 	inputs[startMinute] = newTimeTextInput()
-	inputs[startMinute].Placeholder = "00"
-
 	inputs[endMonth] = newMonthTextInput()
-	inputs[endMonth].Placeholder = focusedDate.Month().String()[:3]
-
 	inputs[endDay] = newDayTextInput()
-	inputs[endDay].Placeholder = fmt.Sprintf("%02d", focusedDate.Day())
-
 	inputs[endYear] = newYearTextInput()
-	inputs[endYear].Placeholder = fmt.Sprintf("%d", focusedDate.Year())
-
 	inputs[endHour] = newTimeTextInput()
-	inputs[endHour].Placeholder = fmt.Sprintf("%02d", time.Now().Add(time.Hour).Hour())
-
 	inputs[endMinute] = newTimeTextInput()
-	inputs[endMinute].Placeholder = "00"
+
+	var start, end time.Time
+	if event == nil {
+		start = time.Date(focusedDate.Year(), focusedDate.Month(), focusedDate.Day(), time.Now().Hour(), time.Now().Minute(), 0, 0, time.Local)
+		end = start.Add(time.Hour)
+	} else {
+		// TODO handle errors
+		eventStart, _ := time.Parse(time.RFC3339, event.event.Start.DateTime)
+		start = eventStart.In(time.Local)
+		eventEnd, _ := time.Parse(time.RFC3339, event.event.End.DateTime)
+		end = eventEnd.In(time.Local)
+	}
+
+	var (
+		startMonthText  = start.Month().String()[:3]
+		startDayText    = fmt.Sprintf("%02d", start.Day())
+		startYearText   = fmt.Sprintf("%d", start.Year())
+		startHourText   = fmt.Sprintf("%02d", start.Hour())
+		startMinuteText = fmt.Sprintf("%02d", start.Minute())
+		endMonthText    = end.Month().String()[:3]
+		endDayText      = fmt.Sprintf("%02d", end.Day())
+		endYearText     = fmt.Sprintf("%d", end.Year())
+		endHourText     = fmt.Sprintf("%02d", end.Hour())
+		endMinuteText   = fmt.Sprintf("%02d", end.Minute())
+	)
+
+	inputs[startMonth].Placeholder = startMonthText
+	inputs[startDay].Placeholder = startDayText
+	inputs[startYear].Placeholder = startYearText
+	inputs[startHour].Placeholder = startHourText
+	inputs[startMinute].Placeholder = startMinuteText
+	inputs[endMonth].Placeholder = endMonthText
+	inputs[endDay].Placeholder = endDayText
+	inputs[endYear].Placeholder = endYearText
+	inputs[endHour].Placeholder = endHourText
+	inputs[endMinute].Placeholder = endMinuteText
+
+	if event != nil {
+		inputs[summary].SetValue(event.event.Summary)
+		inputs[startMonth].SetValue(startMonthText)
+		inputs[startDay].SetValue(startDayText)
+		inputs[startYear].SetValue(startYearText)
+		inputs[startHour].SetValue(startHourText)
+		inputs[startMinute].SetValue(startMinuteText)
+		inputs[endMonth].SetValue(endMonthText)
+		inputs[endDay].SetValue(endDayText)
+		inputs[endYear].SetValue(endYearText)
+		inputs[endHour].SetValue(endHourText)
+		inputs[endMinute].SetValue(endMinuteText)
+	}
 
 	var calendarId, eventId string
 	var autofillDuration time.Duration
-	if event != nil {
+	if event == nil {
+		calendarId = "primary"
+		eventId = ""
+		autofillDuration = time.Hour
+	} else {
 		calendarId = event.calendarId
 		eventId = event.event.Id
-		inputs[summary].SetValue(event.event.Summary)
-
-		start, err := time.Parse(time.RFC3339, event.event.Start.DateTime)
-		start = start.In(time.Local)
-		var sMonth, sDay, sYear, sHour, sMin string
-		if err == nil {
-			sMonth = start.Month().String()[:3]
-			sDay = fmt.Sprintf("%02d", start.Day())
-			sYear = fmt.Sprintf("%d", start.Year())
-			sHour = fmt.Sprintf("%02d", start.Hour())
-			sMin = fmt.Sprintf("%02d", start.Minute())
-		}
-		inputs[startMonth].SetValue(sMonth)
-		inputs[startDay].SetValue(sDay)
-		inputs[startYear].SetValue(sYear)
-		inputs[startHour].SetValue(sHour)
-		inputs[startMinute].SetValue(sMin)
-
-		end, err := time.Parse(time.RFC3339, event.event.End.DateTime)
-		end = end.In(time.Local)
-		var eMonth, eDay, eYear, eHour, eMin string
-		if err == nil {
-			eMonth = end.Month().String()[:3]
-			eDay = fmt.Sprintf("%02d", end.Day())
-			eYear = fmt.Sprintf("%d", end.Year())
-			eHour = fmt.Sprintf("%02d", end.Hour())
-			eMin = fmt.Sprintf("%02d", end.Minute())
-		}
-		inputs[endMonth].SetValue(eMonth)
-		inputs[endDay].SetValue(eDay)
-		inputs[endYear].SetValue(eYear)
-		inputs[endHour].SetValue(eHour)
-		inputs[endMinute].SetValue(eMin)
 		autofillDuration = end.Sub(start)
-	} else {
-		calendarId = "primary"
-		autofillDuration = time.Hour
 	}
 
 	focusIndex := summary
