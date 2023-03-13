@@ -327,14 +327,12 @@ func (m EditDialog) View() string {
 }
 
 func renderEditContent(m EditDialog) string {
-	var allDayBox, duration, startTimeInputs, endTimeInputs string
+	var duration, startTimeInputs, endTimeInputs string
 	if m.allDay {
-		allDayBox = "[X]"
-		duration = "all day"
+        duration = "[X] all day"
 		startTimeInputs = ""
 		endTimeInputs = ""
 	} else {
-		allDayBox = "[ ]"
 		duration = m.duration.String()
 		startTimeInputs = lipgloss.JoinHorizontal(lipgloss.Center,
 			" at ",
@@ -354,14 +352,7 @@ func renderEditContent(m EditDialog) string {
 		lipgloss.Center,
 		"Create/Edit Event",
 		"\n",
-		lipgloss.JoinHorizontal(
-			lipgloss.Center,
-			textInputSummaryStyle.Render(m.inputs[summary].View()),
-			" ",
-			allDayBox,
-			// lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Render(allDayBox),
-			" All Day",
-		),
+        textInputSummaryStyle.Render(m.inputs[summary].View()),
 		lipgloss.JoinHorizontal(
 			lipgloss.Center,
 			textInputMonthStyle.Render(m.inputs[startMonth].View()),
