@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -238,7 +237,6 @@ func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cm
 				Start:   startEventDateTime,
 				End:     endEventDatetime,
 			}
-            log.Printf("creating event: %#v", event)
 			_, err = srv.Events.Insert(msg.calendarId, event).Do()
 			if err != nil {
 				return errMsg{err: err}
@@ -253,11 +251,6 @@ func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cm
 			event.End.Date = endDate
 			event.Start.DateTime = startDateTime
 			event.End.DateTime = endDateTime
-            log.Printf("startDate: %v", startDate)
-            log.Printf("endDate: %v", endDate)
-            log.Printf("startDateTime: %v", startDateTime)
-            log.Printf("endDateTime: %v", endDateTime)
-            log.Printf("updating event: %#v", event)
 			_, err = srv.Events.Update(msg.calendarId, msg.eventId, event).Do()
 			if err != nil {
 				return errMsg{err: err}
