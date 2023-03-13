@@ -26,16 +26,17 @@ const (
 )
 
 type EditDialog struct {
-	inputs     []textinput.Model
-	focusIndex int
-	calendarId string
-	eventId    string
-	height     int
-	width      int
-	success    bool
-	err        error
-	help       help.Model
-	keys       keyMapEdit
+	inputs           []textinput.Model
+	focusIndex       int
+	calendarId       string
+	eventId          string
+	autofillDuration time.Duration
+	height           int
+	width            int
+	success          bool
+	err              error
+	help             help.Model
+	keys             keyMapEdit
 }
 
 func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditDialog {
@@ -120,16 +121,17 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	refocus(inputs, focusIndex)
 
 	return EditDialog{
-		inputs:     inputs,
-		focusIndex: focusIndex,
-		calendarId: calendarId,
-		eventId:    eventId,
-		height:     height,
-		width:      width,
-		success:    false,
-		err:        nil,
-		help:       help.New(),
-		keys:       editKeyMap,
+		inputs:           inputs,
+		focusIndex:       focusIndex,
+		calendarId:       calendarId,
+		eventId:          eventId,
+		autofillDuration: time.Hour,
+		height:           height,
+		width:            width,
+		success:          false,
+		err:              nil,
+		help:             help.New(),
+		keys:             editKeyMap,
 	}
 }
 
@@ -187,19 +189,35 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			newIndex := focusNext(m.inputs, m.focusIndex)
-			if m.focusIndex == startMonth {
+			prevIndex := m.focusIndex
+			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+			if prevIndex == startMonth {
 				m.inputs[endMonth].SetValue(m.inputs[startMonth].Value())
-			}
-			if m.focusIndex == startDay {
+			} else if prevIndex == startDay {
 				m.inputs[endDay].SetValue(m.inputs[startDay].Value())
-			}
-			if m.focusIndex == startYear {
+			} else if prevIndex == startYear {
 				m.inputs[endYear].SetValue(m.inputs[startYear].Value())
+			} else if prevIndex == startHour || prevIndex == startMinute {
+				startTime := fmt.Sprintf("%s:%s", m.inputs[startHour].Value(), m.inputs[startMinute].Value())
+				start, err := time.Parse(HHMM24h, startTime)
+				if err != nil {
+					break
+				}
+				m.inputs[endHour].SetValue(fmt.Sprintf("%02d", start.Add(m.autofillDuration).Hour()))
+				m.inputs[endMinute].SetValue(fmt.Sprintf("%02d", start.Add(m.autofillDuration).Minute()))
+			} else if prevIndex == endHour || prevIndex == endMinute {
+				startTime := fmt.Sprintf("%s:%s", m.inputs[startHour].Value(), m.inputs[startMinute].Value())
+				endTime := fmt.Sprintf("%s:%s", m.inputs[endHour].Value(), m.inputs[endMinute].Value())
+				m.autofillDuration = updateAutofillDuration(startTime, endTime)
 			}
-			m.focusIndex = newIndex
 		case key.Matches(msg, m.keys.Prev):
+            prevIndex := m.focusIndex
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
+			if prevIndex == endHour || prevIndex == endMinute {
+				startTime := fmt.Sprintf("%s:%s", m.inputs[startHour].Value(), m.inputs[startMinute].Value())
+				endTime := fmt.Sprintf("%s:%s", m.inputs[endHour].Value(), m.inputs[endMinute].Value())
+				m.autofillDuration = updateAutofillDuration(startTime, endTime)
+			}
 		case key.Matches(msg, m.keys.Save):
 			autofillPlaceholders(m.inputs)
 			startDate := fmt.Sprintf(
@@ -271,6 +289,13 @@ func focusPrev(inputs []textinput.Model, focusIndex int) int {
 	return newIndex
 }
 
+func refocus(inputs []textinput.Model, focusIndex int) {
+	for i := range inputs {
+		inputs[i].Blur()
+	}
+	inputs[focusIndex].Focus()
+}
+
 func autofillPlaceholders(inputs []textinput.Model) {
 	for i := range inputs {
 		if len(inputs[i].Value()) == 0 {
@@ -279,11 +304,16 @@ func autofillPlaceholders(inputs []textinput.Model) {
 	}
 }
 
-func refocus(inputs []textinput.Model, focusIndex int) {
-	for i := range inputs {
-		inputs[i].Blur()
+func updateAutofillDuration(startTime, endTime string) time.Duration {
+	start, err := time.Parse(HHMM24h, startTime)
+	if err != nil {
+		return time.Hour
 	}
-	inputs[focusIndex].Focus()
+	end, err := time.Parse(HHMM24h, endTime)
+	if err != nil {
+		return time.Hour
+	}
+	return end.Sub(start)
 }
 
 func (m EditDialog) View() string {

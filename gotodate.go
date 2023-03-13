@@ -76,7 +76,6 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(showCalendarViewCmd, gotoDateCmd(date))
 		case key.Matches(msg, m.keys.Cancel):
 			return m, showCalendarViewCmd
-
 		case msg.Type == tea.KeySpace && (m.focusIndex == month || m.focusIndex == day):
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 			return m, nil
