@@ -26,17 +26,17 @@ const (
 )
 
 type EditDialog struct {
-	inputs           []textinput.Model
-	focusIndex       int
-	calendarId       string
-	eventId          string
-	autofillDuration time.Duration
-	height           int
-	width            int
-	success          bool
-	err              error
-	help             help.Model
-	keys             keyMapEdit
+	inputs     []textinput.Model
+	focusIndex int
+	calendarId string
+	eventId    string
+	duration   time.Duration
+	height     int
+	width      int
+	success    bool
+	err        error
+	help       help.Model
+	keys       keyMapEdit
 }
 
 func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditDialog {
@@ -61,7 +61,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 
 	var start, end time.Time
 	if event == nil {
-		start = time.Date(focusedDate.Year(), focusedDate.Month(), focusedDate.Day(), time.Now().Hour(), time.Now().Minute(), 0, 0, time.Local)
+		start = time.Date(focusedDate.Year(), focusedDate.Month(), focusedDate.Day(), time.Now().Hour(), time.Now().Minute(), 0, 0, time.Local).Round(time.Hour)
 		end = start.Add(time.Hour)
 	} else {
 		// TODO handle errors
@@ -110,32 +110,31 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	}
 
 	var calendarId, eventId string
-	var autofillDuration time.Duration
 	if event == nil {
 		calendarId = "primary"
 		eventId = ""
-		autofillDuration = time.Hour
 	} else {
 		calendarId = event.calendarId
 		eventId = event.event.Id
-		autofillDuration = end.Sub(start)
 	}
+
+	duration := end.Sub(start)
 
 	focusIndex := summary
 	refocus(inputs, focusIndex)
 
 	return EditDialog{
-		inputs:           inputs,
-		focusIndex:       focusIndex,
-		calendarId:       calendarId,
-		eventId:          eventId,
-		autofillDuration: autofillDuration,
-		height:           height,
-		width:            width,
-		success:          false,
-		err:              nil,
-		help:             help.New(),
-		keys:             editKeyMap,
+		inputs:     inputs,
+		focusIndex: focusIndex,
+		calendarId: calendarId,
+		eventId:    eventId,
+		duration:   duration,
+		height:     height,
+		width:      width,
+		success:    false,
+		err:        nil,
+		help:       help.New(),
+		keys:       editKeyMap,
 	}
 }
 
@@ -171,15 +170,14 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if prevIndex == startHour || prevIndex == startMinute {
 				startTime := fmt.Sprintf("%s:%s", m.inputs[startHour].Value(), m.inputs[startMinute].Value())
 				start, err := time.Parse(HHMM24h, startTime)
-				if err != nil {
-					break
+				if err == nil {
+					m.inputs[endHour].SetValue(fmt.Sprintf("%02d", start.Add(m.duration).Hour()))
+					m.inputs[endMinute].SetValue(fmt.Sprintf("%02d", start.Add(m.duration).Minute()))
 				}
-				m.inputs[endHour].SetValue(fmt.Sprintf("%02d", start.Add(m.autofillDuration).Hour()))
-				m.inputs[endMinute].SetValue(fmt.Sprintf("%02d", start.Add(m.autofillDuration).Minute()))
 			} else if prevIndex == endHour || prevIndex == endMinute {
 				startTime := fmt.Sprintf("%s:%s", m.inputs[startHour].Value(), m.inputs[startMinute].Value())
 				endTime := fmt.Sprintf("%s:%s", m.inputs[endHour].Value(), m.inputs[endMinute].Value())
-				m.autofillDuration = updateAutofillDuration(startTime, endTime)
+				m.duration = updateDuration(m.duration, startTime, endTime)
 			}
 		case key.Matches(msg, m.keys.Prev):
 			prevIndex := m.focusIndex
@@ -187,7 +185,7 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if prevIndex == endHour || prevIndex == endMinute {
 				startTime := fmt.Sprintf("%s:%s", m.inputs[startHour].Value(), m.inputs[startMinute].Value())
 				endTime := fmt.Sprintf("%s:%s", m.inputs[endHour].Value(), m.inputs[endMinute].Value())
-				m.autofillDuration = updateAutofillDuration(startTime, endTime)
+				m.duration = updateDuration(m.duration, startTime, endTime)
 			}
 		case key.Matches(msg, m.keys.Save):
 			autofillPlaceholders(m.inputs)
@@ -242,14 +240,14 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func updateAutofillDuration(startTime, endTime string) time.Duration {
+func updateDuration(duration time.Duration, startTime, endTime string) time.Duration {
 	start, err := time.Parse(HHMM24h, startTime)
 	if err != nil {
-		return time.Hour
+		return duration
 	}
 	end, err := time.Parse(HHMM24h, endTime)
 	if err != nil {
-		return time.Hour
+		return duration
 	}
 	return end.Sub(start)
 }
