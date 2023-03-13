@@ -246,22 +246,23 @@ func (m model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	titleBar := lipgloss.NewStyle().
+	titleContainer := lipgloss.NewStyle().
 		Width(m.width - 2).
+		MaxWidth(m.width - 2).
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
 		Render("GoCal")
 	var body string
 	switch m.focusedModel {
 	case calendarView:
-		helpView := lipgloss.NewStyle().
+		helpContainer := lipgloss.NewStyle().
 			Width(m.width).
 			Padding(1).
 			AlignHorizontal(lipgloss.Center).
 			Render(m.help.View(m.keys))
-		m.eventsList.SetSize(m.width, m.height-lipgloss.Height(titleBar)-lipgloss.Height(helpView))
+		m.eventsList.SetSize(m.width, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer))
 		eventsView := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, m.eventsList.View())
-		body = lipgloss.JoinVertical(lipgloss.Center, eventsView, helpView)
+		body = lipgloss.JoinVertical(lipgloss.Center, eventsView, helpContainer)
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
 	case editDialog:
@@ -271,7 +272,11 @@ func (m model) View() string {
 	case calendarList:
 		body = m.calendarList.View()
 	}
-	return lipgloss.JoinVertical(lipgloss.Center, titleBar, body)
+	bodyContainer := lipgloss.NewStyle().
+		MaxWidth(m.width).
+		MaxHeight(m.height - lipgloss.Height(titleContainer)).
+		Render(body)
+	return lipgloss.JoinVertical(lipgloss.Center, titleContainer, bodyContainer)
 }
 
 type keyMapDefault struct {
