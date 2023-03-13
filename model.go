@@ -268,7 +268,8 @@ func (m model) View() string {
 			AlignHorizontal(lipgloss.Center).
 			Render(m.help.View(m.keys))
 		m.eventsList.SetSize(m.width, m.height-lipgloss.Height(titleBar)-lipgloss.Height(helpView))
-		body = lipgloss.JoinVertical(lipgloss.Center, m.eventsList.View(), helpView)
+        eventsView := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, m.eventsList.View())
+		body = lipgloss.JoinVertical(lipgloss.Center, eventsView, helpView)
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
 	case editDialog:
