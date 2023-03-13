@@ -29,11 +29,17 @@ type GotoDialog struct {
 func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	inputs := make([]textinput.Model, 3)
 	inputs[month] = newTextInput(monthWidth)
-	inputs[month].Placeholder = focusedDate.Month().String()[:3]
 	inputs[day] = newTextInput(dayWidth)
-	inputs[day].Placeholder = fmt.Sprintf("%02d", focusedDate.Day())
 	inputs[year] = newTextInput(yearWidth)
-	inputs[year].Placeholder = fmt.Sprintf("%d", focusedDate.Year())
+	monthText := focusedDate.Month().String()[:3]
+	dayText := fmt.Sprintf("%02d", focusedDate.Day())
+	yearText := fmt.Sprintf("%d", focusedDate.Year())
+	inputs[month].Placeholder = monthText
+	inputs[day].Placeholder = dayText
+	inputs[year].Placeholder = yearText
+	inputs[month].SetValue(monthText)
+	inputs[day].SetValue(dayText)
+	inputs[year].SetValue(yearText)
 	focusIndex := month
 	refocus(inputs, focusIndex)
 	return GotoDialog{
@@ -64,6 +70,44 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 		case key.Matches(msg, m.keys.Prev):
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
+		case key.Matches(msg, m.keys.Increment):
+			text := fmt.Sprintf(
+				"%s %s %s",
+				m.inputs[month].Value(),
+				m.inputs[day].Value(),
+				m.inputs[year].Value(),
+			)
+			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
+			if err != nil {
+				return m, nil
+			}
+			date = date.AddDate(0, 0, 1)
+			monthText := date.Month().String()[:3]
+			dayText := fmt.Sprintf("%02d", date.Day())
+			yearText := fmt.Sprintf("%d", date.Year())
+			m.inputs[month].SetValue(monthText)
+			m.inputs[day].SetValue(dayText)
+			m.inputs[year].SetValue(yearText)
+			return m, nil
+		case key.Matches(msg, m.keys.Decrement):
+			text := fmt.Sprintf(
+				"%s %s %s",
+				m.inputs[month].Value(),
+				m.inputs[day].Value(),
+				m.inputs[year].Value(),
+			)
+			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
+			if err != nil {
+				return m, nil
+			}
+			date = date.AddDate(0, 0, -1)
+			monthText := date.Month().String()[:3]
+			dayText := fmt.Sprintf("%02d", date.Day())
+			yearText := fmt.Sprintf("%d", date.Year())
+			m.inputs[month].SetValue(monthText)
+			m.inputs[day].SetValue(dayText)
+			m.inputs[year].SetValue(yearText)
+			return m, nil
 		case key.Matches(msg, m.keys.Go):
 			autofillAll(m.inputs)
 			text := fmt.Sprintf(
@@ -118,10 +162,12 @@ func (m GotoDialog) View() string {
 }
 
 type keyMapGoto struct {
-	Next   key.Binding
-	Prev   key.Binding
-	Go     key.Binding
-	Cancel key.Binding
+	Next      key.Binding
+	Prev      key.Binding
+	Increment key.Binding
+	Decrement key.Binding
+	Go        key.Binding
+	Cancel    key.Binding
 }
 
 var gotoKeymap = keyMapGoto{
@@ -132,6 +178,14 @@ var gotoKeymap = keyMapGoto{
 	Prev: key.NewBinding(
 		key.WithKeys("shift+tab"),
 		key.WithHelp("shift+tab", "previous field"),
+	),
+	Increment: key.NewBinding(
+		key.WithKeys("ctrl+n", "+"),
+		key.WithHelp("ctrl+n/+", "increment date"),
+	),
+	Decrement: key.NewBinding(
+		key.WithKeys("ctrl+p", "-"),
+		key.WithHelp("ctrl+p/-", "decrement date"),
 	),
 	Go: key.NewBinding(
 		key.WithKeys("enter", "ctrl+s"),
@@ -144,9 +198,16 @@ var gotoKeymap = keyMapGoto{
 }
 
 func (k keyMapGoto) ShortHelp() []key.Binding {
-	return []key.Binding{k.Go, k.Cancel}
+	return []key.Binding{k.Next, k.Prev, k.Increment, k.Decrement, k.Go, k.Cancel}
 }
 
 func (k keyMapGoto) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Go}, {k.Cancel}}
+	return [][]key.Binding{
+		{k.Next},
+		{k.Go},
+		{k.Prev},
+		{k.Cancel},
+		{k.Increment},
+		{k.Decrement},
+	}
 }
