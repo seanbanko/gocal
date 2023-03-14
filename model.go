@@ -109,8 +109,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case errMsg:
-		log.Fatalf("Error: %v", msg.err)
-		return m, tea.Quit
+        // TODO make sure this doesn't require further action
+        // Currently the assumption is that sub-models handle and display errors
+		log.Printf("Error: %v", msg.err)
 	case showCalendarMsg:
 		m.focusedModel = calendarView
 		return m, tea.Batch(tea.ClearScreen, refreshEventsCmd)
