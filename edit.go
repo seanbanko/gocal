@@ -90,9 +90,9 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 
 	var (
 		startMonthText, startDayText, startYearText = toDateFields(start)
-		startTimeText                               = start.Format(HH_MM_XM)
+		startTimeText                               = start.Format(HH_MM_PM)
 		endMonthText, endDayText, endYearText       = toDateFields(end)
-		endTimeText                                 = end.Format(HH_MM_XM)
+		endTimeText                                 = end.Format(HH_MM_PM)
 	)
 
 	inputs[startMonth].Placeholder = startMonthText

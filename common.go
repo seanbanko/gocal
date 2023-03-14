@@ -15,9 +15,12 @@ const (
 )
 
 const (
+	H                              = "3"
+	HPM                            = "3PM"
+	H_PM                           = "3 PM"
 	HHMM24h                        = "15:04"
 	KitchenWithSpace               = "3:04 PM"
-	HH_MM_XM                       = "03:04 PM"
+	HH_MM_PM                       = "03:04 PM"
 	YYYYMMDD                       = "2006-01-02"
 	AbbreviatedTextDate            = "Jan 2 2006"
 	AbbreviatedTextDateWithWeekday = "Mon Jan 2"
@@ -31,7 +34,7 @@ const (
 	monthWidth   = 3 // Jan
 	dayWidth     = 2 // 02
 	yearWidth    = 4 // 2006
-	timeWidth    = len(HH_MM_XM)
+	timeWidth    = len(HH_MM_PM)
 )
 
 var (
@@ -101,17 +104,17 @@ func autofillEmptyInputs(inputs []textinput.Model) {
 	}
 }
 
+// Shotgun parser
+// TODO make this better
 func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
 	t = strings.ToUpper(t)
 	t = strings.TrimSpace(t)
-	if !strings.Contains(t, ":") && len(t) >= 2 {
+	if !strings.Contains(t, ":") && !strings.ContainsAny(t, "APM") && len(t) >= 2 {
 		t = t[:len(t)-2] + ":" + t[len(t)-2:]
 	}
 	text := fmt.Sprintf("%s %s %s %s", month, day, year, t)
 	var d time.Time
 	var err error
-	// TODO maybe use a package to guess more than just 3 layouts
-	// Try parsing as three different layouts
 	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+time.Kitchen, text, time.Local); err == nil {
 		return d, nil
 	}
@@ -119,6 +122,15 @@ func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
 		return d, nil
 	}
 	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+HHMM24h, text, time.Local); err == nil {
+		return d, nil
+	}
+	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+H, text, time.Local); err == nil {
+		return d, nil
+	}
+	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+HPM, text, time.Local); err == nil {
+		return d, nil
+	}
+	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+H_PM, text, time.Local); err == nil {
 		return d, nil
 	}
 	return d, fmt.Errorf("Failed to parse datetime")
@@ -152,5 +164,5 @@ func populateDateInputs(datetime time.Time, monthInput, dayInput, yearInput *tex
 }
 
 func populateTimeInput(datetime time.Time, timeInput *textinput.Model) {
-	timeInput.SetValue(datetime.Format(HH_MM_XM))
+	timeInput.SetValue(datetime.Format(HH_MM_PM))
 }
