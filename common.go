@@ -102,7 +102,9 @@ func autofillEmptyInputs(inputs []textinput.Model) {
 }
 
 func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
-	text := fmt.Sprintf("%s %s %s %s", month, day, year, strings.ToUpper(t))
+    t = strings.ToUpper(t)
+    t = strings.TrimSpace(t)
+	text := fmt.Sprintf("%s %s %s %s", month, day, year, t)
 	var d time.Time
 	var err error
 	// TODO maybe use a package to guess more than just 3 layouts
