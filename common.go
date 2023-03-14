@@ -102,8 +102,11 @@ func autofillEmptyInputs(inputs []textinput.Model) {
 }
 
 func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
-    t = strings.ToUpper(t)
-    t = strings.TrimSpace(t)
+	t = strings.ToUpper(t)
+	t = strings.TrimSpace(t)
+	if !strings.Contains(t, ":") && len(t) >= 2 {
+		t = t[:len(t)-2] + ":" + t[len(t)-2:]
+	}
 	text := fmt.Sprintf("%s %s %s %s", month, day, year, t)
 	var d time.Time
 	var err error
