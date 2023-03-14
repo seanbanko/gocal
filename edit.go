@@ -15,12 +15,8 @@ const (
 	startMonth
 	startDay
 	startYear
-	startHour
-	startMinute
-	startAmPm
-	endHour
-	endMinute
-	endAmPm
+	startTime
+	endTime
 	endMonth
 	endDay
 	endYear
@@ -51,7 +47,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 		eventId = event.event.Id
 	}
 
-	inputs := make([]textinput.Model, 13)
+	inputs := make([]textinput.Model, 9)
 
 	inputs[summary] = textinput.New()
 	inputs[summary].Placeholder = "Add title"
@@ -62,15 +58,11 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	inputs[startMonth] = newTextInput(monthWidth)
 	inputs[startDay] = newTextInput(dayWidth)
 	inputs[startYear] = newTextInput(yearWidth)
-	inputs[startHour] = newTextInput(timeWidth)
-	inputs[startMinute] = newTextInput(timeWidth)
-	inputs[startAmPm] = newTextInput(timeWidth)
+	inputs[startTime] = newTextInput(timeWidth)
+	inputs[endTime] = newTextInput(timeWidth)
 	inputs[endMonth] = newTextInput(monthWidth)
 	inputs[endDay] = newTextInput(dayWidth)
 	inputs[endYear] = newTextInput(yearWidth)
-	inputs[endHour] = newTextInput(timeWidth)
-	inputs[endMinute] = newTextInput(timeWidth)
-	inputs[endAmPm] = newTextInput(timeWidth)
 
 	var start, end time.Time
 	var allDay bool
@@ -97,39 +89,31 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	}
 
 	var (
-		startMonthText, startDayText, startYearText   = toDateFields(start)
-		startHourText, startMinuteText, startAmPmText = toTimeFields(start)
-		endMonthText, endDayText, endYearText         = toDateFields(end)
-		endHourText, endMinuteText, endAmPmText       = toTimeFields(end)
+		startMonthText, startDayText, startYearText = toDateFields(start)
+		startTimeText                               = start.Format(HH_MM_XM)
+		endMonthText, endDayText, endYearText       = toDateFields(end)
+		endTimeText                                 = end.Format(HH_MM_XM)
 	)
 
 	inputs[startMonth].Placeholder = startMonthText
 	inputs[startDay].Placeholder = startDayText
 	inputs[startYear].Placeholder = startYearText
-	inputs[startHour].Placeholder = startHourText
-	inputs[startMinute].Placeholder = startMinuteText
-	inputs[startAmPm].Placeholder = startAmPmText
+	inputs[startTime].Placeholder = startTimeText
+	inputs[endTime].Placeholder = endTimeText
 	inputs[endMonth].Placeholder = endMonthText
 	inputs[endDay].Placeholder = endDayText
 	inputs[endYear].Placeholder = endYearText
-	inputs[endHour].Placeholder = endHourText
-	inputs[endMinute].Placeholder = endMinuteText
-	inputs[endAmPm].Placeholder = endAmPmText
 
 	if event != nil {
 		inputs[summary].SetValue(event.event.Summary)
 		inputs[startMonth].SetValue(startMonthText)
 		inputs[startDay].SetValue(startDayText)
 		inputs[startYear].SetValue(startYearText)
-		inputs[startHour].SetValue(startHourText)
-		inputs[startMinute].SetValue(startMinuteText)
-		inputs[startAmPm].SetValue(startAmPmText)
+		inputs[startTime].SetValue(startTimeText)
+		inputs[endTime].SetValue(endTimeText)
 		inputs[endMonth].SetValue(endMonthText)
 		inputs[endDay].SetValue(endDayText)
 		inputs[endYear].SetValue(endYearText)
-		inputs[endHour].SetValue(endHourText)
-		inputs[endMinute].SetValue(endMinuteText)
-		inputs[endAmPm].SetValue(endAmPmText)
 	}
 
 	duration := end.Sub(start)
@@ -174,58 +158,59 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			if len(m.inputs[m.focusIndex].Value()) == 0 {
+			if isEmpty(m.inputs[m.focusIndex]) {
 				autofillPlaceholder(&m.inputs[m.focusIndex])
 			}
-			if isOnStartInput(m.focusIndex) {
-				m.autofillEndInputs()
-			} else if isOnEndInput(m.focusIndex) {
+			if m.isOnStartInput() {
+				m.adjustEndInputs()
+				autoformatDateTimeInputs(&m.inputs[startMonth], &m.inputs[startDay], &m.inputs[startYear], &m.inputs[startTime])
+			} else if m.isOnEndInput() {
 				m.updateDuration()
+				autoformatDateTimeInputs(&m.inputs[endMonth], &m.inputs[endDay], &m.inputs[endYear], &m.inputs[endTime])
 			}
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
-			if m.allDay && isOnTimeInput(m.focusIndex) {
+			if m.allDay && m.isOnTimeInput() {
 				m.focusIndex = endMonth
 				refocus(m.inputs, m.focusIndex)
 			}
+			m.inputs[m.focusIndex].CursorEnd()
 			return m, nil
 		case key.Matches(msg, m.keys.Prev):
-			if isOnEndInput(m.focusIndex) {
+			if m.isOnEndInput() {
 				m.updateDuration()
+				autoformatDateTimeInputs(&m.inputs[endMonth], &m.inputs[endDay], &m.inputs[endYear], &m.inputs[endTime])
 			}
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
-			if m.allDay && isOnTimeInput(m.focusIndex) {
+			if m.allDay && m.isOnTimeInput() {
 				m.focusIndex = startYear
 				refocus(m.inputs, m.focusIndex)
 			}
+			m.inputs[m.focusIndex].CursorEnd()
 			return m, nil
 		case key.Matches(msg, m.keys.ToggleAllDay):
 			m.allDay = !m.allDay
-			if m.allDay && isOnTimeInput(m.focusIndex) {
+			if m.allDay && m.isOnTimeInput() {
 				m.focusIndex = startYear
 			}
 			refocus(m.inputs, m.focusIndex)
 			return m, nil
 		case key.Matches(msg, m.keys.Save):
-			autofillAllPlaceholders(m.inputs)
+			autofillEmptyInputs(m.inputs)
 			summary := m.inputs[summary].Value()
-			start, err := toDateTime(
+			start, err := parseDateTimeInputs(
 				m.inputs[startMonth].Value(),
 				m.inputs[startDay].Value(),
 				m.inputs[startYear].Value(),
-				m.inputs[startHour].Value(),
-				m.inputs[startMinute].Value(),
-				m.inputs[startAmPm].Value(),
+				m.inputs[startTime].Value(),
 			)
 			if err != nil {
 				return m, func() tea.Msg { return errMsg{err: err} }
 			}
-			end, err := toDateTime(
+			end, err := parseDateTimeInputs(
 				m.inputs[endMonth].Value(),
 				m.inputs[endDay].Value(),
 				m.inputs[endYear].Value(),
-				m.inputs[endHour].Value(),
-				m.inputs[endMinute].Value(),
-				m.inputs[endAmPm].Value(),
+				m.inputs[endTime].Value(),
 			)
 			if err != nil {
 				return m, func() tea.Msg { return errMsg{err: err} }
@@ -233,14 +218,6 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, editEventRequestCmd(m.calendarId, m.eventId, summary, start, end, m.allDay)
 		case key.Matches(msg, m.keys.Cancel):
 			return m, showCalendarViewCmd
-		case msg.Type == tea.KeySpace && (m.focusIndex == startMonth || m.focusIndex == startDay || m.focusIndex == endMonth || m.focusIndex == endDay):
-			m.focusIndex = focusNext(m.inputs, m.focusIndex)
-			return m, nil
-		case msg.Type == tea.KeyBackspace && m.inputs[m.focusIndex].Cursor() == 0 && m.focusIndex != 0:
-			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
-			return m, nil
-		case shouldTypeThroughTime(m.inputs, m.focusIndex, msg):
-			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 		}
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
@@ -250,25 +227,33 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *EditDialog) isOnStartInput() bool {
+	return m.focusIndex == startDay || m.focusIndex == startMonth || m.focusIndex == startYear || m.focusIndex == startTime
+}
+
+func (m *EditDialog) isOnEndInput() bool {
+	return m.focusIndex == endDay || m.focusIndex == endMonth || m.focusIndex == endYear || m.focusIndex == endTime
+}
+
+func (m *EditDialog) isOnTimeInput() bool {
+	return m.focusIndex == startTime || m.focusIndex == endTime
+}
+
 func (m *EditDialog) updateDuration() {
-	start, err := toDateTime(
+	start, err := parseDateTimeInputs(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
 		m.inputs[startYear].Value(),
-		m.inputs[startHour].Value(),
-		m.inputs[startMinute].Value(),
-		m.inputs[startAmPm].Value(),
+		m.inputs[startTime].Value(),
 	)
 	if err != nil {
 		return
 	}
-	end, err := toDateTime(
+	end, err := parseDateTimeInputs(
 		m.inputs[endMonth].Value(),
 		m.inputs[endDay].Value(),
 		m.inputs[endYear].Value(),
-		m.inputs[endHour].Value(),
-		m.inputs[endMinute].Value(),
-		m.inputs[endAmPm].Value(),
+		m.inputs[endTime].Value(),
 	)
 	if err != nil {
 		return
@@ -276,67 +261,24 @@ func (m *EditDialog) updateDuration() {
 	m.duration = end.Sub(start)
 }
 
-func (m *EditDialog) autofillEndInputs() {
-    autofillPlaceholder(&m.inputs[startMonth])
-    autofillPlaceholder(&m.inputs[startDay])
-    autofillPlaceholder(&m.inputs[startYear])
-    autofillPlaceholder(&m.inputs[startHour])
-    autofillPlaceholder(&m.inputs[startMinute])
-    autofillPlaceholder(&m.inputs[startAmPm])
-	start, err := toDateTime(
+func (m *EditDialog) adjustEndInputs() {
+	start, err := parseDateTimeInputs(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
 		m.inputs[startYear].Value(),
-		m.inputs[startHour].Value(),
-		m.inputs[startMinute].Value(),
-		m.inputs[startAmPm].Value(),
+		m.inputs[startTime].Value(),
 	)
 	if err != nil {
 		return
 	}
 	end := start.Add(m.duration)
-	month, day, year, hour, minute, ampm := toDateTimeFields(end)
-	m.inputs[endMonth].SetValue(month)
-	m.inputs[endDay].SetValue(day)
-	m.inputs[endYear].SetValue(year)
-	m.inputs[endHour].SetValue(hour)
-	m.inputs[endMinute].SetValue(minute)
-	m.inputs[endAmPm].SetValue(ampm)
-}
-
-func shouldTypeThroughTime(inputs []textinput.Model, focusIndex int, msg tea.KeyMsg) bool {
-	return ((focusIndex == startHour && isFull(inputs[startHour])) ||
-		(focusIndex == startMinute && isFull(inputs[startMinute])) ||
-		(focusIndex == endMinute && isFull(inputs[endMinute])) ||
-		(focusIndex == endHour && isFull(inputs[endHour]))) &&
-		!(msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete)
-}
-
-func isOnStartInput(focusIndex int) bool {
-	return focusIndex == startDay ||
-		focusIndex == startMonth ||
-		focusIndex == startYear ||
-		focusIndex == startHour ||
-		focusIndex == startMinute ||
-		focusIndex == startAmPm
-}
-
-func isOnEndInput(focusIndex int) bool {
-	return focusIndex == endDay ||
-		focusIndex == endMonth ||
-		focusIndex == endYear ||
-		focusIndex == endHour ||
-		focusIndex == endMinute ||
-		focusIndex == endAmPm
-}
-
-func isOnTimeInput(focusIndex int) bool {
-	return focusIndex == startHour ||
-		focusIndex == startMinute ||
-		focusIndex == startAmPm ||
-		focusIndex == endHour ||
-		focusIndex == endMinute ||
-		focusIndex == endAmPm
+	populateDateTimeInputs(
+		end,
+		&m.inputs[endMonth],
+		&m.inputs[endDay],
+		&m.inputs[endYear],
+		&m.inputs[endTime],
+	)
 }
 
 func (m EditDialog) View() string {
@@ -371,43 +313,34 @@ func renderEditContent(m EditDialog) string {
 		duration = m.duration.String()
 		startTimeInputs = lipgloss.JoinHorizontal(lipgloss.Center,
 			" at ",
-			textInputTimeStyle.Copy().BorderRight(false).Render(m.inputs[startHour].View()),
-			lipgloss.NewStyle().BorderTop(true).BorderBottom(true).BorderStyle(lipgloss.RoundedBorder()).Render(":"),
-			textInputTimeStyle.Copy().BorderLeft(false).Render(m.inputs[startMinute].View()),
-			textInputDayStyle.Render(m.inputs[startAmPm].View()),
+			textInputBaseStyle.Copy().Width(timeWidth+2).Render(m.inputs[startTime].View()),
 		)
 		endTimeInputs = lipgloss.JoinHorizontal(
 			lipgloss.Center,
-			textInputTimeStyle.Copy().BorderRight(false).Render(m.inputs[endHour].View()),
-			lipgloss.NewStyle().BorderTop(true).BorderBottom(true).BorderStyle(lipgloss.RoundedBorder()).Render(":"),
-			textInputTimeStyle.Copy().BorderLeft(false).Render(m.inputs[endMinute].View()),
-			textInputDayStyle.Render(m.inputs[endAmPm].View()),
+			textInputBaseStyle.Copy().Width(timeWidth+2).Render(m.inputs[endTime].View()),
 			" on ",
 		)
 	}
+	startDateInputs := renderDateInputs(m.inputs[startMonth], m.inputs[startDay], m.inputs[startYear])
+	endDateInputs := renderDateInputs(m.inputs[endMonth], m.inputs[endDay], m.inputs[endYear])
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		"Create/Edit Event",
-		"\n",
-		textInputSummaryStyle.Render(m.inputs[summary].View()),
-		lipgloss.JoinHorizontal(
-			lipgloss.Center,
-			textInputMonthStyle.Render(m.inputs[startMonth].View()),
-			" ",
-			textInputDayStyle.Render(m.inputs[startDay].View()),
-			" ",
-			textInputYearStyle.Render(m.inputs[startYear].View()),
-			startTimeInputs,
-			" to ",
-			endTimeInputs,
-			textInputMonthStyle.Render(m.inputs[endMonth].View()),
-			" ",
-			textInputDayStyle.Render(m.inputs[endDay].View()),
-			" ",
-			textInputYearStyle.Render(m.inputs[endYear].View()),
-		),
+		"Create/Edit Event\n",
+		textInputBaseStyle.Copy().Width(summaryWidth+2).Render(m.inputs[summary].View()),
+		lipgloss.JoinHorizontal(lipgloss.Center, startDateInputs, startTimeInputs, " to ", endTimeInputs, endDateInputs),
 		duration,
 		"", // TODO the last line is not being centered properly so this is just here for that
+	)
+}
+
+func renderDateInputs(month, day, year textinput.Model) string {
+	return lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		textInputBaseStyle.Copy().Width(monthWidth+2).Render(month.View()),
+		" ",
+		textInputBaseStyle.Copy().Width(dayWidth+2).Render(day.View()),
+		" ",
+		textInputBaseStyle.Copy().Width(yearWidth+2).Render(year.View()),
 	)
 }
 

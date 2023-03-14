@@ -11,8 +11,13 @@ import (
 )
 
 const (
-	HHMM12h                        = "3:04 PM"
+	googleBlue = lipgloss.Color("#4285F4")
+)
+
+const (
 	HHMM24h                        = "15:04"
+	KitchenWithSpace               = "3:04 PM"
+	HH_MM_XM                       = "03:04 PM"
 	YYYYMMDD                       = "2006-01-02"
 	AbbreviatedTextDate            = "Jan 2 2006"
 	AbbreviatedTextDateWithWeekday = "Mon Jan 2"
@@ -22,82 +27,21 @@ const (
 )
 
 const (
-	googleBlue = lipgloss.Color("#4285F4")
-)
-
-const (
 	summaryWidth = 40
-	monthWidth   = 3
-	dayWidth     = 2
-	yearWidth    = 4
-	timeWidth    = 2
+	monthWidth   = 3 // Jan
+	dayWidth     = 2 // 02
+	yearWidth    = 4 // 2006
+	timeWidth    = len(HH_MM_XM)
 )
 
 var (
-	dialogStyle = lipgloss.NewStyle().
-			Padding(1).
-			Border(lipgloss.RoundedBorder()).
-			Align(lipgloss.Center, lipgloss.Center)
 	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
-	textInputStyle            = lipgloss.NewStyle().
-					PaddingLeft(1).
-					Border(lipgloss.RoundedBorder())
-	textInputSummaryStyle = lipgloss.NewStyle().
-				Width(summaryWidth + 2).
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder())
-	textInputMonthStyle = lipgloss.NewStyle().
-				Width(monthWidth + 2).
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder())
-	textInputDayStyle = lipgloss.NewStyle().
-				Width(dayWidth + 2).
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder())
-	textInputYearStyle = lipgloss.NewStyle().
-				Width(yearWidth + 2).
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder())
-	textInputTimeStyle = lipgloss.NewStyle().
-				Width(timeWidth + 2).
-				PaddingLeft(1).
-				Border(lipgloss.RoundedBorder())
+	textInputBaseStyle        = lipgloss.NewStyle().PaddingLeft(1).Border(lipgloss.RoundedBorder())
+	dialogStyle               = lipgloss.NewStyle().
+					Padding(1).
+					Border(lipgloss.RoundedBorder()).
+					Align(lipgloss.Center, lipgloss.Center)
 )
-
-func toDateTime(month, day, year, hour, minute, ampm string) (time.Time, error) {
-	text := fmt.Sprintf("%s %s %s %s:%s %s", month, day, year, hour, minute, strings.ToUpper(ampm))
-	return time.ParseInLocation(AbbreviatedTextDate12h, text, time.Local)
-}
-
-func toDateFields(date time.Time) (string, string, string) {
-	month := date.Month().String()[:3]
-	day := fmt.Sprintf("%02d", date.Day())
-	year := fmt.Sprintf("%d", date.Year())
-	return month, day, year
-}
-
-func toTimeFields(date time.Time) (string, string, string) {
-	var hour string
-	if date.Hour()%12 == 0 {
-		hour = "12"
-	} else {
-		hour = fmt.Sprintf("%02d", date.Hour()%12)
-	}
-	minute := fmt.Sprintf("%02d", date.Minute())
-	var ampm string
-	if date.Hour() < 12 {
-		ampm = "am"
-	} else {
-		ampm = "pm"
-	}
-	return hour, minute, ampm
-}
-
-func toDateTimeFields(date time.Time) (string, string, string, string, string, string) {
-	month, day, year := toDateFields(date)
-	hour, minute, ampm := toTimeFields(date)
-	return month, day, year, hour, minute, ampm
-}
 
 func checkbox(label string, checked bool) string {
 	if checked {
@@ -141,18 +85,67 @@ func refocus(inputs []textinput.Model, focusIndex int) {
 	inputs[focusIndex].Focus()
 }
 
+func isEmpty(input textinput.Model) bool {
+	return len(input.Value()) == 0
+}
+
 func autofillPlaceholder(input *textinput.Model) {
-	if len(input.Value()) == 0 {
-		input.SetValue(input.Placeholder)
+	input.SetValue(input.Placeholder)
+}
+
+func autofillEmptyInputs(inputs []textinput.Model) {
+	for _, input := range inputs {
+		if isEmpty(input) {
+			autofillPlaceholder(&input)
+		}
 	}
 }
 
-func autofillAllPlaceholders(inputs []textinput.Model) {
-	for i := range inputs {
-		autofillPlaceholder(&inputs[i])
+func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
+	text := fmt.Sprintf("%s %s %s %s", month, day, year, strings.ToUpper(t))
+	var d time.Time
+	var err error
+	// TODO maybe use a package to guess more than just 3 layouts
+	// Try parsing as three different layouts
+	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+time.Kitchen, text, time.Local); err == nil {
+		return d, nil
 	}
+	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+KitchenWithSpace, text, time.Local); err == nil {
+		return d, nil
+	}
+	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+HHMM24h, text, time.Local); err == nil {
+		return d, nil
+	}
+	return d, fmt.Errorf("Failed to parse datetime")
 }
 
-func isFull(input textinput.Model) bool {
-	return len(input.Value()) == input.CharLimit
+func toDateFields(date time.Time) (string, string, string) {
+	month := date.Month().String()[:3]
+	day := fmt.Sprintf("%02d", date.Day())
+	year := fmt.Sprintf("%d", date.Year())
+	return month, day, year
+}
+
+func autoformatDateTimeInputs(monthInput, dayInput, yearInput, timeInput *textinput.Model) {
+	datetime, err := parseDateTimeInputs(monthInput.Value(), dayInput.Value(), yearInput.Value(), timeInput.Value())
+	if err != nil {
+		return
+	}
+	populateDateTimeInputs(datetime, monthInput, dayInput, yearInput, timeInput)
+}
+
+func populateDateTimeInputs(datetime time.Time, monthInput, dayInput, yearInput, timeInput *textinput.Model) {
+	populateDateInputs(datetime, monthInput, dayInput, yearInput)
+	populateTimeInput(datetime, timeInput)
+}
+
+func populateDateInputs(datetime time.Time, monthInput, dayInput, yearInput *textinput.Model) {
+	monthText, dayText, yearText := toDateFields(datetime)
+	monthInput.SetValue(monthText)
+	dayInput.SetValue(dayText)
+	yearInput.SetValue(yearText)
+}
+
+func populateTimeInput(datetime time.Time, timeInput *textinput.Model) {
+	timeInput.SetValue(datetime.Format(HH_MM_XM))
 }

@@ -62,7 +62,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			if len(m.inputs[m.focusIndex].Value()) == 0 {
+			if isEmpty(m.inputs[m.focusIndex]){
 				autofillPlaceholder(&m.inputs[m.focusIndex])
 			}
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
@@ -75,10 +75,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, 1)
-			monthText, dayText, yearText := toDateFields(date)
-			m.inputs[month].SetValue(monthText)
-			m.inputs[day].SetValue(dayText)
-			m.inputs[year].SetValue(yearText)
+			populateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
 			return m, nil
 		case key.Matches(msg, m.keys.Decrement):
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
@@ -87,13 +84,10 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, -1)
-			monthText, dayText, yearText := toDateFields(date)
-			m.inputs[month].SetValue(monthText)
-			m.inputs[day].SetValue(dayText)
-			m.inputs[year].SetValue(yearText)
+			populateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
 			return m, nil
 		case key.Matches(msg, m.keys.Go):
-			autofillAllPlaceholders(m.inputs)
+			autofillEmptyInputs(m.inputs)
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
 			if err != nil {
@@ -102,12 +96,6 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(showCalendarViewCmd, gotoDateCmd(date))
 		case key.Matches(msg, m.keys.Cancel):
 			return m, showCalendarViewCmd
-		case msg.Type == tea.KeySpace && (m.focusIndex == month || m.focusIndex == day):
-			m.focusIndex = focusNext(m.inputs, m.focusIndex)
-			return m, nil
-		case msg.Type == tea.KeyBackspace && (m.inputs[m.focusIndex].Cursor() == 0) && m.focusIndex != 0:
-			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
-			return m, nil
 		}
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
@@ -118,15 +106,8 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m GotoDialog) View() string {
-	content := lipgloss.JoinHorizontal(
-		lipgloss.Center,
-		"Go to Date: ",
-		textInputMonthStyle.Render(m.inputs[month].View()),
-		" ",
-		textInputDayStyle.Render(m.inputs[day].View()),
-		" ",
-		textInputYearStyle.Render(m.inputs[year].View()),
-	)
+	dateInputs := renderDateInputs(m.inputs[month], m.inputs[day], m.inputs[year])
+	content := lipgloss.JoinHorizontal(lipgloss.Center, "Go to Date: ", dateInputs)
 	helpView := lipgloss.NewStyle().
 		Width(m.width).
 		Padding(1).
