@@ -159,12 +159,12 @@ var gotoKeymap = keyMapGoto{
 		key.WithHelp("shift+tab", "previous field"),
 	),
 	Increment: key.NewBinding(
-		key.WithKeys("ctrl+n", "+"),
-		key.WithHelp("ctrl+n/+", "increment date"),
+		key.WithKeys("ctrl+n"),
+		key.WithHelp("ctrl+n", "increment date"),
 	),
 	Decrement: key.NewBinding(
-		key.WithKeys("ctrl+p", "-"),
-		key.WithHelp("ctrl+p/-", "decrement date"),
+		key.WithKeys("ctrl+p"),
+		key.WithHelp("ctrl+p", "decrement date"),
 	),
 	Go: key.NewBinding(
 		key.WithKeys("enter", "ctrl+s"),
