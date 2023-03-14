@@ -31,7 +31,7 @@ func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	inputs[month] = newTextInput(monthWidth)
 	inputs[day] = newTextInput(dayWidth)
 	inputs[year] = newTextInput(yearWidth)
-	monthText, dayText, yearText := toMonthDayYear(focusedDate)
+	monthText, dayText, yearText := toDateFields(focusedDate)
 	inputs[month].Placeholder = monthText
 	inputs[day].Placeholder = dayText
 	inputs[year].Placeholder = yearText
@@ -75,7 +75,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, 1)
-			monthText, dayText, yearText := toMonthDayYear(date)
+			monthText, dayText, yearText := toDateFields(date)
 			m.inputs[month].SetValue(monthText)
 			m.inputs[day].SetValue(dayText)
 			m.inputs[year].SetValue(yearText)
@@ -87,7 +87,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, -1)
-			monthText, dayText, yearText := toMonthDayYear(date)
+			monthText, dayText, yearText := toDateFields(date)
 			m.inputs[month].SetValue(monthText)
 			m.inputs[day].SetValue(dayText)
 			m.inputs[year].SetValue(yearText)

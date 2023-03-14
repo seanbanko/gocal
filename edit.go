@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -18,8 +17,10 @@ const (
 	startYear
 	startHour
 	startMinute
+	startAmPm
 	endHour
 	endMinute
+	endAmPm
 	endMonth
 	endDay
 	endYear
@@ -50,7 +51,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 		eventId = event.event.Id
 	}
 
-	inputs := make([]textinput.Model, 11)
+	inputs := make([]textinput.Model, 13)
 
 	inputs[summary] = textinput.New()
 	inputs[summary].Placeholder = "Add title"
@@ -63,11 +64,13 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	inputs[startYear] = newTextInput(yearWidth)
 	inputs[startHour] = newTextInput(timeWidth)
 	inputs[startMinute] = newTextInput(timeWidth)
+	inputs[startAmPm] = newTextInput(timeWidth)
 	inputs[endMonth] = newTextInput(monthWidth)
 	inputs[endDay] = newTextInput(dayWidth)
 	inputs[endYear] = newTextInput(yearWidth)
 	inputs[endHour] = newTextInput(timeWidth)
 	inputs[endMinute] = newTextInput(timeWidth)
+	inputs[endAmPm] = newTextInput(timeWidth)
 
 	var start, end time.Time
 	var allDay bool
@@ -77,9 +80,9 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 		end = start.Add(time.Hour)
 	} else {
 		var eventStart, eventEnd time.Time
-		// TODO handle errors
 		if isAllDay(event.event) {
 			allDay = true
+			// TODO handle errors
 			eventStart, _ = time.Parse(YYYYMMDD, event.event.Start.Date)
 			eventStart = time.Date(eventStart.Year(), eventStart.Month(), eventStart.Day(), 0, 0, 0, 0, time.Local)
 			eventEnd, _ = time.Parse(YYYYMMDD, event.event.End.Date)
@@ -94,12 +97,10 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	}
 
 	var (
-		startMonthText, startDayText, startYearText = toMonthDayYear(start)
-		startHourText                               = fmt.Sprintf("%02d", start.Hour())
-		startMinuteText                             = fmt.Sprintf("%02d", start.Minute())
-		endMonthText, endDayText, endYearText       = toMonthDayYear(end)
-		endHourText                                 = fmt.Sprintf("%02d", end.Hour())
-		endMinuteText                               = fmt.Sprintf("%02d", end.Minute())
+		startMonthText, startDayText, startYearText   = toDateFields(start)
+		startHourText, startMinuteText, startAmPmText = toTimeFields(start)
+		endMonthText, endDayText, endYearText         = toDateFields(end)
+		endHourText, endMinuteText, endAmPmText       = toTimeFields(end)
 	)
 
 	inputs[startMonth].Placeholder = startMonthText
@@ -107,11 +108,13 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	inputs[startYear].Placeholder = startYearText
 	inputs[startHour].Placeholder = startHourText
 	inputs[startMinute].Placeholder = startMinuteText
+	inputs[startAmPm].Placeholder = startAmPmText
 	inputs[endMonth].Placeholder = endMonthText
 	inputs[endDay].Placeholder = endDayText
 	inputs[endYear].Placeholder = endYearText
 	inputs[endHour].Placeholder = endHourText
 	inputs[endMinute].Placeholder = endMinuteText
+	inputs[endAmPm].Placeholder = endAmPmText
 
 	if event != nil {
 		inputs[summary].SetValue(event.event.Summary)
@@ -120,11 +123,13 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 		inputs[startYear].SetValue(startYearText)
 		inputs[startHour].SetValue(startHourText)
 		inputs[startMinute].SetValue(startMinuteText)
+		inputs[startAmPm].SetValue(startAmPmText)
 		inputs[endMonth].SetValue(endMonthText)
 		inputs[endDay].SetValue(endDayText)
 		inputs[endYear].SetValue(endYearText)
 		inputs[endHour].SetValue(endHourText)
 		inputs[endMinute].SetValue(endMinuteText)
+		inputs[endAmPm].SetValue(endAmPmText)
 	}
 
 	duration := end.Sub(start)
@@ -203,22 +208,24 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Save):
 			autofillAllPlaceholders(m.inputs)
 			summary := m.inputs[summary].Value()
-			start, err := toDate(
+			start, err := toDateTime(
 				m.inputs[startMonth].Value(),
 				m.inputs[startDay].Value(),
 				m.inputs[startYear].Value(),
 				m.inputs[startHour].Value(),
 				m.inputs[startMinute].Value(),
+				m.inputs[startAmPm].Value(),
 			)
 			if err != nil {
 				return m, func() tea.Msg { return errMsg{err: err} }
 			}
-			end, err := toDate(
+			end, err := toDateTime(
 				m.inputs[endMonth].Value(),
 				m.inputs[endDay].Value(),
 				m.inputs[endYear].Value(),
 				m.inputs[endHour].Value(),
 				m.inputs[endMinute].Value(),
+				m.inputs[endAmPm].Value(),
 			)
 			if err != nil {
 				return m, func() tea.Msg { return errMsg{err: err} }
@@ -232,8 +239,7 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.Type == tea.KeyBackspace && m.inputs[m.focusIndex].Cursor() == 0 && m.focusIndex != 0:
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 			return m, nil
-		case ((m.focusIndex == startHour && isFull(m.inputs[startHour])) || (m.focusIndex == endHour && isFull(m.inputs[endHour]))) &&
-			!(msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete):
+		case shouldTypeThroughTime(m.inputs, m.focusIndex, msg):
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 		}
 	}
@@ -245,22 +251,24 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *EditDialog) updateDuration() {
-	start, err := toDate(
+	start, err := toDateTime(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
 		m.inputs[startYear].Value(),
 		m.inputs[startHour].Value(),
 		m.inputs[startMinute].Value(),
+		m.inputs[startAmPm].Value(),
 	)
 	if err != nil {
 		return
 	}
-	end, err := toDate(
+	end, err := toDateTime(
 		m.inputs[endMonth].Value(),
 		m.inputs[endDay].Value(),
 		m.inputs[endYear].Value(),
 		m.inputs[endHour].Value(),
 		m.inputs[endMinute].Value(),
+		m.inputs[endAmPm].Value(),
 	)
 	if err != nil {
 		return
@@ -269,23 +277,39 @@ func (m *EditDialog) updateDuration() {
 }
 
 func (m *EditDialog) autofillEndInputs() {
-	start, err := toDate(
+    autofillPlaceholder(&m.inputs[startMonth])
+    autofillPlaceholder(&m.inputs[startDay])
+    autofillPlaceholder(&m.inputs[startYear])
+    autofillPlaceholder(&m.inputs[startHour])
+    autofillPlaceholder(&m.inputs[startMinute])
+    autofillPlaceholder(&m.inputs[startAmPm])
+	start, err := toDateTime(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
 		m.inputs[startYear].Value(),
 		m.inputs[startHour].Value(),
 		m.inputs[startMinute].Value(),
+		m.inputs[startAmPm].Value(),
 	)
 	if err != nil {
 		return
 	}
 	end := start.Add(m.duration)
-	month, day, year, hour, minute := toMonthDayYearHourMinute(end)
+	month, day, year, hour, minute, ampm := toDateTimeFields(end)
 	m.inputs[endMonth].SetValue(month)
 	m.inputs[endDay].SetValue(day)
 	m.inputs[endYear].SetValue(year)
 	m.inputs[endHour].SetValue(hour)
 	m.inputs[endMinute].SetValue(minute)
+	m.inputs[endAmPm].SetValue(ampm)
+}
+
+func shouldTypeThroughTime(inputs []textinput.Model, focusIndex int, msg tea.KeyMsg) bool {
+	return ((focusIndex == startHour && isFull(inputs[startHour])) ||
+		(focusIndex == startMinute && isFull(inputs[startMinute])) ||
+		(focusIndex == endMinute && isFull(inputs[endMinute])) ||
+		(focusIndex == endHour && isFull(inputs[endHour]))) &&
+		!(msg.Type == tea.KeyBackspace || msg.Type == tea.KeyDelete)
 }
 
 func isOnStartInput(focusIndex int) bool {
@@ -293,7 +317,8 @@ func isOnStartInput(focusIndex int) bool {
 		focusIndex == startMonth ||
 		focusIndex == startYear ||
 		focusIndex == startHour ||
-		focusIndex == startMinute
+		focusIndex == startMinute ||
+		focusIndex == startAmPm
 }
 
 func isOnEndInput(focusIndex int) bool {
@@ -301,11 +326,17 @@ func isOnEndInput(focusIndex int) bool {
 		focusIndex == endMonth ||
 		focusIndex == endYear ||
 		focusIndex == endHour ||
-		focusIndex == endMinute
+		focusIndex == endMinute ||
+		focusIndex == endAmPm
 }
 
 func isOnTimeInput(focusIndex int) bool {
-	return focusIndex == startHour || focusIndex == startMinute || focusIndex == endHour || focusIndex == endMinute
+	return focusIndex == startHour ||
+		focusIndex == startMinute ||
+		focusIndex == startAmPm ||
+		focusIndex == endHour ||
+		focusIndex == endMinute ||
+		focusIndex == endAmPm
 }
 
 func (m EditDialog) View() string {
@@ -343,12 +374,14 @@ func renderEditContent(m EditDialog) string {
 			textInputTimeStyle.Copy().BorderRight(false).Render(m.inputs[startHour].View()),
 			lipgloss.NewStyle().BorderTop(true).BorderBottom(true).BorderStyle(lipgloss.RoundedBorder()).Render(":"),
 			textInputTimeStyle.Copy().BorderLeft(false).Render(m.inputs[startMinute].View()),
+			textInputDayStyle.Render(m.inputs[startAmPm].View()),
 		)
 		endTimeInputs = lipgloss.JoinHorizontal(
 			lipgloss.Center,
 			textInputTimeStyle.Copy().BorderRight(false).Render(m.inputs[endHour].View()),
 			lipgloss.NewStyle().BorderTop(true).BorderBottom(true).BorderStyle(lipgloss.RoundedBorder()).Render(":"),
 			textInputTimeStyle.Copy().BorderLeft(false).Render(m.inputs[endMinute].View()),
+			textInputDayStyle.Render(m.inputs[endAmPm].View()),
 			" on ",
 		)
 	}

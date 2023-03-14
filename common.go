@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -10,18 +11,14 @@ import (
 )
 
 const (
-	YYYYMMDD                       = "2006-01-02"
-	MMDDYYYY                       = "01/02/2006"
-	HHMMSS24h                      = "15:04:05"
-	HHMM24h                        = "15:04"
-	HHMMSS12h                      = "3:04:05 PM"
 	HHMM12h                        = "3:04 PM"
-	MMDDYYYYHHMM24h                = "01/02/2006 15:04"
-	TextDate                       = "January 2, 2006"
+	HHMM24h                        = "15:04"
+	YYYYMMDD                       = "2006-01-02"
 	AbbreviatedTextDate            = "Jan 2 2006"
-	TextDateWithWeekday            = "Monday, January 2, 2006"
 	AbbreviatedTextDateWithWeekday = "Mon Jan 2"
+	TextDateWithWeekday            = "Monday, January 2, 2006"
 	AbbreviatedTextDate24h         = "Jan 2 2006 15:04"
+	AbbreviatedTextDate12h         = "Jan 2 2006 03:04 PM"
 )
 
 const (
@@ -67,25 +64,39 @@ var (
 				Border(lipgloss.RoundedBorder())
 )
 
-func toDate(month, day, year, hour, minute string) (time.Time, error) {
-	text := fmt.Sprintf("%s %s %s %s:%s", month, day, year, hour, minute)
-	return time.ParseInLocation(AbbreviatedTextDate24h, text, time.Local)
+func toDateTime(month, day, year, hour, minute, ampm string) (time.Time, error) {
+	text := fmt.Sprintf("%s %s %s %s:%s %s", month, day, year, hour, minute, strings.ToUpper(ampm))
+	return time.ParseInLocation(AbbreviatedTextDate12h, text, time.Local)
 }
 
-func toMonthDayYear(date time.Time) (string, string, string) {
+func toDateFields(date time.Time) (string, string, string) {
 	month := date.Month().String()[:3]
 	day := fmt.Sprintf("%02d", date.Day())
 	year := fmt.Sprintf("%d", date.Year())
 	return month, day, year
 }
 
-func toMonthDayYearHourMinute(date time.Time) (string, string, string, string, string) {
-	month := date.Month().String()[:3]
-	day := fmt.Sprintf("%02d", date.Day())
-	year := fmt.Sprintf("%d", date.Year())
-	hour := fmt.Sprintf("%02d", date.Hour())
+func toTimeFields(date time.Time) (string, string, string) {
+	var hour string
+	if date.Hour()%12 == 0 {
+		hour = "12"
+	} else {
+		hour = fmt.Sprintf("%02d", date.Hour()%12)
+	}
 	minute := fmt.Sprintf("%02d", date.Minute())
-	return month, day, year, hour, minute
+	var ampm string
+	if date.Hour() < 12 {
+		ampm = "am"
+	} else {
+		ampm = "pm"
+	}
+	return hour, minute, ampm
+}
+
+func toDateTimeFields(date time.Time) (string, string, string, string, string, string) {
+	month, day, year := toDateFields(date)
+	hour, minute, ampm := toTimeFields(date)
+	return month, day, year, hour, minute, ampm
 }
 
 func checkbox(label string, checked bool) string {
@@ -131,14 +142,14 @@ func refocus(inputs []textinput.Model, focusIndex int) {
 }
 
 func autofillPlaceholder(input *textinput.Model) {
-	input.SetValue(input.Placeholder)
+	if len(input.Value()) == 0 {
+		input.SetValue(input.Placeholder)
+	}
 }
 
 func autofillAllPlaceholders(inputs []textinput.Model) {
 	for i := range inputs {
-		if len(inputs[i].Value()) == 0 {
-			autofillPlaceholder(&inputs[i])
-		}
+		autofillPlaceholder(&inputs[i])
 	}
 }
 
