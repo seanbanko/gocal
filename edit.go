@@ -68,7 +68,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	var allDay bool
 	if event == nil {
 		allDay = false
-		start = time.Date(focusedDate.Year(), focusedDate.Month(), focusedDate.Day(), time.Now().Hour(), time.Now().Minute(), 0, 0, time.Local).Round(time.Hour)
+		start = time.Date(focusedDate.Year(), focusedDate.Month(), focusedDate.Day(), time.Now().Hour(), time.Now().Minute(), 0, 0, time.Local).Truncate(30*time.Minute).Add(30*time.Minute)
 		end = start.Add(time.Hour)
 	} else {
 		var eventStart, eventEnd time.Time
