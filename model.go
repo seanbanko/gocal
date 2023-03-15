@@ -18,7 +18,7 @@ const (
 	calendarView = iota
 	deleteDialog
 	gotoDateDialog
-	editDialog
+	editPage
 	calendarList
 )
 
@@ -57,7 +57,7 @@ type model struct {
 	focusedModel  int
 	eventsList    list.Model
 	gotoDialog    tea.Model
-	editDialog    tea.Model
+	editPage      tea.Model
 	deleteDialog  tea.Model
 	calendarList  tea.Model
 	keys          keyMapDefault
@@ -110,8 +110,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case errMsg:
-        // TODO make sure this doesn't require further action
-        // Currently the assumption is that sub-models handle and display errors
+		// TODO make sure this doesn't require further action
+		// Currently the assumption is that sub-models handle and display errors
 		log.Printf("Error: %v", msg.err)
 	case showCalendarMsg:
 		m.focusedModel = calendarView
@@ -153,7 +153,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, updateCalendarResponseCmd(m.srv, msg)
 	case successMsg:
 		switch m.focusedModel {
-		case editDialog, deleteDialog:
+		case editPage, deleteDialog:
 			m.cache.Flush()
 		case calendarList:
 			return m, calendarListCmd(m.srv)
@@ -180,16 +180,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Create):
-				m.focusedModel = editDialog
-				m.editDialog = newEditDialog(nil, m.focusedDate, m.width, m.height)
+				m.focusedModel = editPage
+				m.editPage = newEditPage(nil, m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Edit):
 				event, ok := m.eventsList.SelectedItem().(*Event)
 				if !ok {
 					return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
 				}
-				m.focusedModel = editDialog
-				m.editDialog = newEditDialog(event, m.focusedDate, m.width, m.height)
+				m.focusedModel = editPage
+				m.editPage = newEditPage(event, m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Delete):
 				event, ok := m.eventsList.SelectedItem().(*Event)
@@ -217,8 +217,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gotoDateDialog:
 		m.gotoDialog, cmd = m.gotoDialog.Update(msg)
 		return m, cmd
-	case editDialog:
-		m.editDialog, cmd = m.editDialog.Update(msg)
+	case editPage:
+		m.editPage, cmd = m.editPage.Update(msg)
 		return m, cmd
 	case deleteDialog:
 		m.deleteDialog, cmd = m.deleteDialog.Update(msg)
@@ -253,8 +253,8 @@ func (m model) View() string {
 		body = lipgloss.JoinVertical(lipgloss.Center, eventsView, helpContainer)
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
-	case editDialog:
-		body = m.editDialog.View()
+	case editPage:
+		body = m.editPage.View()
 	case deleteDialog:
 		body = m.deleteDialog.View()
 	case calendarList:
