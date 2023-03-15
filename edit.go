@@ -22,7 +22,7 @@ const (
 	endYear
 )
 
-type EditDialog struct {
+type EditPage struct {
 	inputs     []textinput.Model
 	focusIndex int
 	calendarId string
@@ -37,7 +37,7 @@ type EditDialog struct {
 	keys       keyMapEdit
 }
 
-func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditDialog {
+func newEditPage(event *Event, focusedDate time.Time, width, height int) EditPage {
 	var calendarId, eventId string
 	if event == nil {
 		calendarId = "primary"
@@ -121,7 +121,7 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	focusIndex := summary
 	refocus(inputs, focusIndex)
 
-	return EditDialog{
+	return EditPage{
 		inputs:     inputs,
 		focusIndex: focusIndex,
 		calendarId: calendarId,
@@ -137,11 +137,11 @@ func newEditDialog(event *Event, focusedDate time.Time, width, height int) EditD
 	}
 }
 
-func (m EditDialog) Init() tea.Cmd {
+func (m EditPage) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
@@ -227,19 +227,19 @@ func (m EditDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *EditDialog) isOnStartInput() bool {
+func (m *EditPage) isOnStartInput() bool {
 	return m.focusIndex == startDay || m.focusIndex == startMonth || m.focusIndex == startYear || m.focusIndex == startTime
 }
 
-func (m *EditDialog) isOnEndInput() bool {
+func (m *EditPage) isOnEndInput() bool {
 	return m.focusIndex == endDay || m.focusIndex == endMonth || m.focusIndex == endYear || m.focusIndex == endTime
 }
 
-func (m *EditDialog) isOnTimeInput() bool {
+func (m *EditPage) isOnTimeInput() bool {
 	return m.focusIndex == startTime || m.focusIndex == endTime
 }
 
-func (m *EditDialog) updateDuration() {
+func (m *EditPage) updateDuration() {
 	start, err := parseDateTimeInputs(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
@@ -261,7 +261,7 @@ func (m *EditDialog) updateDuration() {
 	m.duration = end.Sub(start)
 }
 
-func (m *EditDialog) adjustEndInputs() {
+func (m *EditPage) adjustEndInputs() {
 	start, err := parseDateTimeInputs(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
@@ -281,7 +281,7 @@ func (m *EditDialog) adjustEndInputs() {
 	)
 }
 
-func (m EditDialog) View() string {
+func (m EditPage) View() string {
 	var content string
 	if m.err != nil {
 		content = "Error. Press any key to return to calendar."
@@ -303,7 +303,7 @@ func (m EditDialog) View() string {
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 
-func renderEditContent(m EditDialog) string {
+func renderEditContent(m EditPage) string {
 	var duration, startTimeInputs, endTimeInputs string
 	if m.allDay {
 		duration = "[X] all day"

@@ -24,6 +24,7 @@ const (
 	YYYYMMDD                       = "2006-01-02"
 	AbbreviatedTextDate            = "Jan 2 2006"
 	AbbreviatedTextDateWithWeekday = "Mon Jan 2"
+	TextDateNoYear                 = "Monday, January 2"
 	TextDateWithWeekday            = "Monday, January 2, 2006"
 	AbbreviatedTextDate24h         = "Jan 2 2006 15:04"
 	AbbreviatedTextDate12h         = "Jan 2 2006 03:04 PM"
