@@ -304,6 +304,12 @@ func (m EditPage) View() string {
 }
 
 func renderEditContent(m EditPage) string {
+    var title string
+    if m.eventId == "" {
+        title = "Create Event"
+    } else {
+        title = "Edit Event"
+    }
 	var duration, startTimeInputs, endTimeInputs string
 	if m.allDay {
 		duration = "[X] all day"
@@ -325,7 +331,7 @@ func renderEditContent(m EditPage) string {
 	endDateInputs := renderDateInputs(m.inputs[endMonth], m.inputs[endDay], m.inputs[endYear])
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		"Create/Edit Event\n",
+		title + "\n",
 		textInputBaseStyle.Copy().Width(summaryWidth+2).Render(m.inputs[summary].View()),
 		lipgloss.JoinHorizontal(lipgloss.Center, startDateInputs, startTimeInputs, " to ", endTimeInputs, endDateInputs),
 		duration,
