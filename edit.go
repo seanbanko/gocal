@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"google.golang.org/api/calendar/v3"
 )
 
 const (
@@ -20,34 +21,34 @@ const (
 	endMonth
 	endDay
 	endYear
+	calId
 )
 
 type EditPage struct {
-	inputs     []textinput.Model
-	focusIndex int
-	calendarId string
-	eventId    string
-	duration   time.Duration
-	allDay     bool
-	height     int
-	width      int
-	success    bool
-	err        error
-	help       help.Model
-	keys       keyMapEdit
+	inputs        []textinput.Model
+	focusIndex    int
+	calendarId    string
+	eventId       string
+	duration      time.Duration
+	allDay        bool
+	calendars     []*calendar.CalendarListEntry
+	calendarIndex int
+	height        int
+	width         int
+	success       bool
+	err           error
+	help          help.Model
+	keys          keyMapEdit
 }
 
-func newEditPage(event *Event, focusedDate time.Time, width, height int) EditPage {
+func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.CalendarListEntry, width, height int) EditPage {
 	var calendarId, eventId string
-	if event == nil {
-		calendarId = "primary"
-		eventId = ""
-	} else {
+	if event != nil {
 		calendarId = event.calendarId
 		eventId = event.event.Id
-	}
+    }
 
-	inputs := make([]textinput.Model, 9)
+	inputs := make([]textinput.Model, 10)
 
 	inputs[summary] = textinput.New()
 	inputs[summary].Placeholder = "Add title"
@@ -64,11 +65,15 @@ func newEditPage(event *Event, focusedDate time.Time, width, height int) EditPag
 	inputs[endDay] = newTextInput(dayWidth)
 	inputs[endYear] = newTextInput(yearWidth)
 
+	inputs[calId] = textinput.New()
+	inputs[calId].Prompt = ""
+	inputs[calId].SetCursorMode(textinput.CursorHide)
+
 	var start, end time.Time
 	var allDay bool
 	if event == nil {
 		allDay = false
-		start = time.Date(focusedDate.Year(), focusedDate.Month(), focusedDate.Day(), time.Now().Hour(), time.Now().Minute(), 0, 0, time.Local).Truncate(30*time.Minute).Add(30*time.Minute)
+		start = time.Date(focusedDate.Year(), focusedDate.Month(), focusedDate.Day(), time.Now().Hour(), time.Now().Minute(), 0, 0, time.Local).Truncate(30 * time.Minute).Add(30 * time.Minute)
 		end = start.Add(time.Hour)
 	} else {
 		var eventStart, eventEnd time.Time
@@ -115,6 +120,9 @@ func newEditPage(event *Event, focusedDate time.Time, width, height int) EditPag
     inputs[endMonth].SetValue(endMonthText)
     inputs[endDay].SetValue(endDayText)
     inputs[endYear].SetValue(endYearText)
+    if len(calendars) > 0 {
+        inputs[calId].SetValue(calendars[0].Summary)
+    }
 
 	duration := end.Sub(start)
 
@@ -122,18 +130,20 @@ func newEditPage(event *Event, focusedDate time.Time, width, height int) EditPag
 	refocus(inputs, focusIndex)
 
 	return EditPage{
-		inputs:     inputs,
-		focusIndex: focusIndex,
-		calendarId: calendarId,
-		eventId:    eventId,
-		duration:   duration,
-		allDay:     allDay,
-		height:     height,
-		width:      width,
-		success:    false,
-		err:        nil,
-		help:       help.New(),
-		keys:       editKeyMap,
+		inputs:        inputs,
+		focusIndex:    focusIndex,
+		calendarId:    calendarId,
+		eventId:       eventId,
+		duration:      duration,
+		allDay:        allDay,
+		calendars:     calendars,
+		calendarIndex: 0,
+		height:        height,
+		width:         width,
+		success:       false,
+		err:           nil,
+		help:          help.New(),
+		keys:          editKeyMap,
 	}
 }
 
@@ -194,8 +204,20 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			refocus(m.inputs, m.focusIndex)
 			return m, nil
+		case key.Matches(msg, m.keys.NextCal) && m.focusIndex == calId:
+            m.calendarIndex = (m.calendarIndex + 1) % len(m.calendars)
+            m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
+			return m, nil
+		case key.Matches(msg, m.keys.PrevCal) && m.focusIndex == calId:
+            m.calendarIndex = m.calendarIndex - 1
+            if m.calendarIndex < 0 {
+                m.calendarIndex = len(m.calendars) - 1
+            }
+            m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
+			return m, nil
 		case key.Matches(msg, m.keys.Save):
 			autofillEmptyInputs(m.inputs)
+            m.calendarId = m.calendars[m.calendarIndex].Id
 			summary := m.inputs[summary].Value()
 			start, err := parseDateTimeInputs(
 				m.inputs[startMonth].Value(),
@@ -222,6 +244,9 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
 	for i := range m.inputs {
+        if i == calId {
+            continue
+        }
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
 	return m, tea.Batch(cmds...)
@@ -304,12 +329,12 @@ func (m EditPage) View() string {
 }
 
 func renderEditContent(m EditPage) string {
-    var title string
-    if m.eventId == "" {
-        title = "Create Event"
-    } else {
-        title = "Edit Event"
-    }
+	var title string
+	if m.eventId == "" {
+		title = "Create Event"
+	} else {
+		title = "Edit Event"
+	}
 	var duration, startTimeInputs, endTimeInputs string
 	if m.allDay {
 		duration = "[X] all day"
@@ -331,10 +356,11 @@ func renderEditContent(m EditPage) string {
 	endDateInputs := renderDateInputs(m.inputs[endMonth], m.inputs[endDay], m.inputs[endYear])
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
-		title + "\n",
+		title+"\n",
 		textInputBaseStyle.Copy().Width(summaryWidth+2).Render(m.inputs[summary].View()),
 		lipgloss.JoinHorizontal(lipgloss.Center, startDateInputs, startTimeInputs, " to ", endTimeInputs, endDateInputs),
 		duration,
+        lipgloss.NewStyle().Padding(0, 1).Border(lipgloss.RoundedBorder()).Render(m.inputs[calId].View()),
 		"", // TODO the last line is not being centered properly so this is just here for that
 	)
 }
@@ -354,6 +380,8 @@ type keyMapEdit struct {
 	Next         key.Binding
 	Prev         key.Binding
 	ToggleAllDay key.Binding
+	NextCal      key.Binding
+	PrevCal      key.Binding
 	Save         key.Binding
 	Cancel       key.Binding
 }
@@ -375,6 +403,13 @@ var editKeyMap = keyMapEdit{
 		key.WithKeys("ctrl+s"),
 		key.WithHelp("ctrl+s", "save"),
 	),
+	NextCal: key.NewBinding(
+		key.WithKeys("j", "ctrl+n", "down"),
+		key.WithHelp("up/down", "select calendar"),
+	),
+	PrevCal: key.NewBinding(
+		key.WithKeys("k", "ctrl+p", "up"),
+	),
 	Cancel: key.NewBinding(
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
@@ -382,9 +417,9 @@ var editKeyMap = keyMapEdit{
 }
 
 func (k keyMapEdit) ShortHelp() []key.Binding {
-	return []key.Binding{k.Next, k.Prev, k.ToggleAllDay, k.Save, k.Cancel}
+	return []key.Binding{k.Next, k.Prev, k.ToggleAllDay, k.NextCal, k.Save, k.Cancel}
 }
 
 func (k keyMapEdit) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Next}, {k.Prev}, {k.ToggleAllDay}, {k.Save}, {k.Cancel}}
+	return [][]key.Binding{{k.Next}, {k.Prev}, {k.ToggleAllDay}, {k.NextCal}, {k.Save}, {k.Cancel}}
 }

@@ -180,16 +180,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Create):
+                if len(m.calendars) <= 0 {
+                    return m, nil
+                }
 				m.focusedModel = editPage
-				m.editPage = newEditPage(nil, m.focusedDate, m.width, m.height)
+                var modifiableCalendars []*calendar.CalendarListEntry
+                for _, calendar := range m.calendars {
+                    if (calendar.AccessRole == "writer" || calendar.AccessRole == "owner") {
+                        modifiableCalendars = append(modifiableCalendars, calendar)
+                    }
+                }
+				m.editPage = newEditPage(nil, m.focusedDate, modifiableCalendars, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Edit):
+                if len(m.calendars) <= 0 {
+                    return m, nil
+                }
 				event, ok := m.eventsList.SelectedItem().(*Event)
 				if !ok {
 					return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
 				}
 				m.focusedModel = editPage
-				m.editPage = newEditPage(event, m.focusedDate, m.width, m.height)
+				m.editPage = newEditPage(event, m.focusedDate, m.calendars, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Delete):
 				event, ok := m.eventsList.SelectedItem().(*Event)
