@@ -106,15 +106,15 @@ func newEditPage(event *Event, focusedDate time.Time, width, height int) EditPag
 
 	if event != nil {
 		inputs[summary].SetValue(event.event.Summary)
-		inputs[startMonth].SetValue(startMonthText)
-		inputs[startDay].SetValue(startDayText)
-		inputs[startYear].SetValue(startYearText)
-		inputs[startTime].SetValue(startTimeText)
-		inputs[endTime].SetValue(endTimeText)
-		inputs[endMonth].SetValue(endMonthText)
-		inputs[endDay].SetValue(endDayText)
-		inputs[endYear].SetValue(endYearText)
 	}
+    inputs[startMonth].SetValue(startMonthText)
+    inputs[startDay].SetValue(startDayText)
+    inputs[startYear].SetValue(startYearText)
+    inputs[startTime].SetValue(startTimeText)
+    inputs[endTime].SetValue(endTimeText)
+    inputs[endMonth].SetValue(endMonthText)
+    inputs[endDay].SetValue(endDayText)
+    inputs[endYear].SetValue(endYearText)
 
 	duration := end.Sub(start)
 
