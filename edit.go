@@ -121,7 +121,7 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	inputs[endDay].SetValue(endDayText)
 	inputs[endYear].SetValue(endYearText)
 	if len(calendars) > 0 {
-		inputs[calId].SetValue(calendars[0].Summary)
+		inputs[calId].SetValue(calendars[0].Summary + " ⏷")
 	}
 
 	duration := end.Sub(start)
