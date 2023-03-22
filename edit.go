@@ -46,7 +46,7 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	if event != nil {
 		calendarId = event.calendarId
 		eventId = event.event.Id
-    }
+	}
 
 	inputs := make([]textinput.Model, 10)
 
@@ -112,17 +112,17 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	if event != nil {
 		inputs[summary].SetValue(event.event.Summary)
 	}
-    inputs[startMonth].SetValue(startMonthText)
-    inputs[startDay].SetValue(startDayText)
-    inputs[startYear].SetValue(startYearText)
-    inputs[startTime].SetValue(startTimeText)
-    inputs[endTime].SetValue(endTimeText)
-    inputs[endMonth].SetValue(endMonthText)
-    inputs[endDay].SetValue(endDayText)
-    inputs[endYear].SetValue(endYearText)
-    if len(calendars) > 0 {
-        inputs[calId].SetValue(calendars[0].Summary)
-    }
+	inputs[startMonth].SetValue(startMonthText)
+	inputs[startDay].SetValue(startDayText)
+	inputs[startYear].SetValue(startYearText)
+	inputs[startTime].SetValue(startTimeText)
+	inputs[endTime].SetValue(endTimeText)
+	inputs[endMonth].SetValue(endMonthText)
+	inputs[endDay].SetValue(endDayText)
+	inputs[endYear].SetValue(endYearText)
+	if len(calendars) > 0 {
+		inputs[calId].SetValue(calendars[0].Summary)
+	}
 
 	duration := end.Sub(start)
 
@@ -168,15 +168,19 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			if isEmpty(m.inputs[m.focusIndex]) {
-				autofillPlaceholder(&m.inputs[m.focusIndex])
+			if m.isOnMonthInput() {
+				autoformatMonthInput(&m.inputs[m.focusIndex])
+			} else if m.isOnDayInput() {
+				autoformatDayInput(&m.inputs[m.focusIndex])
+			} else if m.isOnYearInput() {
+				autoformatYearInput(&m.inputs[m.focusIndex])
 			}
 			if m.isOnStartInput() {
-				m.adjustEndInputs()
 				autoformatDateTimeInputs(&m.inputs[startMonth], &m.inputs[startDay], &m.inputs[startYear], &m.inputs[startTime])
+				m.adjustEndInputs()
 			} else if m.isOnEndInput() {
-				m.updateDuration()
 				autoformatDateTimeInputs(&m.inputs[endMonth], &m.inputs[endDay], &m.inputs[endYear], &m.inputs[endTime])
+				m.updateDuration()
 			}
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
 			if m.allDay && m.isOnTimeInput() {
@@ -186,9 +190,16 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.inputs[m.focusIndex].CursorEnd()
 			return m, nil
 		case key.Matches(msg, m.keys.Prev):
+			if m.isOnMonthInput() {
+				autoformatMonthInput(&m.inputs[m.focusIndex])
+			} else if m.isOnDayInput() {
+				autoformatDayInput(&m.inputs[m.focusIndex])
+			} else if m.isOnYearInput() {
+				autoformatYearInput(&m.inputs[m.focusIndex])
+			}
 			if m.isOnEndInput() {
-				m.updateDuration()
 				autoformatDateTimeInputs(&m.inputs[endMonth], &m.inputs[endDay], &m.inputs[endYear], &m.inputs[endTime])
+				m.updateDuration()
 			}
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 			if m.allDay && m.isOnTimeInput() {
@@ -205,19 +216,19 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			refocus(m.inputs, m.focusIndex)
 			return m, nil
 		case key.Matches(msg, m.keys.NextCal) && m.focusIndex == calId:
-            m.calendarIndex = (m.calendarIndex + 1) % len(m.calendars)
-            m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
+			m.calendarIndex = (m.calendarIndex + 1) % len(m.calendars)
+			m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
 			return m, nil
 		case key.Matches(msg, m.keys.PrevCal) && m.focusIndex == calId:
-            m.calendarIndex = m.calendarIndex - 1
-            if m.calendarIndex < 0 {
-                m.calendarIndex = len(m.calendars) - 1
-            }
-            m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
+			m.calendarIndex = m.calendarIndex - 1
+			if m.calendarIndex < 0 {
+				m.calendarIndex = len(m.calendars) - 1
+			}
+			m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
 			return m, nil
 		case key.Matches(msg, m.keys.Save):
 			autofillEmptyInputs(m.inputs)
-            m.calendarId = m.calendars[m.calendarIndex].Id
+			m.calendarId = m.calendars[m.calendarIndex].Id
 			summary := m.inputs[summary].Value()
 			start, err := parseDateTimeInputs(
 				m.inputs[startMonth].Value(),
@@ -244,9 +255,9 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmds := make([]tea.Cmd, len(m.inputs))
 	for i := range m.inputs {
-        if i == calId {
-            continue
-        }
+		if i == calId {
+			continue
+		}
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
 	return m, tea.Batch(cmds...)
@@ -254,6 +265,18 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *EditPage) isOnStartInput() bool {
 	return m.focusIndex == startDay || m.focusIndex == startMonth || m.focusIndex == startYear || m.focusIndex == startTime
+}
+
+func (m *EditPage) isOnMonthInput() bool {
+	return m.focusIndex == startMonth || m.focusIndex == endMonth
+}
+
+func (m *EditPage) isOnDayInput() bool {
+	return m.focusIndex == startDay || m.focusIndex == endDay
+}
+
+func (m *EditPage) isOnYearInput() bool {
+	return m.focusIndex == startYear || m.focusIndex == endYear
 }
 
 func (m *EditPage) isOnEndInput() bool {
@@ -360,7 +383,7 @@ func renderEditContent(m EditPage) string {
 		textInputBaseStyle.Copy().Width(summaryWidth+2).Render(m.inputs[summary].View()),
 		lipgloss.JoinHorizontal(lipgloss.Center, startDateInputs, startTimeInputs, " to ", endTimeInputs, endDateInputs),
 		duration,
-        lipgloss.NewStyle().Padding(0, 1).Border(lipgloss.RoundedBorder()).Render(m.inputs[calId].View()),
+		lipgloss.NewStyle().Padding(0, 1).Border(lipgloss.RoundedBorder()).Render(m.inputs[calId].View()),
 		"", // TODO the last line is not being centered properly so this is just here for that
 	)
 }

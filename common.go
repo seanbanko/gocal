@@ -143,6 +143,33 @@ func toDateFields(date time.Time) (string, string, string) {
 	return month, day, year
 }
 
+func autoformatMonthInput(input *textinput.Model) {
+	datetime, err := time.ParseInLocation("Jan", input.Value(), time.Local)
+	if err != nil {
+		autofillPlaceholder(input)
+	} else {
+		input.SetValue(datetime.Month().String()[:3])
+	}
+}
+
+func autoformatDayInput(input *textinput.Model) {
+	datetime, err := time.ParseInLocation("2", input.Value(), time.Local)
+	if err != nil {
+		autofillPlaceholder(input)
+	} else {
+        input.SetValue(fmt.Sprintf("%02d", datetime.Day()))
+    }
+}
+
+func autoformatYearInput(input *textinput.Model) {
+	datetime, err := time.ParseInLocation("2006", input.Value(), time.Local)
+	if err != nil {
+		autofillPlaceholder(input)
+	} else {
+        input.SetValue(fmt.Sprintf("%d", datetime.Year()))
+    }
+}
+
 func autoformatDateTimeInputs(monthInput, dayInput, yearInput, timeInput *textinput.Model) {
 	datetime, err := parseDateTimeInputs(monthInput.Value(), dayInput.Value(), yearInput.Value(), timeInput.Value())
 	if err != nil {
