@@ -104,8 +104,7 @@ func autofillEmptyInputs(inputs []textinput.Model) {
 	}
 }
 
-// Shotgun parser
-// TODO make this better
+// TODO replace this with a more robust solution, compress common logic
 func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
 	t = strings.ToUpper(t)
 	t = strings.TrimSpace(t)
@@ -136,6 +135,24 @@ func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
 	return d, fmt.Errorf("Failed to parse datetime")
 }
 
+// TODO replace this with a more robust solution
+func shotgunParseTime(t string) (time.Time, error) {
+	t = strings.ToUpper(t)
+	t = strings.TrimSpace(t)
+	if !strings.Contains(t, ":") && !strings.ContainsAny(t, "APM") && len(t) >= 3 {
+		t = t[:len(t)-2] + ":" + t[len(t)-2:]
+	}
+	var datetime time.Time
+	var err error
+	formats := []string{time.Kitchen, KitchenWithSpace, HHMM24h, H, HPM, H_PM}
+	for _, format := range formats {
+		if datetime, err = time.ParseInLocation(format, t, time.Local); err == nil {
+			return datetime, nil
+		}
+	}
+	return datetime, fmt.Errorf("Failed to parse datetime")
+}
+
 func toDateFields(date time.Time) (string, string, string) {
 	month := date.Month().String()[:3]
 	day := fmt.Sprintf("%02d", date.Day())
@@ -157,8 +174,8 @@ func autoformatDayInput(input *textinput.Model) {
 	if err != nil {
 		autofillPlaceholder(input)
 	} else {
-        input.SetValue(fmt.Sprintf("%02d", datetime.Day()))
-    }
+		input.SetValue(fmt.Sprintf("%02d", datetime.Day()))
+	}
 }
 
 func autoformatYearInput(input *textinput.Model) {
@@ -166,16 +183,17 @@ func autoformatYearInput(input *textinput.Model) {
 	if err != nil {
 		autofillPlaceholder(input)
 	} else {
-        input.SetValue(fmt.Sprintf("%d", datetime.Year()))
-    }
+		input.SetValue(fmt.Sprintf("%d", datetime.Year()))
+	}
 }
 
-func autoformatDateTimeInputs(monthInput, dayInput, yearInput, timeInput *textinput.Model) {
-	datetime, err := parseDateTimeInputs(monthInput.Value(), dayInput.Value(), yearInput.Value(), timeInput.Value())
+func autoformatTimeInput(input *textinput.Model) {
+	datetime, err := shotgunParseTime(input.Value())
 	if err != nil {
-		return
+		autofillPlaceholder(input)
+	} else {
+		input.SetValue(datetime.Format(HH_MM_PM))
 	}
-	populateDateTimeInputs(datetime, monthInput, dayInput, yearInput, timeInput)
 }
 
 func populateDateTimeInputs(datetime time.Time, monthInput, dayInput, yearInput, timeInput *textinput.Model) {

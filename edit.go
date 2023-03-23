@@ -174,12 +174,12 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				autoformatDayInput(&m.inputs[m.focusIndex])
 			} else if m.isOnYearInput() {
 				autoformatYearInput(&m.inputs[m.focusIndex])
+			} else if m.isOnTimeInput() {
+				autoformatTimeInput(&m.inputs[m.focusIndex])
 			}
 			if m.isOnStartInput() {
-				autoformatDateTimeInputs(&m.inputs[startMonth], &m.inputs[startDay], &m.inputs[startYear], &m.inputs[startTime])
 				m.adjustEndInputs()
 			} else if m.isOnEndInput() {
-				autoformatDateTimeInputs(&m.inputs[endMonth], &m.inputs[endDay], &m.inputs[endYear], &m.inputs[endTime])
 				m.updateDuration()
 			}
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
@@ -196,9 +196,10 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				autoformatDayInput(&m.inputs[m.focusIndex])
 			} else if m.isOnYearInput() {
 				autoformatYearInput(&m.inputs[m.focusIndex])
+			} else if m.isOnTimeInput() {
+				autoformatTimeInput(&m.inputs[m.focusIndex])
 			}
 			if m.isOnEndInput() {
-				autoformatDateTimeInputs(&m.inputs[endMonth], &m.inputs[endDay], &m.inputs[endYear], &m.inputs[endTime])
 				m.updateDuration()
 			}
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
