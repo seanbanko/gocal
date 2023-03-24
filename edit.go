@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -36,6 +37,8 @@ type EditPage struct {
 	height        int
 	width         int
 	success       bool
+	pending       bool
+	spinner       spinner.Model
 	err           error
 	help          help.Model
 	keys          keyMapEdit
@@ -129,6 +132,9 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	focusIndex := summary
 	refocus(inputs, focusIndex)
 
+	s := spinner.New()
+	s.Spinner = spinner.Points
+
 	return EditPage{
 		inputs:        inputs,
 		focusIndex:    focusIndex,
@@ -141,6 +147,8 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 		height:        height,
 		width:         width,
 		success:       false,
+		pending:       false,
+		spinner:       s,
 		err:           nil,
 		help:          help.New(),
 		keys:          editKeyMap,
@@ -158,10 +166,16 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case errMsg:
 		m.err = msg.err
+		m.pending = false
 		return m, nil
 	case successMsg:
 		m.success = true
+		m.pending = false
 		return m, nil
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
 			return m, showCalendarViewCmd
@@ -249,7 +263,11 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err != nil {
 				return m, func() tea.Msg { return errMsg{err: err} }
 			}
-			return m, editEventRequestCmd(m.calendarId, m.eventId, summary, start, end, m.allDay)
+			m.pending = true
+            var cmds []tea.Cmd
+            cmds = append(cmds, editEventRequestCmd(m.calendarId, m.eventId, summary, start, end, m.allDay))
+            cmds = append(cmds, m.spinner.Tick)
+			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keys.Cancel):
 			return m, showCalendarViewCmd
 		}
@@ -336,6 +354,8 @@ func (m EditPage) View() string {
 		content = "Error. Press any key to return to calendar."
 	} else if m.success {
 		content = "Success. Press any key to return to calendar."
+	} else if m.pending {
+		content = m.spinner.View()
 	} else {
 		content = renderEditContent(m)
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -24,12 +25,16 @@ type DeleteDialog struct {
 	height     int
 	width      int
 	success    bool
+	pending    bool
+	spinner    spinner.Model
 	err        error
 	help       help.Model
 	keys       keyMapDelete
 }
 
 func newDeleteDialog(calendarId, eventId string, width, height int) DeleteDialog {
+	s := spinner.New()
+	s.Spinner = spinner.Points
 	return DeleteDialog{
 		calendarId: calendarId,
 		eventId:    eventId,
@@ -37,6 +42,8 @@ func newDeleteDialog(calendarId, eventId string, width, height int) DeleteDialog
 		height:     height,
 		width:      width,
 		success:    false,
+		pending:    false,
+		spinner:    s,
 		err:        nil,
 		help:       help.New(),
 		keys:       deleteKeyMap,
@@ -58,6 +65,10 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case successMsg:
 		m.success = true
 		return m, nil
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
 			return m, showCalendarViewCmd
@@ -71,7 +82,11 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selection = no
 		case key.Matches(msg, m.keys.Confirm):
 			if m.selection == yes {
-				return m, deleteEventRequestCmd(m.calendarId, m.eventId)
+				m.pending = true
+				var cmds []tea.Cmd
+				cmds = append(cmds, deleteEventRequestCmd(m.calendarId, m.eventId))
+				cmds = append(cmds, m.spinner.Tick)
+				return m, tea.Batch(cmds...)
 			} else {
 				return m, showCalendarViewCmd
 			}
@@ -96,6 +111,8 @@ func (m DeleteDialog) View() string {
 		content = "Error deleting event. Press any key to return to calendar."
 	} else if m.success {
 		content = "Successfully deleted event. Press any key to return to calendar."
+	} else if m.pending {
+		content = m.spinner.View()
 	} else {
 		content = renderDeleteContent(m)
 	}

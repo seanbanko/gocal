@@ -93,7 +93,7 @@ func newModel(service *calendar.Service, cache *cache.Cache) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return calendarListCmd(m.srv)
+	return tea.Batch(calendarListCmd(m.srv), m.eventsList.StartSpinner())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -113,6 +113,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// TODO make sure this doesn't require further action
 		// Currently the assumption is that sub-models handle and display errors
 		log.Printf("Error: %v", msg.err)
+		return m, nil
 	case showCalendarMsg:
 		m.focusedModel = calendarView
 		return m, tea.Batch(tea.ClearScreen, refreshEventsCmd)
@@ -125,6 +126,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, refreshEventsCmd)
 		return m, tea.Batch(cmds...)
 	case eventsMsg:
+		m.eventsList.StopSpinner()
 		m.events = msg.events
 		var items []list.Item
 		for _, event := range msg.events {
@@ -144,7 +146,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			calendars = append(calendars, calendar)
 		}
-		return m, eventsListCmd(m.srv, m.cache, calendars, m.focusedDate)
+		cmds = append(cmds, eventsListCmd(m.srv, m.cache, calendars, m.focusedDate))
+		cmds = append(cmds, m.eventsList.StartSpinner())
+		return m, tea.Batch(cmds...)
 	case editEventRequestMsg:
 		return m, editEventResponseCmd(m.srv, msg)
 	case deleteEventRequestMsg:
@@ -180,22 +184,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Create):
-                if len(m.calendars) <= 0 {
-                    return m, nil
-                }
+				if len(m.calendars) <= 0 {
+					return m, nil
+				}
 				m.focusedModel = editPage
-                var modifiableCalendars []*calendar.CalendarListEntry
-                for _, calendar := range m.calendars {
-                    if (calendar.AccessRole == "writer" || calendar.AccessRole == "owner") {
-                        modifiableCalendars = append(modifiableCalendars, calendar)
-                    }
-                }
+				var modifiableCalendars []*calendar.CalendarListEntry
+				for _, calendar := range m.calendars {
+					if calendar.AccessRole == "writer" || calendar.AccessRole == "owner" {
+						modifiableCalendars = append(modifiableCalendars, calendar)
+					}
+				}
 				m.editPage = newEditPage(nil, m.focusedDate, modifiableCalendars, m.width, m.height)
 				return m, nil
 			case key.Matches(msg, m.keys.Edit):
-                if len(m.calendars) <= 0 {
-                    return m, nil
-                }
+				if len(m.calendars) <= 0 {
+					return m, nil
+				}
 				event, ok := m.eventsList.SelectedItem().(*Event)
 				if !ok {
 					return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
@@ -225,6 +229,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.eventsList, cmd = m.eventsList.Update(msg)
 				return m, cmd
 			}
+		default:
+			var cmd tea.Cmd
+			m.eventsList, cmd = m.eventsList.Update(msg)
+			return m, cmd
 		}
 	case gotoDateDialog:
 		m.gotoDialog, cmd = m.gotoDialog.Update(msg)
@@ -260,9 +268,9 @@ func (m model) View() string {
 			Padding(1).
 			AlignHorizontal(lipgloss.Center).
 			Render(m.help.View(m.keys))
-		m.eventsList.SetSize(m.width, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer))
+		m.eventsList.SetSize(m.width-2, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer))
 		eventsView := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, m.eventsList.View())
-		body = lipgloss.JoinVertical(lipgloss.Center, eventsView, helpContainer)
+		body = lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(eventsView), helpContainer)
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
 	case editPage:

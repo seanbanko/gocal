@@ -57,6 +57,7 @@ func (m CalendarListDialog) Init() tea.Cmd {
 func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case calendarListMsg:
+		m.list.StopSpinner()
 		setCalendarListItems(&m.list, msg.calendars)
 		return m, nil
 	case tea.KeyMsg:
@@ -72,7 +73,10 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !ok {
 				return m, nil
 			}
-			return m, updateCalendarRequestCmd(item.calendar.Id, !item.calendar.Selected)
+			var cmds []tea.Cmd
+			cmds = append(cmds, updateCalendarRequestCmd(item.calendar.Id, !item.calendar.Selected))
+			cmds = append(cmds, m.list.StartSpinner())
+			return m, tea.Batch(cmds...)
 		}
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
@@ -139,4 +143,3 @@ func (k keyMapCalendarsList) ShortHelp() []key.Binding {
 func (k keyMapCalendarsList) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{k.Down}, {k.Up}, {k.Toggle}, {k.Exit}}
 }
-
