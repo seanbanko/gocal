@@ -149,6 +149,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, eventsListCmd(m.srv, m.cache, calendars, m.focusedDate))
 		cmds = append(cmds, m.eventsList.StartSpinner())
 		return m, tea.Batch(cmds...)
+	case flushCacheMsg:
+		m.cache.Flush()
+		return m, nil
 	case editEventRequestMsg:
 		return m, editEventResponseCmd(m.srv, msg)
 	case deleteEventRequestMsg:
@@ -156,10 +159,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case updateCalendarRequestMsg:
 		return m, updateCalendarResponseCmd(m.srv, msg)
 	case successMsg:
-		switch m.focusedModel {
-		case editPage, deleteDialog:
-			m.cache.Flush()
-		case calendarList:
+		if m.focusedModel == calendarList {
 			return m, calendarListCmd(m.srv)
 		}
 	}

@@ -71,7 +71,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
-			return m, showCalendarViewCmd
+			return m, tea.Sequence(flushCacheCmd, showCalendarViewCmd)
 		}
 		switch {
 		case key.Matches(msg, m.keys.Toggle):

@@ -12,13 +12,11 @@ import (
 )
 
 type (
-	gotoDateMsg     struct{ date time.Time }
-	showCalendarMsg struct{}
-)
-
-type (
+	gotoDateMsg         struct{ date time.Time }
+	showCalendarMsg     struct{}
 	errMsg              struct{ err error }
 	successMsg          struct{}
+	flushCacheMsg       struct{}
 	calendarListMsg     struct{ calendars []*calendar.CalendarListEntry }
 	eventsMsg           struct{ events []*Event }
 	refreshEventsMsg    struct{}
@@ -42,6 +40,10 @@ type (
 
 func showCalendarViewCmd() tea.Msg {
 	return showCalendarMsg{}
+}
+
+func flushCacheCmd() tea.Msg {
+	return flushCacheMsg{}
 }
 
 func refreshEventsCmd() tea.Msg {
@@ -224,7 +226,7 @@ func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cm
 				Start:   startEventDateTime,
 				End:     endEventDatetime,
 			}
-            _, err := srv.Events.Insert(msg.calendarId, event).Do()
+			_, err := srv.Events.Insert(msg.calendarId, event).Do()
 			if err != nil {
 				return errMsg{err: err}
 			}
