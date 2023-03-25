@@ -360,8 +360,7 @@ func (m model) View() string {
 		width, height := m.width-2, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer)
 		switch m.viewType {
 		case dayView:
-			m.dayLists[m.focusedDate.Weekday()].SetSize(width, height)
-			calendar = lipgloss.PlaceHorizontal(width, lipgloss.Left, m.dayLists[m.focusedDate.Weekday()].View())
+			calendar = m.viewDay(width, height)
 		case weekView:
 			calendar = m.viewWeek(width, height)
 		}
@@ -380,6 +379,12 @@ func (m model) View() string {
 		MaxHeight(m.height - lipgloss.Height(titleContainer)).
 		Render(body)
 	return lipgloss.JoinVertical(lipgloss.Center, titleContainer, bodyContainer)
+}
+
+func (m *model) viewDay(width, height int) string {
+	m.dayLists[m.focusedDate.Weekday()].SetSize(width, height)
+	m.dayLists[m.focusedDate.Weekday()].SetDelegate(newFocusedDateDelegate())
+	return lipgloss.PlaceHorizontal(width, lipgloss.Left, m.dayLists[m.focusedDate.Weekday()].View())
 }
 
 func (m *model) viewWeek(width, height int) string {
