@@ -12,13 +12,16 @@ import (
 )
 
 type (
-	gotoDateMsg         struct{ date time.Time }
-	showCalendarMsg     struct{}
-	errMsg              struct{ err error }
-	successMsg          struct{}
-	flushCacheMsg       struct{}
-	calendarListMsg     struct{ calendars []*calendar.CalendarListEntry }
-	eventsMsg           struct{ events []*Event }
+	gotoDateMsg     struct{ date time.Time }
+	showCalendarMsg struct{}
+	errMsg          struct{ err error }
+	successMsg      struct{}
+	flushCacheMsg   struct{}
+	calendarListMsg struct{ calendars []*calendar.CalendarListEntry }
+	eventsMsg       struct {
+		date   time.Time
+		events []*Event
+	}
 	refreshEventsMsg    struct{}
 	editEventRequestMsg struct {
 		calendarId string
@@ -115,7 +118,7 @@ func eventsListCmd(srv *calendar.Service, cache *cache.Cache, calendars []*calen
 		})
 		sort.Sort(eventsSlice(timeEvents))
 		allEvents := append(allDayEvents, timeEvents...)
-		return eventsMsg{events: allEvents}
+		return eventsMsg{date: date, events: allEvents}
 	}
 }
 

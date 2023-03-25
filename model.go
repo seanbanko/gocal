@@ -22,6 +22,13 @@ const (
 	calendarList
 )
 
+type viewType int
+
+const (
+	dayView viewType = iota
+	weekView
+)
+
 type Event struct {
 	calendarId string
 	event      *calendar.Event
@@ -52,10 +59,10 @@ type model struct {
 	cache         *cache.Cache
 	currentDate   time.Time
 	focusedDate   time.Time
-	events        []*Event
 	calendars     []*calendar.CalendarListEntry
 	focusedModel  int
-	eventsList    list.Model
+	viewType      viewType
+	dayLists      []list.Model
 	gotoDialog    tea.Model
 	editPage      tea.Model
 	deleteDialog  tea.Model
@@ -68,32 +75,64 @@ type model struct {
 func newModel(service *calendar.Service, cache *cache.Cache) model {
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle.Foreground(googleBlue)
-	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
-	delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
-	delegate.Styles.SelectedDesc.Foreground(googleBlue)
-	eventsList := list.New(nil, delegate, 0, 0)
-	eventsList.SetShowStatusBar(false)
-	eventsList.SetStatusBarItemName("event", "events")
-	eventsList.SetShowHelp(false)
-	eventsList.DisableQuitKeybindings()
-	eventsList.Title = today.Format(AbbreviatedTextDateWithWeekday)
-	eventsList.Styles.Title.Background(googleBlue)
 	return model{
 		srv:          service,
 		cache:        cache,
 		currentDate:  today,
 		focusedDate:  today,
 		focusedModel: calendarView,
-		eventsList:   eventsList,
+		dayLists:     newWeekLists(today),
 		keys:         defaultKeyMap,
 		help:         help.New(),
 	}
 }
 
+func newFocusedDateDelegate() list.DefaultDelegate {
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle.Foreground(googleBlue)
+	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
+	delegate.Styles.SelectedDesc.Foreground(googleBlue)
+	delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
+	return delegate
+}
+
+func newUnfocusedDelegate() list.DefaultDelegate {
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle.Foreground(delegate.Styles.NormalTitle.GetForeground())
+	delegate.Styles.SelectedTitle.BorderForeground(delegate.Styles.NormalTitle.GetBorderLeftForeground())
+	delegate.Styles.SelectedDesc.Foreground(delegate.Styles.NormalDesc.GetForeground())
+	delegate.Styles.SelectedDesc.BorderForeground(delegate.Styles.NormalDesc.GetBorderLeftForeground())
+	return delegate
+}
+
+func newDayList(date time.Time) list.Model {
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle.Foreground(googleBlue)
+	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
+	delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
+	delegate.Styles.SelectedDesc.Foreground(googleBlue)
+	dayList := list.New(nil, delegate, 0, 0)
+	dayList.SetShowStatusBar(false)
+	dayList.SetStatusBarItemName("event", "events")
+	dayList.SetShowHelp(false)
+	dayList.DisableQuitKeybindings()
+	dayList.Title = date.Format(AbbreviatedTextDateWithWeekday)
+	dayList.Styles.Title.UnsetForeground()
+	dayList.Styles.Title.UnsetBackground()
+	return dayList
+}
+
+func newWeekLists(focusedDate time.Time) []list.Model {
+	lists := make([]list.Model, 7)
+	startOfWeek := focusedDate.AddDate(0, 0, -1*int(focusedDate.Weekday()))
+	for i := range lists {
+		lists[i] = newDayList(startOfWeek.AddDate(0, 0, i))
+	}
+	return lists
+}
+
 func (m model) Init() tea.Cmd {
-	return tea.Batch(calendarListCmd(m.srv), m.eventsList.StartSpinner())
+	return tea.Batch(calendarListCmd(m.srv), m.dayLists[m.focusedDate.Weekday()].StartSpinner())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -126,28 +165,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, refreshEventsCmd)
 		return m, tea.Batch(cmds...)
 	case eventsMsg:
-		m.eventsList.StopSpinner()
-		m.events = msg.events
-		var items []list.Item
-		for _, event := range msg.events {
-			items = append(items, event)
-		}
-		m.eventsList.SetItems(items)
+		m.dayLists[msg.date.Weekday()].StopSpinner()
+		setEventsListItems(&m.dayLists[msg.date.Weekday()], msg.events)
 		return m, nil
 	case gotoDateMsg:
-		m.focusedDate = msg.date
-		m.eventsList.Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-		return m, refreshEventsCmd
-	case refreshEventsMsg:
-		var calendars []*calendar.CalendarListEntry
-		for _, calendar := range m.calendars {
-			if !calendar.Selected {
-				continue
+		m.dayLists[msg.date.Weekday()].Select(m.dayLists[msg.date.Weekday()].Index())
+		m.dayLists[m.focusedDate.Weekday()].ResetSelected()
+		log.Printf("focused date: %v, msg date: %v", m.focusedDate, msg.date)
+		switch m.viewType {
+		case dayView:
+			m.dayLists[msg.date.Weekday()].Title = msg.date.Format(AbbreviatedTextDateWithWeekday)
+			m.focusedDate = msg.date
+			return m, refreshEventsCmd
+		case weekView:
+			if areInDifferentWeeks(m.focusedDate, msg.date) {
+				log.Printf("decided different weeks")
+				startOfWeek := msg.date.AddDate(0, 0, -1*int(msg.date.Weekday()))
+				for i := range m.dayLists {
+					m.dayLists[i].Title = startOfWeek.AddDate(0, 0, i).Format(AbbreviatedTextDateWithWeekday)
+					cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), startOfWeek.AddDate(0, 0, i)))
+					cmds = append(cmds, m.dayLists[i].StartSpinner())
+				}
 			}
-			calendars = append(calendars, calendar)
+			m.focusedDate = msg.date
+			return m, tea.Batch(cmds...)
 		}
-		cmds = append(cmds, eventsListCmd(m.srv, m.cache, calendars, m.focusedDate))
-		cmds = append(cmds, m.eventsList.StartSpinner())
+	case refreshEventsMsg:
+		cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), m.focusedDate))
+		cmds = append(cmds, m.dayLists[m.focusedDate.Weekday()].StartSpinner())
 		return m, tea.Batch(cmds...)
 	case flushCacheMsg:
 		m.cache.Flush()
@@ -165,75 +210,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	switch m.focusedModel {
 	case calendarView:
-		if m.eventsList.SettingFilter() {
-			var cmd tea.Cmd
-			m.eventsList, cmd = m.eventsList.Update(msg)
-			return m, cmd
-		}
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			switch {
-			case key.Matches(msg, m.keys.Next):
-				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
-			case key.Matches(msg, m.keys.Prev):
-				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -1))
-			case key.Matches(msg, m.keys.Today):
-				return m, gotoDateCmd(m.currentDate)
-			case key.Matches(msg, m.keys.GotoDate):
-				m.focusedModel = gotoDateDialog
-				m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
-				return m, nil
-			case key.Matches(msg, m.keys.Create):
-				if len(m.calendars) <= 0 {
-					return m, nil
-				}
-				m.focusedModel = editPage
-				var modifiableCalendars []*calendar.CalendarListEntry
-				for _, calendar := range m.calendars {
-					if calendar.AccessRole == "writer" || calendar.AccessRole == "owner" {
-						modifiableCalendars = append(modifiableCalendars, calendar)
-					}
-				}
-				m.editPage = newEditPage(nil, m.focusedDate, modifiableCalendars, m.width, m.height)
-				return m, nil
-			case key.Matches(msg, m.keys.Edit):
-				if len(m.calendars) <= 0 {
-					return m, nil
-				}
-				event, ok := m.eventsList.SelectedItem().(*Event)
-				if !ok {
-					return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
-				}
-				m.focusedModel = editPage
-				m.editPage = newEditPage(event, m.focusedDate, m.calendars, m.width, m.height)
-				return m, nil
-			case key.Matches(msg, m.keys.Delete):
-				event, ok := m.eventsList.SelectedItem().(*Event)
-				if !ok {
-					return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
-				}
-				m.focusedModel = deleteDialog
-				m.deleteDialog = newDeleteDialog(event.calendarId, event.event.Id, m.width, m.height)
-				return m, nil
-			case key.Matches(msg, m.keys.CalendarList):
-				m.focusedModel = calendarList
-				m.calendarList = newCalendarListDialog(m.calendars, m.width, m.height)
-				return m, nil
-			case key.Matches(msg, m.keys.Help):
-				m.help.ShowAll = !m.help.ShowAll
-				return m, nil
-			case key.Matches(msg, m.keys.Quit):
-				return m, tea.Quit
-			default:
-				var cmd tea.Cmd
-				m.eventsList, cmd = m.eventsList.Update(msg)
-				return m, cmd
-			}
-		default:
-			var cmd tea.Cmd
-			m.eventsList, cmd = m.eventsList.Update(msg)
-			return m, cmd
-		}
+		m, cmd = m.updateCalendarView(msg)
+		return m, cmd
 	case gotoDateDialog:
 		m.gotoDialog, cmd = m.gotoDialog.Update(msg)
 		return m, cmd
@@ -248,6 +226,109 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, tea.Batch(cmds...)
+}
+
+func areInDifferentWeeks(a, b time.Time) bool {
+	firstDayOfWeek := a.AddDate(0, 0, -1*int(a.Weekday()))
+	lastDayOfWeek := firstDayOfWeek.AddDate(0, 0, 6)
+	log.Printf("%v %v %v %v", a, b, firstDayOfWeek, lastDayOfWeek)
+	return b.After(lastDayOfWeek) || b.Before(firstDayOfWeek)
+}
+
+func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
+	var cmd tea.Cmd
+	if m.dayLists[m.focusedDate.Weekday()].SettingFilter() {
+		m.dayLists[m.focusedDate.Weekday()], cmd = m.dayLists[m.focusedDate.Weekday()].Update(msg)
+		return m, cmd
+	}
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, m.keys.Next):
+			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
+		case key.Matches(msg, m.keys.Prev):
+			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -1))
+		case key.Matches(msg, m.keys.Today):
+			return m, gotoDateCmd(m.currentDate)
+		case key.Matches(msg, m.keys.GotoDate):
+			m.focusedModel = gotoDateDialog
+			m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
+			return m, nil
+		case key.Matches(msg, m.keys.Create):
+			if len(m.calendars) <= 0 {
+				return m, nil
+			}
+			m.focusedModel = editPage
+			var modifiableCalendars []*calendar.CalendarListEntry
+			for _, calendar := range m.calendars {
+				if calendar.AccessRole == "writer" || calendar.AccessRole == "owner" {
+					modifiableCalendars = append(modifiableCalendars, calendar)
+				}
+			}
+			m.editPage = newEditPage(nil, m.focusedDate, modifiableCalendars, m.width, m.height)
+			return m, nil
+		case key.Matches(msg, m.keys.Edit):
+			if len(m.calendars) <= 0 {
+				return m, nil
+			}
+			event, ok := m.dayLists[m.focusedDate.Weekday()].SelectedItem().(*Event)
+			if !ok {
+				return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
+			}
+			m.focusedModel = editPage
+			m.editPage = newEditPage(event, m.focusedDate, m.calendars, m.width, m.height)
+			return m, nil
+		case key.Matches(msg, m.keys.Delete):
+			event, ok := m.dayLists[m.focusedDate.Weekday()].SelectedItem().(*Event)
+			if !ok {
+				return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
+			}
+			m.focusedModel = deleteDialog
+			m.deleteDialog = newDeleteDialog(event.calendarId, event.event.Id, m.width, m.height)
+			return m, nil
+		case key.Matches(msg, m.keys.CalendarList):
+			m.focusedModel = calendarList
+			m.calendarList = newCalendarListDialog(m.calendars, m.width, m.height)
+			return m, nil
+		case key.Matches(msg, m.keys.DayView):
+			m.viewType = dayView
+			return m, refreshEventsCmd
+		case key.Matches(msg, m.keys.WeekView):
+			m.viewType = weekView
+			var cmds []tea.Cmd
+			startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
+			for i := 0; i < 7; i++ {
+				date := startOfWeek.AddDate(0, 0, i)
+				m.dayLists[date.Weekday()].Title = date.Format(AbbreviatedTextDateWithWeekday)
+				cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), startOfWeek.AddDate(0, 0, i)))
+				cmds = append(cmds, m.dayLists[date.Weekday()].StartSpinner())
+			}
+			return m, tea.Batch(cmds...)
+		case key.Matches(msg, m.keys.Quit):
+			return m, tea.Quit
+		}
+	}
+	m.dayLists[m.focusedDate.Weekday()], cmd = m.dayLists[m.focusedDate.Weekday()].Update(msg)
+	return m, cmd
+}
+
+func selectedCalendars(m model) []*calendar.CalendarListEntry {
+	var selected []*calendar.CalendarListEntry
+	for _, calendar := range m.calendars {
+		if !calendar.Selected {
+			continue
+		}
+		selected = append(selected, calendar)
+	}
+	return selected
+}
+
+func setEventsListItems(l *list.Model, events []*Event) {
+	var items []list.Item
+	for _, event := range events {
+		items = append(items, event)
+	}
+	l.SetItems(items)
 }
 
 func (m model) View() string {
@@ -268,9 +349,16 @@ func (m model) View() string {
 			Padding(1).
 			AlignHorizontal(lipgloss.Center).
 			Render(m.help.View(m.keys))
-		m.eventsList.SetSize(m.width-2, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer))
-		eventsView := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, m.eventsList.View())
-		body = lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(eventsView), helpContainer)
+		var calendar string
+		width, height := m.width-2, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer)
+		switch m.viewType {
+		case dayView:
+			m.dayLists[m.focusedDate.Weekday()].SetSize(width, height)
+			calendar = lipgloss.PlaceHorizontal(width, lipgloss.Left, m.dayLists[m.focusedDate.Weekday()].View())
+		case weekView:
+			calendar = m.viewWeek(width, height)
+		}
+		body = lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(calendar), helpContainer)
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
 	case editPage:
@@ -287,6 +375,30 @@ func (m model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Center, titleContainer, bodyContainer)
 }
 
+func (m *model) viewWeek(width, height int) string {
+	style := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(width / 8)
+	var dayViews []string
+	startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
+	for i := 0; i < 7; i++ {
+		date := startOfWeek.AddDate(0, 0, i)
+		m.dayLists[date.Weekday()].SetSize(width/8, height)
+		if date.Equal(m.focusedDate) {
+			m.dayLists[date.Weekday()].SetDelegate(newFocusedDateDelegate())
+			style = style.BorderForeground(googleBlue)
+		} else {
+			m.dayLists[date.Weekday()].SetDelegate(newUnfocusedDelegate())
+			style = style.UnsetBorderForeground()
+		}
+        if date.Equal(m.currentDate) {
+            m.dayLists[date.Weekday()].Styles.Title.Background(googleBlue)
+        } else {
+            m.dayLists[date.Weekday()].Styles.Title.UnsetBackground()
+        }
+		dayViews = append(dayViews, style.Render(m.dayLists[date.Weekday()].View()))
+	}
+	return lipgloss.PlaceHorizontal(width, lipgloss.Center, lipgloss.JoinHorizontal(lipgloss.Top, dayViews...))
+}
+
 type keyMapDefault struct {
 	Next         key.Binding
 	Prev         key.Binding
@@ -296,18 +408,20 @@ type keyMapDefault struct {
 	Edit         key.Binding
 	Delete       key.Binding
 	CalendarList key.Binding
+	DayView      key.Binding
+	WeekView     key.Binding
 	Help         key.Binding
 	Quit         key.Binding
 }
 
 var defaultKeyMap = keyMapDefault{
 	Next: key.NewBinding(
-		key.WithKeys("n"),
-		key.WithHelp("n", "next period"),
+		key.WithKeys("n", "l"),
+		key.WithHelp("n", "next day"),
 	),
 	Prev: key.NewBinding(
-		key.WithKeys("p"),
-		key.WithHelp("p", "previous period"),
+		key.WithKeys("p", "h"),
+		key.WithHelp("p", "previous day"),
 	),
 	Today: key.NewBinding(
 		key.WithKeys("t"),
@@ -332,6 +446,14 @@ var defaultKeyMap = keyMapDefault{
 	CalendarList: key.NewBinding(
 		key.WithKeys("s"),
 		key.WithHelp("s", "show calendar list"),
+	),
+	DayView: key.NewBinding(
+		key.WithKeys("d"),
+		key.WithHelp("d", "day view"),
+	),
+	WeekView: key.NewBinding(
+		key.WithKeys("w"),
+		key.WithHelp("w", "week view"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
