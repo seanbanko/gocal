@@ -371,7 +371,7 @@ func (m model) View() string {
 		case dayView:
 			calendar = m.viewDay(width, height)
 		case weekView:
-			calendar = m.viewWeek(width, height)
+			calendar = m.viewWeek(width, height-2)
 		}
 		body = lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(calendar), helpContainer)
 	case gotoDateDialog:
