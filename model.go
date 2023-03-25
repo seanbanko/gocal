@@ -238,8 +238,22 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
+			switch m.viewType {
+			case dayView:
+				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
+			case weekView:
+				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 7))
+			}
 		case key.Matches(msg, m.keys.Prev):
+			switch m.viewType {
+			case dayView:
+				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -1))
+			case weekView:
+				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -7))
+			}
+		case key.Matches(msg, m.keys.NextDay):
+			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
+		case key.Matches(msg, m.keys.PrevDay):
 			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -1))
 		case key.Matches(msg, m.keys.Today):
 			return m, gotoDateCmd(m.currentDate)
@@ -396,6 +410,8 @@ func (m *model) viewWeek(width, height int) string {
 type keyMapDefault struct {
 	Next         key.Binding
 	Prev         key.Binding
+	NextDay      key.Binding
+	PrevDay      key.Binding
 	Today        key.Binding
 	GotoDate     key.Binding
 	Create       key.Binding
@@ -410,12 +426,20 @@ type keyMapDefault struct {
 
 var defaultKeyMap = keyMapDefault{
 	Next: key.NewBinding(
-		key.WithKeys("n", "l"),
-		key.WithHelp("n", "next day"),
+		key.WithKeys("n"),
+		key.WithHelp("n", "next period"),
 	),
 	Prev: key.NewBinding(
-		key.WithKeys("p", "h"),
-		key.WithHelp("p", "previous day"),
+		key.WithKeys("p"),
+		key.WithHelp("p", "prev period"),
+	),
+	NextDay: key.NewBinding(
+		key.WithKeys("l"),
+		key.WithHelp("l", "next day"),
+	),
+	PrevDay: key.NewBinding(
+		key.WithKeys("h"),
+		key.WithHelp("h", "prev day"),
 	),
 	Today: key.NewBinding(
 		key.WithKeys("t"),
