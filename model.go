@@ -106,12 +106,7 @@ func newUnfocusedDelegate() list.DefaultDelegate {
 }
 
 func newDayList(date time.Time) list.Model {
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle.Foreground(googleBlue)
-	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
-	delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
-	delegate.Styles.SelectedDesc.Foreground(googleBlue)
-	dayList := list.New(nil, delegate, 0, 0)
+	dayList := list.New(nil, newFocusedDateDelegate(), 0, 0)
 	dayList.SetShowStatusBar(false)
 	dayList.SetStatusBarItemName("event", "events")
 	dayList.SetShowHelp(false)
