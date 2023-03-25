@@ -408,9 +408,17 @@ func renderEditContent(m EditPage) string {
 		textInputBaseStyle.Copy().Width(summaryWidth+2).Render(m.inputs[summary].View()),
 		lipgloss.JoinHorizontal(lipgloss.Center, startDateInputs, startTimeInputs, " to ", endTimeInputs, endDateInputs),
 		duration,
-		lipgloss.NewStyle().Padding(0, 1).Border(lipgloss.RoundedBorder()).Render(m.inputs[calId].View()),
+		m.renderCalendarDrowpdown(),
 		"", // TODO the last line is not being centered properly so this is just here for that
 	)
+}
+
+func (m EditPage) renderCalendarDrowpdown() string {
+	style := lipgloss.NewStyle().Padding(0, 1)
+	if m.focusIndex == calId {
+		return style.Border(lipgloss.DoubleBorder()).Render(m.inputs[calId].View())
+	}
+	return style.Border(lipgloss.RoundedBorder()).Render(m.inputs[calId].View())
 }
 
 func renderDateInputs(month, day, year textinput.Model) string {
