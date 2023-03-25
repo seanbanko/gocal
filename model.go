@@ -366,12 +366,12 @@ func (m model) View() string {
 			AlignHorizontal(lipgloss.Center).
 			Render(m.help.View(m.keys))
 		var calendar string
-		width, height := m.width-2, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer)
+		width, height := m.width-2, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer)-2
 		switch m.viewType {
 		case dayView:
 			calendar = m.viewDay(width, height)
 		case weekView:
-			calendar = m.viewWeek(width, height-2)
+			calendar = m.viewWeek(width, height)
 		}
 		body = lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(calendar), helpContainer)
 	case gotoDateDialog:
@@ -398,7 +398,8 @@ func (m *model) viewDay(width, height int) string {
 	} else {
 		m.dayLists[m.focusedDate.Weekday()].Styles.Title.UnsetBackground()
 	}
-	return lipgloss.PlaceHorizontal(width, lipgloss.Left, m.dayLists[m.focusedDate.Weekday()].View())
+	style := lipgloss.NewStyle().Border(lipgloss.HiddenBorder())
+	return lipgloss.PlaceHorizontal(width, lipgloss.Left, style.Render(m.dayLists[m.focusedDate.Weekday()].View()))
 }
 
 func (m *model) viewWeek(width, height int) string {
