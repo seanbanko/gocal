@@ -132,7 +132,6 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Printf("%T %v", msg, msg)
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
@@ -167,7 +166,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gotoDateMsg:
 		m.dayLists[msg.date.Weekday()].Select(m.dayLists[msg.date.Weekday()].Index())
 		m.dayLists[m.focusedDate.Weekday()].ResetSelected()
-		log.Printf("focused date: %v, msg date: %v", m.focusedDate, msg.date)
 		switch m.viewType {
 		case dayView:
 			m.dayLists[msg.date.Weekday()].Title = msg.date.Format(AbbreviatedTextDateWithWeekday)
@@ -175,7 +173,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, refreshEventsCmd
 		case weekView:
 			if areInDifferentWeeks(m.focusedDate, msg.date) {
-				log.Printf("decided different weeks")
 				startOfWeek := msg.date.AddDate(0, 0, -1*int(msg.date.Weekday()))
 				for i := range m.dayLists {
 					m.dayLists[i].Title = startOfWeek.AddDate(0, 0, i).Format(AbbreviatedTextDateWithWeekday)
@@ -227,7 +224,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func areInDifferentWeeks(a, b time.Time) bool {
 	firstDayOfWeek := a.AddDate(0, 0, -1*int(a.Weekday()))
 	lastDayOfWeek := firstDayOfWeek.AddDate(0, 0, 6)
-	log.Printf("%v %v %v %v", a, b, firstDayOfWeek, lastDayOfWeek)
 	return b.After(lastDayOfWeek) || b.Before(firstDayOfWeek)
 }
 
