@@ -211,3 +211,10 @@ func populateDateInputs(datetime time.Time, monthInput, dayInput, yearInput *tex
 func populateTimeInput(datetime time.Time, timeInput *textinput.Model) {
 	timeInput.SetValue(datetime.Format(HH_MM_PM))
 }
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

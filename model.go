@@ -164,7 +164,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		setEventsListItems(&m.dayLists[msg.date.Weekday()], msg.events)
 		return m, nil
 	case gotoDateMsg:
-		m.dayLists[msg.date.Weekday()].Select(m.dayLists[msg.date.Weekday()].Index())
+		index := min(m.dayLists[m.focusedDate.Weekday()].Index(), len(m.dayLists[msg.date.Weekday()].Items())-1)
+		m.dayLists[msg.date.Weekday()].Select(index)
 		m.dayLists[m.focusedDate.Weekday()].ResetSelected()
 		switch m.viewType {
 		case dayView:
