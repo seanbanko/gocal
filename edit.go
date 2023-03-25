@@ -112,8 +112,14 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	inputs[endDay].Placeholder = endDayText
 	inputs[endYear].Placeholder = endYearText
 
+	var calendarIndex int
 	if event != nil {
 		inputs[summary].SetValue(event.event.Summary)
+		for i, calendar := range calendars {
+			if calendar.Id == event.calendarId {
+				calendarIndex = i
+			}
+		}
 	}
 	inputs[startMonth].SetValue(startMonthText)
 	inputs[startDay].SetValue(startDayText)
@@ -123,9 +129,7 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	inputs[endMonth].SetValue(endMonthText)
 	inputs[endDay].SetValue(endDayText)
 	inputs[endYear].SetValue(endYearText)
-	if len(calendars) > 0 {
-		inputs[calId].SetValue(calendars[0].Summary + " ⏷")
-	}
+	inputs[calId].SetValue(calendars[calendarIndex].Summary + " ⏷")
 
 	duration := end.Sub(start)
 
