@@ -319,6 +319,9 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 				cmds = append(cmds, m.dayLists[date.Weekday()].StartSpinner())
 			}
 			return m, tea.Batch(cmds...)
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+			return m, nil
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 		}
