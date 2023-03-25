@@ -87,8 +87,17 @@ func newModel(service *calendar.Service, cache *cache.Cache) model {
 	}
 }
 
-func newFocusedDateDelegate() list.DefaultDelegate {
+func newBaseDelegate() list.DefaultDelegate {
 	delegate := list.NewDefaultDelegate()
+	delegate.Styles.NormalTitle.UnsetForeground()
+	delegate.Styles.NormalTitle.UnsetBorderForeground()
+	delegate.Styles.NormalDesc.UnsetForeground()
+	delegate.Styles.NormalDesc.UnsetBorderForeground()
+	return delegate
+}
+
+func newFocusedDelegate() list.DefaultDelegate {
+	delegate := newBaseDelegate()
 	delegate.Styles.SelectedTitle.Foreground(googleBlue)
 	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
 	delegate.Styles.SelectedDesc.Foreground(googleBlue)
@@ -97,16 +106,16 @@ func newFocusedDateDelegate() list.DefaultDelegate {
 }
 
 func newUnfocusedDelegate() list.DefaultDelegate {
-	delegate := list.NewDefaultDelegate()
+	delegate := newBaseDelegate()
 	delegate.Styles.SelectedTitle.Foreground(delegate.Styles.NormalTitle.GetForeground())
-	delegate.Styles.SelectedTitle.BorderForeground(delegate.Styles.NormalTitle.GetBorderLeftForeground())
+	delegate.Styles.SelectedTitle.BorderStyle(lipgloss.HiddenBorder())
 	delegate.Styles.SelectedDesc.Foreground(delegate.Styles.NormalDesc.GetForeground())
-	delegate.Styles.SelectedDesc.BorderForeground(delegate.Styles.NormalDesc.GetBorderLeftForeground())
+	delegate.Styles.SelectedDesc.BorderStyle(lipgloss.HiddenBorder())
 	return delegate
 }
 
 func newDayList(date time.Time) list.Model {
-	dayList := list.New(nil, newFocusedDateDelegate(), 0, 0)
+	dayList := list.New(nil, newFocusedDelegate(), 0, 0)
 	dayList.SetShowStatusBar(false)
 	dayList.SetStatusBarItemName("event", "events")
 	dayList.SetShowHelp(false)
@@ -383,7 +392,7 @@ func (m model) View() string {
 
 func (m *model) viewDay(width, height int) string {
 	m.dayLists[m.focusedDate.Weekday()].SetSize(width, height)
-	m.dayLists[m.focusedDate.Weekday()].SetDelegate(newFocusedDateDelegate())
+	m.dayLists[m.focusedDate.Weekday()].SetDelegate(newFocusedDelegate())
 	return lipgloss.PlaceHorizontal(width, lipgloss.Left, m.dayLists[m.focusedDate.Weekday()].View())
 }
 
@@ -395,7 +404,7 @@ func (m *model) viewWeek(width, height int) string {
 		date := startOfWeek.AddDate(0, 0, i)
 		m.dayLists[date.Weekday()].SetSize(width/8, height)
 		if date.Equal(m.focusedDate) {
-			m.dayLists[date.Weekday()].SetDelegate(newFocusedDateDelegate())
+			m.dayLists[date.Weekday()].SetDelegate(newFocusedDelegate())
 			style = style.BorderForeground(googleBlue)
 		} else {
 			m.dayLists[date.Weekday()].SetDelegate(newUnfocusedDelegate())
