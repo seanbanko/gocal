@@ -341,7 +341,7 @@ func (m model) View() string {
 		MaxWidth(m.width - 2).
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
-        Bold(true).
+		Bold(true).
 		Render("GoCal")
 	var body string
 	switch m.focusedModel {
@@ -391,11 +391,11 @@ func (m *model) viewWeek(width, height int) string {
 			m.dayLists[date.Weekday()].SetDelegate(newUnfocusedDelegate())
 			style = style.UnsetBorderForeground()
 		}
-        if date.Equal(m.currentDate) {
-            m.dayLists[date.Weekday()].Styles.Title.Background(googleBlue)
-        } else {
-            m.dayLists[date.Weekday()].Styles.Title.UnsetBackground()
-        }
+		if date.Equal(m.currentDate) {
+			m.dayLists[date.Weekday()].Styles.Title.Background(googleBlue)
+		} else {
+			m.dayLists[date.Weekday()].Styles.Title.UnsetBackground()
+		}
 		dayViews = append(dayViews, style.Render(m.dayLists[date.Weekday()].View()))
 	}
 	return lipgloss.PlaceHorizontal(width, lipgloss.Center, lipgloss.JoinHorizontal(lipgloss.Top, dayViews...))

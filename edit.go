@@ -268,9 +268,9 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, func() tea.Msg { return errMsg{err: err} }
 			}
 			m.pending = true
-            var cmds []tea.Cmd
-            cmds = append(cmds, editEventRequestCmd(m.calendarId, m.eventId, summary, start, end, m.allDay))
-            cmds = append(cmds, m.spinner.Tick)
+			var cmds []tea.Cmd
+			cmds = append(cmds, editEventRequestCmd(m.calendarId, m.eventId, summary, start, end, m.allDay))
+			cmds = append(cmds, m.spinner.Tick)
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, m.keys.Cancel):
 			return m, showCalendarViewCmd
