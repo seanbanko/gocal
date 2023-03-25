@@ -81,6 +81,7 @@ func newModel(service *calendar.Service, cache *cache.Cache) model {
 		currentDate:  today,
 		focusedDate:  today,
 		focusedModel: calendarView,
+		viewType:     weekView,
 		dayLists:     newWeekLists(today),
 		keys:         defaultKeyMap,
 		help:         help.New(),
@@ -137,7 +138,7 @@ func newWeekLists(focusedDate time.Time) []list.Model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(calendarListCmd(m.srv), m.dayLists[m.focusedDate.Weekday()].StartSpinner())
+	return calendarListCmd(m.srv)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -166,7 +167,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.calendarList, cmd = m.calendarList.Update(msg)
 			cmds = append(cmds, cmd)
 		}
-		cmds = append(cmds, refreshEventsCmd)
+		switch m.viewType {
+		case dayView:
+			cmds = append(cmds, refreshEventsCmd)
+			cmds = append(cmds, m.dayLists[m.focusedDate.Weekday()].StartSpinner())
+		case weekView:
+			startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
+			for i := range m.dayLists {
+				m.dayLists[i].Title = startOfWeek.AddDate(0, 0, i).Format(AbbreviatedTextDateWithWeekday)
+				cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), startOfWeek.AddDate(0, 0, i)))
+				cmds = append(cmds, m.dayLists[i].StartSpinner())
+			}
+		}
 		return m, tea.Batch(cmds...)
 	case eventsMsg:
 		m.dayLists[msg.date.Weekday()].StopSpinner()
