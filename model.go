@@ -393,6 +393,11 @@ func (m model) View() string {
 func (m *model) viewDay(width, height int) string {
 	m.dayLists[m.focusedDate.Weekday()].SetSize(width, height)
 	m.dayLists[m.focusedDate.Weekday()].SetDelegate(newFocusedDelegate())
+	if m.focusedDate.Equal(m.currentDate) {
+		m.dayLists[m.focusedDate.Weekday()].Styles.Title.Background(googleBlue)
+	} else {
+		m.dayLists[m.focusedDate.Weekday()].Styles.Title.UnsetBackground()
+	}
 	return lipgloss.PlaceHorizontal(width, lipgloss.Left, m.dayLists[m.focusedDate.Weekday()].View())
 }
 
