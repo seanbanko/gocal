@@ -117,6 +117,7 @@ func newDayList(date time.Time) list.Model {
 	dayList.SetShowHelp(false)
 	dayList.DisableQuitKeybindings()
 	dayList.Title = date.Format(AbbreviatedTextDateWithWeekday)
+	dayList.Styles.Title.Bold(true)
 	dayList.Styles.Title.UnsetForeground()
 	dayList.Styles.Title.UnsetBackground()
 	return dayList
@@ -340,6 +341,7 @@ func (m model) View() string {
 		MaxWidth(m.width - 2).
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
+        Bold(true).
 		Render("GoCal")
 	var body string
 	switch m.focusedModel {
