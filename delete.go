@@ -146,7 +146,7 @@ func renderDeleteContent(m DeleteDialog) string {
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
 		"Delete Event?\n",
-		lipgloss.JoinHorizontal(lipgloss.Top, noButton, " ", yesButton),
+		lipgloss.JoinHorizontal(lipgloss.Top, noButton, "  ", yesButton),
 	)
 }
 
