@@ -72,8 +72,7 @@ type model struct {
 	width, height int
 }
 
-func newModel(service *calendar.Service, cache *cache.Cache) model {
-	now := time.Now()
+func newModel(service *calendar.Service, cache *cache.Cache, now time.Time) model {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	return model{
 		srv:          service,
@@ -117,11 +116,11 @@ func newUnfocusedDelegate() list.DefaultDelegate {
 
 func newDayList(date time.Time) list.Model {
 	dayList := list.New(nil, newFocusedDelegate(), 0, 0)
+	dayList.DisableQuitKeybindings()
+	dayList.SetFilteringEnabled(false)
+	dayList.SetShowHelp(false)
 	dayList.SetShowStatusBar(false)
 	dayList.SetStatusBarItemName("event", "events")
-	dayList.SetShowHelp(false)
-	dayList.DisableQuitKeybindings()
-    dayList.SetFilteringEnabled(false)
 	dayList.Title = date.Format(AbbreviatedTextDateWithWeekday)
 	dayList.Styles.Title.Bold(true)
 	dayList.Styles.Title.UnsetForeground()
@@ -376,20 +375,7 @@ func (m model) View() string {
 	var body string
 	switch m.focusedModel {
 	case calendarView:
-		helpContainer := lipgloss.NewStyle().
-			Width(m.width).
-			Padding(1).
-			AlignHorizontal(lipgloss.Center).
-			Render(m.help.View(m.keys))
-		var calendar string
-		width, height := m.width-2, m.height-lipgloss.Height(titleContainer)-lipgloss.Height(helpContainer)-2
-		switch m.viewType {
-		case dayView:
-			calendar = m.viewDay(width, height)
-		case weekView:
-			calendar = m.viewWeek(width, height)
-		}
-		body = lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(calendar), helpContainer)
+		body = m.viewCalendar(m.width-2, m.height-lipgloss.Height(titleContainer))
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
 	case editPage:
@@ -404,6 +390,22 @@ func (m model) View() string {
 		MaxHeight(m.height - lipgloss.Height(titleContainer)).
 		Render(body)
 	return lipgloss.JoinVertical(lipgloss.Center, titleContainer, bodyContainer)
+}
+
+func (m *model) viewCalendar(width, height int) string {
+	helpContainer := lipgloss.NewStyle().
+		Width(m.width).
+		Padding(1).
+		AlignHorizontal(lipgloss.Center).
+		Render(m.help.View(m.keys))
+	var calendar string
+	switch m.viewType {
+	case dayView:
+		calendar = m.viewDay(width, height-lipgloss.Height(helpContainer)-2)
+	case weekView:
+		calendar = m.viewWeek(width, height-lipgloss.Height(helpContainer)-2)
+	}
+	return lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(calendar), helpContainer)
 }
 
 func (m *model) viewDay(width, height int) string {
