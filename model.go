@@ -124,7 +124,6 @@ func newDayList(date time.Time) list.Model {
 	dayList.Title = date.Format(AbbreviatedTextDateWithWeekday)
 	dayList.Styles.Title.Bold(true)
 	dayList.Styles.Title.UnsetForeground()
-	dayList.Styles.Title.UnsetBackground()
 	return dayList
 }
 
@@ -410,7 +409,7 @@ func (m *model) viewDay(width, height int) string {
 	if m.focusedDate.Equal(m.currentDate) {
 		m.dayLists[m.focusedDate.Weekday()].Styles.Title.Background(googleBlue)
 	} else {
-		m.dayLists[m.focusedDate.Weekday()].Styles.Title.UnsetBackground()
+		m.dayLists[m.focusedDate.Weekday()].Styles.Title.Background(grey)
 	}
 	style := lipgloss.NewStyle().Border(lipgloss.HiddenBorder())
 	return lipgloss.PlaceHorizontal(width, lipgloss.Left, style.Render(m.dayLists[m.focusedDate.Weekday()].View()))
@@ -433,7 +432,7 @@ func (m *model) viewWeek(width, height int) string {
 		if date.Equal(m.currentDate) {
 			m.dayLists[date.Weekday()].Styles.Title.Background(googleBlue)
 		} else {
-			m.dayLists[date.Weekday()].Styles.Title.UnsetBackground()
+			m.dayLists[date.Weekday()].Styles.Title.Background(grey)
 		}
 		dayViews = append(dayViews, style.Render(m.dayLists[date.Weekday()].View()))
 	}
