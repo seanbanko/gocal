@@ -250,10 +250,6 @@ func areInDifferentWeeks(a, b time.Time) bool {
 
 func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 	var cmd tea.Cmd
-	if m.dayLists[m.focusedDate.Weekday()].SettingFilter() {
-		m.dayLists[m.focusedDate.Weekday()], cmd = m.dayLists[m.focusedDate.Weekday()].Update(msg)
-		return m, cmd
-	}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
