@@ -22,7 +22,6 @@ type (
 		date   time.Time
 		events []*Event
 	}
-	refreshEventsMsg    struct{}
 	editEventRequestMsg struct {
 		calendarId string
 		eventId    string
@@ -47,10 +46,6 @@ func showCalendarViewCmd() tea.Msg {
 
 func flushCacheCmd() tea.Msg {
 	return flushCacheMsg{}
-}
-
-func refreshEventsCmd() tea.Msg {
-	return refreshEventsMsg{}
 }
 
 func gotoDateCmd(date time.Time) tea.Cmd {

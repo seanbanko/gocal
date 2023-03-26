@@ -141,8 +141,8 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -154,25 +154,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case showCalendarMsg:
 		m.focusedModel = calendarView
-		return m, tea.Batch(tea.ClearScreen, refreshEventsCmd)
+		return m, tea.Batch(tea.ClearScreen, m.refreshDayCmd(m.focusedDate))
 	case calendarListMsg:
 		m.calendars = msg.calendars
 		if m.focusedModel == calendarList {
 			m.calendarList, cmd = m.calendarList.Update(msg)
 			cmds = append(cmds, cmd)
 		}
-		switch m.viewType {
-		case dayView:
-			cmds = append(cmds, refreshEventsCmd)
-			cmds = append(cmds, m.dayLists[m.focusedDate.Weekday()].StartSpinner())
-		case weekView:
-			startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
-			for i := range m.dayLists {
-				m.dayLists[i].Title = startOfWeek.AddDate(0, 0, i).Format(AbbreviatedTextDateWithWeekday)
-				cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), startOfWeek.AddDate(0, 0, i)))
-				cmds = append(cmds, m.dayLists[i].StartSpinner())
-			}
-		}
+		cmds = append(cmds, m.refreshEventsCmd())
 		return m, tea.Batch(cmds...)
 	case eventsMsg:
 		m.dayLists[msg.date.Weekday()].StopSpinner()
@@ -181,29 +170,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gotoDateMsg:
 		prevDate := m.focusedDate
 		m.focusedDate = msg.date
-		m.dayLists[prevDate.Weekday()].ResetSelected()
-		m.dayLists[prevDate.Weekday()].SetDelegate(newUnfocusedDelegate())
-		m.dayLists[m.focusedDate.Weekday()].ResetSelected()
-		m.dayLists[m.focusedDate.Weekday()].SetDelegate(newFocusedDelegate())
-		switch m.viewType {
-		case dayView:
-			m.dayLists[m.focusedDate.Weekday()].Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
-			return m, refreshEventsCmd
-		case weekView:
-			if areInDifferentWeeks(prevDate, m.focusedDate) {
-				startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
-				for i := range m.dayLists {
-					date := startOfWeek.AddDate(0, 0, i)
-					m.dayLists[date.Weekday()].Title = date.Format(AbbreviatedTextDateWithWeekday)
-					cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), startOfWeek.AddDate(0, 0, i)))
-					cmds = append(cmds, m.dayLists[i].StartSpinner())
-				}
-			}
-			return m, tea.Batch(cmds...)
+		m.refocusDayLists()
+		if m.isOutOfRange(prevDate, m.focusedDate) {
+			m.resetTitles()
+			cmds = append(cmds, m.refreshEventsCmd())
 		}
-	case refreshEventsMsg:
-		cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), m.focusedDate))
-		cmds = append(cmds, m.dayLists[m.focusedDate.Weekday()].StartSpinner())
 		return m, tea.Batch(cmds...)
 	case flushCacheMsg:
 		m.cache.Flush()
@@ -239,6 +210,68 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *model) refocusDayLists() {
+	for i := range m.dayLists {
+		m.dayLists[i].ResetSelected()
+		m.dayLists[i].SetDelegate(newUnfocusedDelegate())
+	}
+	m.dayLists[m.focusedDate.Weekday()].ResetSelected()
+	m.dayLists[m.focusedDate.Weekday()].SetDelegate(newFocusedDelegate())
+}
+
+func (m *model) resetTitles() {
+	switch m.viewType {
+	case dayView:
+		m.dayLists[m.focusedDate.Weekday()].Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
+	case weekView:
+		startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
+		for i := range m.dayLists {
+			date := startOfWeek.AddDate(0, 0, i)
+			m.dayLists[date.Weekday()].Title = date.Format(AbbreviatedTextDateWithWeekday)
+		}
+	}
+}
+
+func (m model) refreshEventsCmd() tea.Cmd {
+	switch m.viewType {
+	case dayView:
+		return m.refreshDayCmd(m.focusedDate)
+	case weekView:
+		return m.refreshWeekCmd()
+	default:
+		return nil
+	}
+}
+
+func (m model) refreshDayCmd(date time.Time) tea.Cmd {
+	var cmds []tea.Cmd
+	cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m.calendars), date))
+	cmds = append(cmds, m.dayLists[date.Weekday()].StartSpinner())
+	return tea.Batch(cmds...)
+}
+
+func (m model) refreshWeekCmd() tea.Cmd {
+	var cmds []tea.Cmd
+	startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
+	for i := range m.dayLists {
+		date := startOfWeek.AddDate(0, 0, i)
+		m.dayLists[date.Weekday()].Title = date.Format(AbbreviatedTextDateWithWeekday)
+		cmds = append(cmds, m.refreshDayCmd(date))
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m model) isOutOfRange(prev, curr time.Time) bool {
+	switch m.viewType {
+	case dayView:
+		return !prev.Equal(curr)
+	case weekView:
+		return areInDifferentWeeks(prev, curr)
+	default:
+		return true
+	}
+}
+
 func areInDifferentWeeks(a, b time.Time) bool {
 	firstDayOfWeek := a.AddDate(0, 0, -1*int(a.Weekday()))
 	lastDayOfWeek := firstDayOfWeek.AddDate(0, 0, 6)
@@ -246,24 +279,17 @@ func areInDifferentWeeks(a, b time.Time) bool {
 }
 
 func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
+	if len(m.calendars) <= 0 {
+		return m, nil
+	}
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			switch m.viewType {
-			case dayView:
-				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
-			case weekView:
-				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 7))
-			}
+			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, daysIn(m.viewType)))
 		case key.Matches(msg, m.keys.Prev):
-			switch m.viewType {
-			case dayView:
-				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -1))
-			case weekView:
-				return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -7))
-			}
+			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -daysIn(m.viewType)))
 		case key.Matches(msg, m.keys.NextDay):
 			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
 		case key.Matches(msg, m.keys.PrevDay):
@@ -275,25 +301,13 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 			m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
 			return m, nil
 		case key.Matches(msg, m.keys.Create):
-			if len(m.calendars) <= 0 {
-				return m, nil
-			}
 			m.focusedModel = editPage
-			var modifiableCalendars []*calendar.CalendarListEntry
-			for _, calendar := range m.calendars {
-				if calendar.AccessRole == "writer" || calendar.AccessRole == "owner" {
-					modifiableCalendars = append(modifiableCalendars, calendar)
-				}
-			}
-			m.editPage = newEditPage(nil, m.focusedDate, modifiableCalendars, m.width, m.height)
+			m.editPage = newEditPage(nil, m.focusedDate, modifiableCalendars(m.calendars), m.width, m.height)
 			return m, nil
 		case key.Matches(msg, m.keys.Edit):
-			if len(m.calendars) <= 0 {
-				return m, nil
-			}
 			event, ok := m.dayLists[m.focusedDate.Weekday()].SelectedItem().(*Event)
 			if !ok {
-				return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
+				return m, nil
 			}
 			m.focusedModel = editPage
 			m.editPage = newEditPage(event, m.focusedDate, m.calendars, m.width, m.height)
@@ -301,7 +315,7 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Delete):
 			event, ok := m.dayLists[m.focusedDate.Weekday()].SelectedItem().(*Event)
 			if !ok {
-				return m, func() tea.Msg { return errMsg{err: fmt.Errorf("Type assertion failed")} }
+				return m, nil
 			}
 			m.focusedModel = deleteDialog
 			m.deleteDialog = newDeleteDialog(event.calendarId, event.event.Id, m.width, m.height)
@@ -312,18 +326,10 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keys.DayView):
 			m.viewType = dayView
-			return m, refreshEventsCmd
+			return m, m.refreshDayCmd(m.focusedDate)
 		case key.Matches(msg, m.keys.WeekView):
 			m.viewType = weekView
-			var cmds []tea.Cmd
-			startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
-			for i := 0; i < 7; i++ {
-				date := startOfWeek.AddDate(0, 0, i)
-				m.dayLists[date.Weekday()].Title = date.Format(AbbreviatedTextDateWithWeekday)
-				cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), startOfWeek.AddDate(0, 0, i)))
-				cmds = append(cmds, m.dayLists[date.Weekday()].StartSpinner())
-			}
-			return m, tea.Batch(cmds...)
+			return m, m.refreshWeekCmd()
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 			return m, nil
@@ -335,15 +341,35 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 	return m, cmd
 }
 
-func selectedCalendars(m model) []*calendar.CalendarListEntry {
+func daysIn(p viewType) int {
+	switch p {
+	case dayView:
+		return 1
+	case weekView:
+		return 7
+	default:
+		return 1
+	}
+}
+
+func selectedCalendars(calendars []*calendar.CalendarListEntry) []*calendar.CalendarListEntry {
 	var selected []*calendar.CalendarListEntry
-	for _, calendar := range m.calendars {
-		if !calendar.Selected {
-			continue
+	for _, calendar := range calendars {
+		if calendar.Selected {
+			selected = append(selected, calendar)
 		}
-		selected = append(selected, calendar)
 	}
 	return selected
+}
+
+func modifiableCalendars(calendars []*calendar.CalendarListEntry) []*calendar.CalendarListEntry {
+	var modifiable []*calendar.CalendarListEntry
+	for _, calendar := range calendars {
+		if calendar.AccessRole == "writer" || calendar.AccessRole == "owner" {
+			modifiable = append(modifiable, calendar)
+		}
+	}
+	return modifiable
 }
 
 func setEventsListItems(l *list.Model, events []*Event) {
