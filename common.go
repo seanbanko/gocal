@@ -12,6 +12,7 @@ import (
 
 const (
 	googleBlue = lipgloss.Color("#4285F4")
+	grey       = lipgloss.Color("241")
 )
 
 const (

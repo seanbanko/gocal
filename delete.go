@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	buttonStyle         = lipgloss.NewStyle().Background(lipgloss.Color("241")).Padding(0, 3)
+	buttonStyle         = lipgloss.NewStyle().Background(grey).Padding(0, 3)
 	selectedButtonStyle = buttonStyle.Copy().Background(googleBlue).Underline(true)
 )
 
