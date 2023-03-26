@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -153,11 +152,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		}
-	case errMsg:
-		// TODO make sure this doesn't require further action
-		// Currently the assumption is that sub-models handle and display errors
-		log.Printf("Error: %v", msg.err)
-		return m, nil
 	case showCalendarMsg:
 		m.focusedModel = calendarView
 		return m, tea.Batch(tea.ClearScreen, refreshEventsCmd)
