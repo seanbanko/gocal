@@ -121,6 +121,7 @@ func newDayList(date time.Time) list.Model {
 	dayList.SetStatusBarItemName("event", "events")
 	dayList.SetShowHelp(false)
 	dayList.DisableQuitKeybindings()
+    dayList.SetFilteringEnabled(false)
 	dayList.Title = date.Format(AbbreviatedTextDateWithWeekday)
 	dayList.Styles.Title.Bold(true)
 	dayList.Styles.Title.UnsetForeground()
