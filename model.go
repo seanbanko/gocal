@@ -115,7 +115,7 @@ func newUnfocusedDelegate() list.DefaultDelegate {
 }
 
 func newDayList(date time.Time) list.Model {
-	dayList := list.New(nil, newFocusedDelegate(), 0, 0)
+	dayList := list.New(nil, newUnfocusedDelegate(), 0, 0)
 	dayList.DisableQuitKeybindings()
 	dayList.SetFilteringEnabled(false)
 	dayList.SetShowHelp(false)
@@ -132,6 +132,7 @@ func newWeekLists(focusedDate time.Time) []list.Model {
 	startOfWeek := focusedDate.AddDate(0, 0, -1*int(focusedDate.Weekday()))
 	for i := range lists {
 		lists[i] = newDayList(startOfWeek.AddDate(0, 0, i))
+		lists[focusedDate.Weekday()].SetDelegate(newFocusedDelegate())
 	}
 	return lists
 }
@@ -187,16 +188,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		prevDate := m.focusedDate
 		m.focusedDate = msg.date
 		m.dayLists[prevDate.Weekday()].ResetSelected()
+		m.dayLists[prevDate.Weekday()].SetDelegate(newUnfocusedDelegate())
 		m.dayLists[m.focusedDate.Weekday()].ResetSelected()
+		m.dayLists[m.focusedDate.Weekday()].SetDelegate(newFocusedDelegate())
 		switch m.viewType {
 		case dayView:
-			m.dayLists[m.focusedDate.Weekday()].Title = msg.date.Format(AbbreviatedTextDateWithWeekday)
+			m.dayLists[m.focusedDate.Weekday()].Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
 			return m, refreshEventsCmd
 		case weekView:
 			if areInDifferentWeeks(prevDate, m.focusedDate) {
 				startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
 				for i := range m.dayLists {
-					m.dayLists[i].Title = startOfWeek.AddDate(0, 0, i).Format(AbbreviatedTextDateWithWeekday)
+					date := startOfWeek.AddDate(0, 0, i)
+					m.dayLists[date.Weekday()].Title = date.Format(AbbreviatedTextDateWithWeekday)
 					cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), startOfWeek.AddDate(0, 0, i)))
 					cmds = append(cmds, m.dayLists[i].StartSpinner())
 				}
@@ -405,7 +409,6 @@ func (m *model) viewCalendar(width, height int) string {
 
 func (m *model) viewDay(width, height int) string {
 	m.dayLists[m.focusedDate.Weekday()].SetSize(width, height)
-	m.dayLists[m.focusedDate.Weekday()].SetDelegate(newFocusedDelegate())
 	if m.focusedDate.Equal(m.currentDate) {
 		m.dayLists[m.focusedDate.Weekday()].Styles.Title.Background(googleBlue)
 	} else {
@@ -423,10 +426,8 @@ func (m *model) viewWeek(width, height int) string {
 		date := startOfWeek.AddDate(0, 0, i)
 		m.dayLists[date.Weekday()].SetSize(width/8, height)
 		if date.Equal(m.focusedDate) {
-			m.dayLists[date.Weekday()].SetDelegate(newFocusedDelegate())
 			style = style.BorderForeground(googleBlue)
 		} else {
-			m.dayLists[date.Weekday()].SetDelegate(newUnfocusedDelegate())
 			style = style.UnsetBorderForeground()
 		}
 		if date.Equal(m.currentDate) {
