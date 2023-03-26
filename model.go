@@ -184,23 +184,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		setEventsListItems(&m.dayLists[msg.date.Weekday()], msg.events)
 		return m, nil
 	case gotoDateMsg:
-		m.dayLists[msg.date.Weekday()].Select(0)
+		prevDate := m.focusedDate
+		m.focusedDate = msg.date
+		m.dayLists[prevDate.Weekday()].ResetSelected()
 		m.dayLists[m.focusedDate.Weekday()].ResetSelected()
 		switch m.viewType {
 		case dayView:
-			m.dayLists[msg.date.Weekday()].Title = msg.date.Format(AbbreviatedTextDateWithWeekday)
-			m.focusedDate = msg.date
+			m.dayLists[m.focusedDate.Weekday()].Title = msg.date.Format(AbbreviatedTextDateWithWeekday)
 			return m, refreshEventsCmd
 		case weekView:
-			if areInDifferentWeeks(m.focusedDate, msg.date) {
-				startOfWeek := msg.date.AddDate(0, 0, -1*int(msg.date.Weekday()))
+			if areInDifferentWeeks(prevDate, m.focusedDate) {
+				startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
 				for i := range m.dayLists {
 					m.dayLists[i].Title = startOfWeek.AddDate(0, 0, i).Format(AbbreviatedTextDateWithWeekday)
 					cmds = append(cmds, eventsListCmd(m.srv, m.cache, selectedCalendars(m), startOfWeek.AddDate(0, 0, i)))
 					cmds = append(cmds, m.dayLists[i].StartSpinner())
 				}
 			}
-			m.focusedDate = msg.date
 			return m, tea.Batch(cmds...)
 		}
 	case refreshEventsMsg:
