@@ -168,14 +168,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		setEventsListItems(&m.dayLists[msg.date.Weekday()], msg.events)
 		return m, nil
 	case gotoDateMsg:
-		prevDate := m.focusedDate
-		m.focusedDate = msg.date
-		m.refocusDayLists()
-		if m.isOutOfRange(prevDate, m.focusedDate) {
-			m.resetTitles()
-			cmds = append(cmds, m.refreshEventsCmd())
-		}
-		return m, tea.Batch(cmds...)
+		return m, m.focus(msg.date)
 	case flushCacheMsg:
 		m.cache.Flush()
 		return m, nil
@@ -208,6 +201,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, tea.Batch(cmds...)
+}
+
+func (m *model) focus(date time.Time) tea.Cmd {
+	prevDate := m.focusedDate
+	m.focusedDate = date
+	m.refocusDayLists()
+	if m.isOutOfRange(prevDate, m.focusedDate) {
+		m.resetTitles()
+		return m.refreshEventsCmd()
+	}
+	return nil
 }
 
 func (m *model) refocusDayLists() {
@@ -287,15 +291,15 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, daysIn(m.viewType)))
+			return m, m.focus(m.focusedDate.AddDate(0, 0, daysIn(m.viewType)))
 		case key.Matches(msg, m.keys.Prev):
-			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -daysIn(m.viewType)))
+			return m, m.focus(m.focusedDate.AddDate(0, 0, -daysIn(m.viewType)))
 		case key.Matches(msg, m.keys.NextDay):
-			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, 1))
+			return m, m.focus(m.focusedDate.AddDate(0, 0, 1))
 		case key.Matches(msg, m.keys.PrevDay):
-			return m, gotoDateCmd(m.focusedDate.AddDate(0, 0, -1))
+			return m, m.focus(m.focusedDate.AddDate(0, 0, -1))
 		case key.Matches(msg, m.keys.Today):
-			return m, gotoDateCmd(m.currentDate)
+			return m, m.focus(m.currentDate)
 		case key.Matches(msg, m.keys.GotoDate):
 			m.focusedModel = gotoDateDialog
 			m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
