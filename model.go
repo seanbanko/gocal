@@ -122,8 +122,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.help.Width = m.width
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
+		switch msg.Type {
+		case tea.KeyCtrlC:
 			return m, tea.Quit
 		}
 	case showCalendarMsg:
