@@ -26,6 +26,14 @@ type CalendarListDialog struct {
 	keys   keyMapCalendarsList
 }
 
+func checkbox(label string, checked bool) string {
+	if checked {
+		return "[X] " + label
+	} else {
+		return "[ ] " + label
+	}
+}
+
 func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, height int) CalendarListDialog {
 	delegate := list.NewDefaultDelegate()
 	delegate.ShowDescription = false

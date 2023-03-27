@@ -35,14 +35,6 @@ const (
 	grey       = lipgloss.Color("241")
 )
 
-func checkbox(label string, checked bool) string {
-	if checked {
-		return "[X] " + label
-	} else {
-		return "[ ] " + label
-	}
-}
-
 func newTextInput(charLimit int) textinput.Model {
 	input := textinput.New()
 	input.CharLimit = charLimit
