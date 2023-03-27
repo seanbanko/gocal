@@ -9,29 +9,12 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type calendarItem struct {
-	calendar *calendar.CalendarListEntry
-}
-
-// Implement list.Item interface
-func (i calendarItem) FilterValue() string { return i.Title() }
-func (i calendarItem) Title() string       { return checkbox(i.calendar.Summary, i.calendar.Selected) }
-func (i calendarItem) Description() string { return i.calendar.Description }
-
 type CalendarListDialog struct {
 	list   list.Model
 	height int
 	width  int
 	help   help.Model
 	keys   keyMapCalendarsList
-}
-
-func checkbox(label string, checked bool) string {
-	if checked {
-		return "[X] " + label
-	} else {
-		return "[ ] " + label
-	}
 }
 
 func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, height int) CalendarListDialog {
@@ -95,14 +78,6 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func calendarsToItems(calendars []*calendar.CalendarListEntry) []list.Item {
-	var items []list.Item
-	for _, c := range calendars {
-		items = append(items, calendarItem{calendar: c})
-	}
-	return items
-}
-
 func (m CalendarListDialog) View() string {
 	helpView := lipgloss.NewStyle().
 		Width(m.width).
@@ -121,6 +96,31 @@ func (m CalendarListDialog) View() string {
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(dialog)
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
+}
+
+type calendarItem struct {
+	calendar *calendar.CalendarListEntry
+}
+
+// Implement list.Item interface
+func (i calendarItem) FilterValue() string { return i.Title() }
+func (i calendarItem) Title() string       { return checkbox(i.calendar.Summary, i.calendar.Selected) }
+func (i calendarItem) Description() string { return i.calendar.Description }
+
+func checkbox(label string, checked bool) string {
+	if checked {
+		return "[X] " + label
+	} else {
+		return "[ ] " + label
+	}
+}
+
+func calendarsToItems(calendars []*calendar.CalendarListEntry) []list.Item {
+	var items []list.Item
+	for _, c := range calendars {
+		items = append(items, calendarItem{calendar: c})
+	}
+	return items
 }
 
 type keyMapCalendarsList struct {
