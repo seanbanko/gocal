@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -27,31 +26,6 @@ const (
 	dayView viewType = iota
 	weekView
 )
-
-type Event struct {
-	calendarId string
-	event      *calendar.Event
-}
-
-// Implement list.Item interface
-func (event Event) FilterValue() string { return event.event.Summary }
-func (event Event) Title() string       { return event.event.Summary }
-func (event Event) Description() string {
-	if isAllDay(event.event) {
-		return "all day"
-	}
-	start, err := time.Parse(time.RFC3339, event.event.Start.DateTime)
-	if err != nil {
-		return err.Error()
-	}
-	s := start.In(time.Local).Format(time.Kitchen)
-	end, err := time.Parse(time.RFC3339, event.event.End.DateTime)
-	if err != nil {
-		return err.Error()
-	}
-	e := end.In(time.Local).Format(time.Kitchen)
-	return fmt.Sprintf("%v - %v", s, e)
-}
 
 type model struct {
 	srv           *calendar.Service
@@ -374,14 +348,6 @@ func modifiableCalendars(calendars []*calendar.CalendarListEntry) []*calendar.Ca
 		}
 	}
 	return modifiable
-}
-
-func eventsToItems(events []*Event) []list.Item {
-	var items []list.Item
-	for _, e := range events {
-		items = append(items, e)
-	}
-	return items
 }
 
 func (m model) View() string {

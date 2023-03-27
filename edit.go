@@ -79,7 +79,7 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 		end = start.Add(time.Hour)
 	} else {
 		var eventStart, eventEnd time.Time
-		if isAllDay(event.event) {
+		if isAllDay(*event) {
 			allDay = true
 			// TODO handle errors
 			eventStart, _ = time.Parse(YYYYMMDD, event.event.Start.Date)

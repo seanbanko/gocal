@@ -7,7 +7,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
-	"google.golang.org/api/calendar/v3"
 )
 
 const (
@@ -42,10 +41,6 @@ func checkbox(label string, checked bool) string {
 	} else {
 		return "[ ] " + label
 	}
-}
-
-func isAllDay(event *calendar.Event) bool {
-	return event.Start.Date != ""
 }
 
 func newTextInput(charLimit int) textinput.Model {
