@@ -56,8 +56,7 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	inputs[summary] = textinput.New()
 	inputs[summary].Placeholder = "Add title"
 	inputs[summary].Width = summaryWidth
-	inputs[summary].Prompt = ""
-	inputs[summary].PlaceholderStyle = textInputPlaceholderStyle
+	inputs[summary].Prompt = " "
 
 	inputs[startMonth] = newTextInput(monthWidth)
 	inputs[startDay] = newTextInput(dayWidth)
@@ -69,7 +68,7 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	inputs[endYear] = newTextInput(yearWidth)
 
 	inputs[calId] = textinput.New()
-	inputs[calId].Prompt = ""
+	inputs[calId].Prompt = " "
 	inputs[calId].SetCursorMode(textinput.CursorHide)
 
 	var start, end time.Time
@@ -249,7 +248,7 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			autofillEmptyInputs(m.inputs)
 			m.calendarId = m.calendars[m.calendarIndex].Id
 			summary := m.inputs[summary].Value()
-			start, err := parseDateTimeInputs(
+			start, err := parseDateTime(
 				m.inputs[startMonth].Value(),
 				m.inputs[startDay].Value(),
 				m.inputs[startYear].Value(),
@@ -258,7 +257,7 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err != nil {
 				return m, func() tea.Msg { return errMsg{err: err} }
 			}
-			end, err := parseDateTimeInputs(
+			end, err := parseDateTime(
 				m.inputs[endMonth].Value(),
 				m.inputs[endDay].Value(),
 				m.inputs[endYear].Value(),
@@ -286,32 +285,32 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *EditPage) isOnStartInput() bool {
+func (m EditPage) isOnStartInput() bool {
 	return m.focusIndex == startDay || m.focusIndex == startMonth || m.focusIndex == startYear || m.focusIndex == startTime
 }
 
-func (m *EditPage) isOnMonthInput() bool {
+func (m EditPage) isOnMonthInput() bool {
 	return m.focusIndex == startMonth || m.focusIndex == endMonth
 }
 
-func (m *EditPage) isOnDayInput() bool {
+func (m EditPage) isOnDayInput() bool {
 	return m.focusIndex == startDay || m.focusIndex == endDay
 }
 
-func (m *EditPage) isOnYearInput() bool {
+func (m EditPage) isOnYearInput() bool {
 	return m.focusIndex == startYear || m.focusIndex == endYear
 }
 
-func (m *EditPage) isOnEndInput() bool {
+func (m EditPage) isOnEndInput() bool {
 	return m.focusIndex == endDay || m.focusIndex == endMonth || m.focusIndex == endYear || m.focusIndex == endTime
 }
 
-func (m *EditPage) isOnTimeInput() bool {
+func (m EditPage) isOnTimeInput() bool {
 	return m.focusIndex == startTime || m.focusIndex == endTime
 }
 
 func (m *EditPage) updateDuration() {
-	start, err := parseDateTimeInputs(
+	start, err := parseDateTime(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
 		m.inputs[startYear].Value(),
@@ -320,7 +319,7 @@ func (m *EditPage) updateDuration() {
 	if err != nil {
 		return
 	}
-	end, err := parseDateTimeInputs(
+	end, err := parseDateTime(
 		m.inputs[endMonth].Value(),
 		m.inputs[endDay].Value(),
 		m.inputs[endYear].Value(),
@@ -333,7 +332,7 @@ func (m *EditPage) updateDuration() {
 }
 
 func (m *EditPage) adjustEndInputs() {
-	start, err := parseDateTimeInputs(
+	start, err := parseDateTime(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
 		m.inputs[startYear].Value(),
@@ -392,11 +391,11 @@ func renderEditContent(m EditPage) string {
 		duration = m.duration.String()
 		startTimeInputs = lipgloss.JoinHorizontal(lipgloss.Center,
 			" at ",
-			textInputBaseStyle.Copy().Width(timeWidth+2).Render(m.inputs[startTime].View()),
+			lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(timeWidth+2).Render(m.inputs[startTime].View()),
 		)
 		endTimeInputs = lipgloss.JoinHorizontal(
 			lipgloss.Center,
-			textInputBaseStyle.Copy().Width(timeWidth+2).Render(m.inputs[endTime].View()),
+			lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(timeWidth+2).Render(m.inputs[endTime].View()),
 			" on ",
 		)
 	}
@@ -405,7 +404,7 @@ func renderEditContent(m EditPage) string {
 	return lipgloss.JoinVertical(
 		lipgloss.Center,
 		title+"\n",
-		textInputBaseStyle.Copy().Width(summaryWidth+2).Render(m.inputs[summary].View()),
+		lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(summaryWidth+2).Render(m.inputs[summary].View()),
 		lipgloss.JoinHorizontal(lipgloss.Center, startDateInputs, startTimeInputs, " to ", endTimeInputs, endDateInputs),
 		duration,
 		m.renderCalendarDrowpdown(),
@@ -419,17 +418,6 @@ func (m EditPage) renderCalendarDrowpdown() string {
 		return style.Border(lipgloss.DoubleBorder()).Render(m.inputs[calId].View())
 	}
 	return style.Border(lipgloss.RoundedBorder()).Render(m.inputs[calId].View())
-}
-
-func renderDateInputs(month, day, year textinput.Model) string {
-	return lipgloss.JoinHorizontal(
-		lipgloss.Center,
-		textInputBaseStyle.Copy().Width(monthWidth+2).Render(month.View()),
-		" ",
-		textInputBaseStyle.Copy().Width(dayWidth+2).Render(day.View()),
-		" ",
-		textInputBaseStyle.Copy().Width(yearWidth+2).Render(year.View()),
-	)
 }
 
 type keyMapEdit struct {

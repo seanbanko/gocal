@@ -102,11 +102,16 @@ func (m CalendarListDialog) View() string {
 		AlignHorizontal(lipgloss.Center).
 		Render(m.help.View(m.keys))
 	m.list.SetSize(m.width, m.height-lipgloss.Height(helpView)-4)
+	dialog := lipgloss.NewStyle().
+		Padding(1).
+		Border(lipgloss.RoundedBorder()).
+		Align(lipgloss.Center, lipgloss.Center).
+		Render(m.list.View())
 	container := lipgloss.NewStyle().
 		Width(m.width).
 		Height(m.height-lipgloss.Height(helpView)).
 		Align(lipgloss.Center, lipgloss.Center).
-		Render(dialogStyle.Render(m.list.View()))
+		Render(dialog)
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 

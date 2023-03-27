@@ -11,11 +11,6 @@ import (
 )
 
 const (
-	googleBlue = lipgloss.Color("#4285F4")
-	grey       = lipgloss.Color("241")
-)
-
-const (
 	H                              = "3"
 	HPM                            = "3PM"
 	H_PM                           = "3 PM"
@@ -36,13 +31,9 @@ const (
 	timeWidth    = len(HH_MM_PM)
 )
 
-var (
-	textInputPlaceholderStyle = lipgloss.NewStyle().Faint(true)
-	textInputBaseStyle        = lipgloss.NewStyle().PaddingLeft(1).Border(lipgloss.RoundedBorder())
-	dialogStyle               = lipgloss.NewStyle().
-					Padding(1).
-					Border(lipgloss.RoundedBorder()).
-					Align(lipgloss.Center, lipgloss.Center)
+const (
+	googleBlue = lipgloss.Color("#4285F4")
+	grey       = lipgloss.Color("241")
 )
 
 func checkbox(label string, checked bool) string {
@@ -60,8 +51,8 @@ func isAllDay(event *calendar.Event) bool {
 func newTextInput(charLimit int) textinput.Model {
 	input := textinput.New()
 	input.CharLimit = charLimit
-	input.PlaceholderStyle = textInputPlaceholderStyle
-	input.Prompt = ""
+	input.PlaceholderStyle = lipgloss.NewStyle().Faint(true)
+	input.Prompt = " "
 	return input
 }
 
@@ -103,93 +94,74 @@ func autofillEmptyInputs(inputs []textinput.Model) {
 	}
 }
 
-func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
-	t = strings.ToUpper(t)
-	t = strings.TrimSpace(t)
-	if !strings.Contains(t, ":") && !strings.ContainsAny(t, "APM") && len(t) >= 3 {
-		t = t[:len(t)-2] + ":" + t[len(t)-2:]
+func parseDateTime(month, day, year, tme string) (time.Time, error) {
+	d, err := time.Parse(AbbreviatedTextDate, month+day+year)
+	if err != nil {
+		return d, fmt.Errorf("Failed to parse date: %v", err)
 	}
-	text := fmt.Sprintf("%s %s %s %s", month, day, year, t)
-	var d time.Time
-	var err error
-	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+time.Kitchen, text, time.Local); err == nil {
-		return d, nil
+	t, err := parseTime(tme)
+	if err != nil {
+		return d, fmt.Errorf("Failed to parse time: %v", err)
 	}
-	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+KitchenWithSpace, text, time.Local); err == nil {
-		return d, nil
-	}
-	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+HHMM24h, text, time.Local); err == nil {
-		return d, nil
-	}
-	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+H, text, time.Local); err == nil {
-		return d, nil
-	}
-	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+HPM, text, time.Local); err == nil {
-		return d, nil
-	}
-	if d, err = time.ParseInLocation(AbbreviatedTextDate+" "+H_PM, text, time.Local); err == nil {
-		return d, nil
-	}
-	return d, fmt.Errorf("Failed to parse datetime")
+	return time.Date(d.Year(), d.Month(), d.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location()), nil
 }
 
-func shotgunParseTime(t string) (time.Time, error) {
+func parseTime(t string) (time.Time, error) {
 	t = strings.ToUpper(t)
 	t = strings.TrimSpace(t)
 	if !strings.Contains(t, ":") && !strings.ContainsAny(t, "APM") && len(t) >= 3 {
 		t = t[:len(t)-2] + ":" + t[len(t)-2:]
 	}
-	var datetime time.Time
-	var err error
+	var d time.Time
 	formats := []string{time.Kitchen, KitchenWithSpace, HHMM24h, H, HPM, H_PM}
-	for _, format := range formats {
-		if datetime, err = time.ParseInLocation(format, t, time.Local); err == nil {
-			return datetime, nil
+	for _, f := range formats {
+		if d, err := time.ParseInLocation(f, t, time.Local); err == nil {
+			return d, nil
 		}
 	}
-	return datetime, fmt.Errorf("Failed to parse datetime")
+	return d, fmt.Errorf("Failed to parse time")
 }
 
 func toDateFields(date time.Time) (string, string, string) {
-	month := date.Month().String()[:3]
-	day := fmt.Sprintf("%02d", date.Day())
-	year := fmt.Sprintf("%d", date.Year())
-	return month, day, year
+	m := date.Month().String()[:3]
+	d := fmt.Sprintf("%02d", date.Day())
+	y := fmt.Sprintf("%d", date.Year())
+	return m, d, y
 }
 
 func autoformatMonthInput(input *textinput.Model) {
-	datetime, err := time.ParseInLocation("Jan", input.Value(), time.Local)
+	d, err := time.ParseInLocation("Jan", input.Value(), time.Local)
 	if err != nil {
 		autofillPlaceholder(input)
 	} else {
-		input.SetValue(datetime.Month().String()[:3])
+		input.SetValue(d.Month().String()[:3])
 	}
 }
 
 func autoformatDayInput(input *textinput.Model) {
-	datetime, err := time.ParseInLocation("2", input.Value(), time.Local)
+	d, err := time.ParseInLocation("2", input.Value(), time.Local)
 	if err != nil {
 		autofillPlaceholder(input)
 	} else {
-		input.SetValue(fmt.Sprintf("%02d", datetime.Day()))
+		input.SetValue(fmt.Sprintf("%02d", d.Day()))
 	}
 }
 
 func autoformatYearInput(input *textinput.Model) {
-	datetime, err := time.ParseInLocation("2006", input.Value(), time.Local)
+	d, err := time.ParseInLocation("2006", input.Value(), time.Local)
 	if err != nil {
 		autofillPlaceholder(input)
 	} else {
-		input.SetValue(fmt.Sprintf("%d", datetime.Year()))
+		input.SetValue(fmt.Sprintf("%d", d.Year()))
 	}
 }
 
 func autoformatTimeInput(input *textinput.Model) {
-	datetime, err := shotgunParseTime(input.Value())
+	d, err := parseTime(input.Value())
 	if err != nil {
 		autofillPlaceholder(input)
 	} else {
-		input.SetValue(datetime.Format(HH_MM_PM))
+		input.SetValue(d.Format(HH_MM_PM))
 	}
 }
 
@@ -207,4 +179,15 @@ func populateDateInputs(datetime time.Time, monthInput, dayInput, yearInput *tex
 
 func populateTimeInput(datetime time.Time, timeInput *textinput.Model) {
 	timeInput.SetValue(datetime.Format(HH_MM_PM))
+}
+
+func renderDateInputs(month, day, year textinput.Model) string {
+	return lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(monthWidth+2).Render(month.View()),
+		" ",
+		lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(dayWidth+2).Render(day.View()),
+		" ",
+		lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(yearWidth+2).Render(year.View()),
+	)
 }

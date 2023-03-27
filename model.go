@@ -114,16 +114,16 @@ func newUnfocusedDelegate() list.DefaultDelegate {
 }
 
 func newDayList(date time.Time) list.Model {
-	dayList := list.New(nil, newUnfocusedDelegate(), 0, 0)
-	dayList.DisableQuitKeybindings()
-	dayList.SetFilteringEnabled(false)
-	dayList.SetShowHelp(false)
-	dayList.SetShowStatusBar(false)
-	dayList.SetStatusBarItemName("event", "events")
-	dayList.Title = date.Format(AbbreviatedTextDateWithWeekday)
-	dayList.Styles.Title.Bold(true)
-	dayList.Styles.Title.UnsetForeground()
-	return dayList
+	l := list.New(nil, newUnfocusedDelegate(), 0, 0)
+	l.DisableQuitKeybindings()
+	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
+	l.SetShowStatusBar(false)
+	l.SetStatusBarItemName("event", "events")
+	l.Title = date.Format(AbbreviatedTextDateWithWeekday)
+	l.Styles.Title.Bold(true)
+	l.Styles.Title.UnsetForeground()
+	return l
 }
 
 func newWeekLists(focusedDate time.Time) []list.Model {
