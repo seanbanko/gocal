@@ -157,6 +157,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, calendarListCmd(m.srv)
 		}
 	}
+	m, cmd = m.updateSubModels(msg)
+	cmds = append(cmds, cmd)
+	return m, tea.Batch(cmds...)
+}
+
+func (m model) updateSubModels(msg tea.Msg) (model, tea.Cmd) {
+	var cmd tea.Cmd
 	switch m.focusedModel {
 	case calendarView:
 		m, cmd = m.updateCalendarView(msg)
@@ -173,8 +180,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case calendarList:
 		m.calendarList, cmd = m.calendarList.Update(msg)
 		return m, cmd
+	default:
+		return m, nil
 	}
-	return m, tea.Batch(cmds...)
 }
 
 func (m *model) focus(date time.Time) tea.Cmd {
@@ -260,7 +268,6 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 	if len(m.calendars) <= 0 {
 		return m, nil
 	}
-	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -315,6 +322,7 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
+	var cmd tea.Cmd
 	m.dayLists[m.focusedDate.Weekday()], cmd = m.dayLists[m.focusedDate.Weekday()].Update(msg)
 	return m, cmd
 }
