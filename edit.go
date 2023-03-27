@@ -164,68 +164,41 @@ func (m EditPage) Init() tea.Cmd {
 
 func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		return m, nil
-	case errMsg:
-		m.err = msg.err
-		m.pending = false
-		return m, nil
-	case successMsg:
-		m.success = true
-		m.pending = false
-		return m, nil
-	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
 			return m, tea.Sequence(flushCacheCmd, showCalendarViewCmd)
 		}
 		switch {
+
 		case key.Matches(msg, m.keys.Next):
-			if m.isOnMonthInput() {
-				autoformatMonthInput(&m.inputs[m.focusIndex])
-			} else if m.isOnDayInput() {
-				autoformatDayInput(&m.inputs[m.focusIndex])
-			} else if m.isOnYearInput() {
-				autoformatYearInput(&m.inputs[m.focusIndex])
-			} else if m.isOnTimeInput() {
-				autoformatTimeInput(&m.inputs[m.focusIndex])
+			if m.isOnDateTimeInput() {
+				m.autoformatInputs()
+				m.adjustDuration()
 			}
-			if m.isOnStartInput() {
-				m.adjustEndInputs()
-			} else if m.isOnEndInput() {
-				m.updateDuration()
-			}
-			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+			m.focusIndex = (m.focusIndex + 1) % len(m.inputs)
 			if m.allDay && m.isOnTimeInput() {
 				m.focusIndex = endMonth
-				refocus(m.inputs, m.focusIndex)
 			}
+			refocus(m.inputs, m.focusIndex)
 			m.inputs[m.focusIndex].CursorEnd()
 			return m, nil
+
 		case key.Matches(msg, m.keys.Prev):
-			if m.isOnMonthInput() {
-				autoformatMonthInput(&m.inputs[m.focusIndex])
-			} else if m.isOnDayInput() {
-				autoformatDayInput(&m.inputs[m.focusIndex])
-			} else if m.isOnYearInput() {
-				autoformatYearInput(&m.inputs[m.focusIndex])
-			} else if m.isOnTimeInput() {
-				autoformatTimeInput(&m.inputs[m.focusIndex])
+			if m.isOnDateTimeInput() {
+				m.autoformatInputs()
+				m.adjustDuration()
 			}
-			if m.isOnEndInput() {
-				m.updateDuration()
+			m.focusIndex = m.focusIndex - 1
+			if m.focusIndex < 0 {
+				m.focusIndex = len(m.inputs) - 1
 			}
-			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
 			if m.allDay && m.isOnTimeInput() {
 				m.focusIndex = startYear
-				refocus(m.inputs, m.focusIndex)
 			}
+			refocus(m.inputs, m.focusIndex)
 			m.inputs[m.focusIndex].CursorEnd()
 			return m, nil
+
 		case key.Matches(msg, m.keys.ToggleAllDay):
 			m.allDay = !m.allDay
 			if m.allDay && m.isOnTimeInput() {
@@ -233,10 +206,12 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			refocus(m.inputs, m.focusIndex)
 			return m, nil
+
 		case key.Matches(msg, m.keys.NextCal) && m.focusIndex == calId:
 			m.calendarIndex = (m.calendarIndex + 1) % len(m.calendars)
 			m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
 			return m, nil
+
 		case key.Matches(msg, m.keys.PrevCal) && m.focusIndex == calId:
 			m.calendarIndex = m.calendarIndex - 1
 			if m.calendarIndex < 0 {
@@ -244,6 +219,7 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
 			return m, nil
+
 		case key.Matches(msg, m.keys.Save):
 			autofillEmptyInputs(m.inputs)
 			m.calendarId = m.calendars[m.calendarIndex].Id
@@ -271,10 +247,31 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, editEventRequestCmd(m.calendarId, m.eventId, summary, start, end, m.allDay))
 			cmds = append(cmds, m.spinner.Tick)
 			return m, tea.Batch(cmds...)
-		case key.Matches(msg, m.keys.Cancel):
+
+		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
+
+	case errMsg:
+		m.err = msg.err
+		m.pending = false
+		return m, nil
+
+	case successMsg:
+		m.success = true
+		m.pending = false
+		return m, nil
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		return m, nil
 	}
+
 	cmds := make([]tea.Cmd, len(m.inputs))
 	for i := range m.inputs {
 		if i == calId {
@@ -285,8 +282,36 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *EditPage) autoformatInputs() {
+	if m.isOnMonthInput() {
+		autoformatMonthInput(&m.inputs[m.focusIndex])
+	} else if m.isOnDayInput() {
+		autoformatDayInput(&m.inputs[m.focusIndex])
+	} else if m.isOnYearInput() {
+		autoformatYearInput(&m.inputs[m.focusIndex])
+	} else if m.isOnTimeInput() {
+		autoformatTimeInput(&m.inputs[m.focusIndex])
+	}
+}
+
+func (m *EditPage) adjustDuration() {
+	if m.isOnStartInput() {
+		m.adjustEndInputs()
+	} else if m.isOnEndInput() {
+		m.updateDuration()
+	}
+}
+
+func (m EditPage) isOnDateTimeInput() bool {
+	return m.isOnStartInput() || m.isOnEndInput()
+}
+
 func (m EditPage) isOnStartInput() bool {
 	return m.focusIndex == startDay || m.focusIndex == startMonth || m.focusIndex == startYear || m.focusIndex == startTime
+}
+
+func (m EditPage) isOnEndInput() bool {
+	return m.focusIndex == endDay || m.focusIndex == endMonth || m.focusIndex == endYear || m.focusIndex == endTime
 }
 
 func (m EditPage) isOnMonthInput() bool {
@@ -299,10 +324,6 @@ func (m EditPage) isOnDayInput() bool {
 
 func (m EditPage) isOnYearInput() bool {
 	return m.focusIndex == startYear || m.focusIndex == endYear
-}
-
-func (m EditPage) isOnEndInput() bool {
-	return m.focusIndex == endDay || m.focusIndex == endMonth || m.focusIndex == endYear || m.focusIndex == endTime
 }
 
 func (m EditPage) isOnTimeInput() bool {
@@ -423,6 +444,87 @@ func (m EditPage) renderCalendarDrowpdown() string {
 	return style.Border(lipgloss.RoundedBorder()).Render(m.inputs[calId].View())
 }
 
+// -----------------------------------------------------------------------------
+// Messages and Commands
+// -----------------------------------------------------------------------------
+
+type editEventRequestMsg struct {
+	calendarId string
+	eventId    string
+	summary    string
+	start      time.Time
+	end        time.Time
+	allDay     bool
+}
+
+func editEventRequestCmd(calendarId, eventId, summary string, start, end time.Time, allDay bool) tea.Cmd {
+	return func() tea.Msg {
+		return editEventRequestMsg{
+			calendarId: calendarId,
+			eventId:    eventId,
+			summary:    summary,
+			start:      start,
+			end:        end,
+			allDay:     allDay,
+		}
+	}
+}
+
+func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		var startDate, startDateTime, endDate, endDateTime string
+		if msg.allDay {
+			startDate = msg.start.Format(YYYYMMDD)
+			endDate = msg.end.Format(YYYYMMDD)
+			startDateTime = ""
+			endDateTime = ""
+		} else {
+			startDate = ""
+			endDate = ""
+			startDateTime = msg.start.Format(time.RFC3339)
+			endDateTime = msg.end.Format(time.RFC3339)
+		}
+		if msg.eventId == "" {
+			var startEventDateTime, endEventDatetime *calendar.EventDateTime
+			if msg.allDay {
+				startEventDateTime = &calendar.EventDateTime{Date: startDate}
+				endEventDatetime = &calendar.EventDateTime{Date: endDate}
+			} else {
+				startEventDateTime = &calendar.EventDateTime{DateTime: startDateTime}
+				endEventDatetime = &calendar.EventDateTime{DateTime: endDateTime}
+			}
+			event := &calendar.Event{
+				Summary: msg.summary,
+				Start:   startEventDateTime,
+				End:     endEventDatetime,
+			}
+			_, err := srv.Events.Insert(msg.calendarId, event).Do()
+			if err != nil {
+				return errMsg{err: err}
+			}
+		} else {
+			event, err := srv.Events.Get(msg.calendarId, msg.eventId).Do()
+			if err != nil {
+				return errMsg{err: err}
+			}
+			event.Summary = msg.summary
+			event.Start.Date = startDate
+			event.End.Date = endDate
+			event.Start.DateTime = startDateTime
+			event.End.DateTime = endDateTime
+			_, err = srv.Events.Update(msg.calendarId, msg.eventId, event).Do()
+			if err != nil {
+				return errMsg{err: err}
+			}
+		}
+		return successMsg{}
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Keys
+// -----------------------------------------------------------------------------
+
 type keyMapEdit struct {
 	Next         key.Binding
 	Prev         key.Binding
@@ -430,43 +532,43 @@ type keyMapEdit struct {
 	NextCal      key.Binding
 	PrevCal      key.Binding
 	Save         key.Binding
-	Cancel       key.Binding
+	Exit         key.Binding
 }
 
 var editKeyMap = keyMapEdit{
 	Next: key.NewBinding(
-		key.WithKeys("tab", "enter"),
-		key.WithHelp("tab", "next field"),
+		key.WithKeys("tab"),
+		key.WithHelp("tab", "next"),
 	),
 	Prev: key.NewBinding(
 		key.WithKeys("shift+tab"),
-		key.WithHelp("shift+tab", "previous field"),
+		key.WithHelp("shift+tab", "prev field"),
 	),
 	ToggleAllDay: key.NewBinding(
 		key.WithKeys("ctrl+a"),
 		key.WithHelp("ctrl+a", "toggle all day"),
 	),
-	Save: key.NewBinding(
-		key.WithKeys("ctrl+s"),
-		key.WithHelp("ctrl+s", "save"),
-	),
 	NextCal: key.NewBinding(
 		key.WithKeys("j", "ctrl+n", "down"),
-		key.WithHelp("up/down", "select calendar"),
+		key.WithHelp("↑/↓", "select calendar"),
 	),
 	PrevCal: key.NewBinding(
 		key.WithKeys("k", "ctrl+p", "up"),
 	),
-	Cancel: key.NewBinding(
+	Save: key.NewBinding(
+		key.WithKeys("enter", "ctrl+s"),
+		key.WithHelp("enter/ctrl+s", "save"),
+	),
+	Exit: key.NewBinding(
 		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel"),
+		key.WithHelp("esc", "exit"),
 	),
 }
 
 func (k keyMapEdit) ShortHelp() []key.Binding {
-	return []key.Binding{k.Next, k.Prev, k.ToggleAllDay, k.NextCal, k.Save, k.Cancel}
+	return []key.Binding{k.Next, k.Prev, k.ToggleAllDay, k.NextCal, k.Save, k.Exit}
 }
 
 func (k keyMapEdit) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Next}, {k.Prev}, {k.ToggleAllDay}, {k.NextCal}, {k.Save}, {k.Cancel}}
+	return [][]key.Binding{{k.Next}, {k.Prev}, {k.ToggleAllDay}, {k.NextCal}, {k.Save}, {k.Exit}}
 }

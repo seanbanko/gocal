@@ -47,10 +47,6 @@ func (m CalendarListDialog) Init() tea.Cmd {
 
 func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case calendarListMsg:
-		m.list.StopSpinner()
-		m.list.SetItems(calendarsToItems(msg.calendars))
-		return m, nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Toggle):
@@ -69,6 +65,10 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
+	case calendarListMsg:
+		m.list.StopSpinner()
+		m.list.SetItems(calendarsToItems(msg.calendars))
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
@@ -123,6 +123,43 @@ func calendarsToItems(calendars []*calendar.CalendarListEntry) []list.Item {
 	return items
 }
 
+// -----------------------------------------------------------------------------
+// Messages and Commands
+// -----------------------------------------------------------------------------
+
+type updateCalendarRequestMsg struct {
+	calendarId string
+	selected   bool
+}
+
+func updateCalendarRequestCmd(calendarId string, selected bool) tea.Cmd {
+	return func() tea.Msg {
+		return updateCalendarRequestMsg{
+			calendarId: calendarId,
+			selected:   selected,
+		}
+	}
+}
+
+func updateCalendarResponseCmd(srv *calendar.Service, msg updateCalendarRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		calendar, err := srv.CalendarList.Get(msg.calendarId).Do()
+		if err != nil {
+			return errMsg{err: err}
+		}
+		calendar.Selected = msg.selected
+		_, err = srv.CalendarList.Update(msg.calendarId, calendar).Do()
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return successMsg{}
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Keys
+// -----------------------------------------------------------------------------
+
 type keyMapCalendarsList struct {
 	Down   key.Binding
 	Up     key.Binding
@@ -140,7 +177,7 @@ var calendarsListKeyMap = keyMapCalendarsList{
 		key.WithHelp("↑/k", "up"),
 	),
 	Toggle: key.NewBinding(
-		key.WithKeys("enter"),
+		key.WithKeys("enter", "space"),
 		key.WithHelp("enter", "toggle"),
 	),
 	Exit: key.NewBinding(
@@ -150,9 +187,9 @@ var calendarsListKeyMap = keyMapCalendarsList{
 }
 
 func (k keyMapCalendarsList) ShortHelp() []key.Binding {
-	return []key.Binding{k.Down, k.Up, k.Toggle, k.Exit}
+	return []key.Binding{k.Up, k.Down, k.Toggle, k.Exit}
 }
 
 func (k keyMapCalendarsList) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Down}, {k.Up}, {k.Toggle}, {k.Exit}}
+	return [][]key.Binding{{k.Up}, {k.Down}, {k.Toggle}, {k.Exit}}
 }

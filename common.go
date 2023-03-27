@@ -43,21 +43,6 @@ func newTextInput(charLimit int) textinput.Model {
 	return input
 }
 
-func focusNext(inputs []textinput.Model, focusIndex int) int {
-	newIndex := (focusIndex + 1) % len(inputs)
-	refocus(inputs, newIndex)
-	return newIndex
-}
-
-func focusPrev(inputs []textinput.Model, focusIndex int) int {
-	newIndex := focusIndex - 1
-	if newIndex < 0 {
-		newIndex = len(inputs) - 1
-	}
-	refocus(inputs, newIndex)
-	return newIndex
-}
-
 func refocus(inputs []textinput.Model, focusIndex int) {
 	for i := range inputs {
 		inputs[i].Blur()

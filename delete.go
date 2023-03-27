@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"google.golang.org/api/calendar/v3"
 )
 
 const (
@@ -90,7 +91,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				return m, showCalendarViewCmd
 			}
-		case key.Matches(msg, m.keys.Cancel):
+		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
 	}
@@ -128,7 +129,7 @@ func (m DeleteDialog) View() string {
 		Render(content)
 	container := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height-lipgloss.Height(helpView)-3).
+		Height(m.height-lipgloss.Height(helpView)-3). // 3 is titlebar height. TODO refactor
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(dialog)
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
@@ -155,20 +156,47 @@ func renderDeleteContent(m DeleteDialog) string {
 	)
 }
 
+// -----------------------------------------------------------------------------
+// Messages and Commands
+// -----------------------------------------------------------------------------
+
+type deleteEventRequestMsg struct {
+	calendarId string
+	eventId    string
+}
+
+func deleteEventRequestCmd(calendarId, eventId string) tea.Cmd {
+	return func() tea.Msg {
+		return deleteEventRequestMsg{
+			calendarId: calendarId,
+			eventId:    eventId,
+		}
+	}
+}
+
+func deleteEventResponseCmd(srv *calendar.Service, msg deleteEventRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		err := srv.Events.Delete(msg.calendarId, msg.eventId).Do()
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return successMsg{}
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Keys
+// -----------------------------------------------------------------------------
+
 type keyMapDelete struct {
 	Toggle  key.Binding
 	Yes     key.Binding
 	No      key.Binding
 	Confirm key.Binding
-	Cancel  key.Binding
-	Quit    key.Binding
+	Exit    key.Binding
 }
 
 var deleteKeyMap = keyMapDelete{
-	Toggle: key.NewBinding(
-		key.WithKeys("tab", "shift+tab"),
-		key.WithHelp("tab", "toggle"),
-	),
 	Yes: key.NewBinding(
 		key.WithKeys("y"),
 		key.WithHelp("y", "yes"),
@@ -177,24 +205,28 @@ var deleteKeyMap = keyMapDelete{
 		key.WithKeys("n"),
 		key.WithHelp("n", "no"),
 	),
+	Toggle: key.NewBinding(
+		key.WithKeys("tab", "shift+tab"),
+		key.WithHelp("tab", "toggle"),
+	),
 	Confirm: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("enter", "confirm"),
 	),
-	Cancel: key.NewBinding(
+	Exit: key.NewBinding(
 		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel"),
+		key.WithHelp("esc", "exit"),
 	),
 }
 
 func (k keyMapDelete) ShortHelp() []key.Binding {
-	return []key.Binding{k.Toggle, k.Yes, k.No, k.Confirm, k.Cancel}
+	return []key.Binding{k.Yes, k.No, k.Toggle, k.Confirm, k.Exit}
 }
 
 func (k keyMapDelete) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Toggle, k.Confirm},
-		{k.Yes, k.Cancel},
-		{k.No},
+		{k.Yes, k.Confirm},
+		{k.No, k.Exit},
+		{k.Confirm},
 	}
 }

@@ -62,24 +62,17 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			if m.focusIndex == month {
-				autoformatMonthInput(&m.inputs[m.focusIndex])
-			} else if m.focusIndex == day {
-				autoformatDayInput(&m.inputs[m.focusIndex])
-			} else if m.focusIndex == year {
-				autoformatYearInput(&m.inputs[m.focusIndex])
-			}
-			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+			m.autoformatInputs()
+			m.focusIndex = (m.focusIndex + 1) % len(m.inputs)
+			refocus(m.inputs, m.focusIndex)
 			return m, nil
 		case key.Matches(msg, m.keys.Prev):
-			if m.focusIndex == month {
-				autoformatMonthInput(&m.inputs[m.focusIndex])
-			} else if m.focusIndex == day {
-				autoformatDayInput(&m.inputs[m.focusIndex])
-			} else if m.focusIndex == year {
-				autoformatYearInput(&m.inputs[m.focusIndex])
+			m.autoformatInputs()
+			m.focusIndex = m.focusIndex - 1
+			if m.focusIndex < 0 {
+				m.focusIndex = len(m.inputs) - 1
 			}
-			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
+			refocus(m.inputs, m.focusIndex)
 			return m, nil
 		case key.Matches(msg, m.keys.Increment):
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
@@ -99,7 +92,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			date = date.AddDate(0, 0, -1)
 			populateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
 			return m, nil
-		case key.Matches(msg, m.keys.Go):
+		case key.Matches(msg, m.keys.Confirm):
 			autofillEmptyInputs(m.inputs)
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
@@ -107,7 +100,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, showCalendarViewCmd
 			}
 			return m, tea.Batch(showCalendarViewCmd, gotoDateCmd(date))
-		case key.Matches(msg, m.keys.Cancel):
+		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
 	}
@@ -116,6 +109,16 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
 	return m, tea.Batch(cmds...)
+}
+
+func (m *GotoDialog) autoformatInputs() {
+	if m.focusIndex == month {
+		autoformatMonthInput(&m.inputs[m.focusIndex])
+	} else if m.focusIndex == day {
+		autoformatDayInput(&m.inputs[m.focusIndex])
+	} else if m.focusIndex == year {
+		autoformatYearInput(&m.inputs[m.focusIndex])
+	}
 }
 
 func (m GotoDialog) View() string {
@@ -139,48 +142,48 @@ type keyMapGoto struct {
 	Prev      key.Binding
 	Increment key.Binding
 	Decrement key.Binding
-	Go        key.Binding
-	Cancel    key.Binding
+	Confirm   key.Binding
+	Exit      key.Binding
 }
 
 var gotoKeymap = keyMapGoto{
 	Next: key.NewBinding(
 		key.WithKeys("tab"),
-		key.WithHelp("tab", "next field"),
+		key.WithHelp("tab", "next"),
 	),
 	Prev: key.NewBinding(
 		key.WithKeys("shift+tab"),
-		key.WithHelp("shift+tab", "previous field"),
+		key.WithHelp("shift+tab", "prev"),
 	),
 	Increment: key.NewBinding(
 		key.WithKeys("ctrl+n"),
-		key.WithHelp("ctrl+n", "increment date"),
+		key.WithHelp("ctrl+n", "increment"),
 	),
 	Decrement: key.NewBinding(
 		key.WithKeys("ctrl+p"),
-		key.WithHelp("ctrl+p", "decrement date"),
+		key.WithHelp("ctrl+p", "decrement"),
 	),
-	Go: key.NewBinding(
+	Confirm: key.NewBinding(
 		key.WithKeys("enter", "ctrl+s"),
 		key.WithHelp("enter", "go"),
 	),
-	Cancel: key.NewBinding(
+	Exit: key.NewBinding(
 		key.WithKeys("esc"),
-		key.WithHelp("esc", "cancel"),
+		key.WithHelp("esc", "exit"),
 	),
 }
 
 func (k keyMapGoto) ShortHelp() []key.Binding {
-	return []key.Binding{k.Next, k.Prev, k.Increment, k.Decrement, k.Go, k.Cancel}
+	return []key.Binding{k.Next, k.Prev, k.Increment, k.Decrement, k.Confirm, k.Exit}
 }
 
 func (k keyMapGoto) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Next},
-		{k.Go},
 		{k.Prev},
-		{k.Cancel},
 		{k.Increment},
 		{k.Decrement},
+		{k.Confirm},
+		{k.Exit},
 	}
 }
