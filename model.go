@@ -165,7 +165,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	case eventsMsg:
 		m.dayLists[msg.date.Weekday()].StopSpinner()
-		setEventsListItems(&m.dayLists[msg.date.Weekday()], msg.events)
+		m.dayLists[msg.date.Weekday()].SetItems(eventsToItems(msg.events))
 		return m, nil
 	case gotoDateMsg:
 		return m, m.focus(msg.date)
@@ -376,12 +376,12 @@ func modifiableCalendars(calendars []*calendar.CalendarListEntry) []*calendar.Ca
 	return modifiable
 }
 
-func setEventsListItems(l *list.Model, events []*Event) {
+func eventsToItems(events []*Event) []list.Item {
 	var items []list.Item
-	for _, event := range events {
-		items = append(items, event)
+	for _, e := range events {
+		items = append(items, e)
 	}
-	l.SetItems(items)
+	return items
 }
 
 func (m model) View() string {

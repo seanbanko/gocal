@@ -165,7 +165,7 @@ func (m EditPage) Init() tea.Cmd {
 func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.height, m.width = msg.Height, msg.Width
+		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 	case errMsg:
 		m.err = msg.err
@@ -309,22 +309,30 @@ func (m EditPage) isOnTimeInput() bool {
 	return m.focusIndex == startTime || m.focusIndex == endTime
 }
 
-func (m *EditPage) updateDuration() {
-	start, err := parseDateTime(
+func (m EditPage) parseStart() (time.Time, error) {
+	return parseDateTime(
 		m.inputs[startMonth].Value(),
 		m.inputs[startDay].Value(),
 		m.inputs[startYear].Value(),
 		m.inputs[startTime].Value(),
 	)
-	if err != nil {
-		return
-	}
-	end, err := parseDateTime(
+}
+
+func (m EditPage) parseEnd() (time.Time, error) {
+	return parseDateTime(
 		m.inputs[endMonth].Value(),
 		m.inputs[endDay].Value(),
 		m.inputs[endYear].Value(),
 		m.inputs[endTime].Value(),
 	)
+}
+
+func (m *EditPage) updateDuration() {
+	start, err := m.parseStart()
+	if err != nil {
+		return
+	}
+	end, err := m.parseEnd()
 	if err != nil {
 		return
 	}
@@ -332,12 +340,7 @@ func (m *EditPage) updateDuration() {
 }
 
 func (m *EditPage) adjustEndInputs() {
-	start, err := parseDateTime(
-		m.inputs[startMonth].Value(),
-		m.inputs[startDay].Value(),
-		m.inputs[startYear].Value(),
-		m.inputs[startTime].Value(),
-	)
+	start, err := m.parseStart()
 	if err != nil {
 		return
 	}

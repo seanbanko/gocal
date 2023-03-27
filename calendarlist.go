@@ -40,7 +40,7 @@ func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, heigh
 	l.DisableQuitKeybindings()
 	l.Title = "My calendars"
 	l.Styles.Title.Background(googleBlue)
-	setCalendarListItems(&l, calendars)
+	l.SetItems(calendarsToItems(calendars))
 	return CalendarListDialog{
 		list:   l,
 		height: height,
@@ -58,12 +58,10 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case calendarListMsg:
 		m.list.StopSpinner()
-		setCalendarListItems(&m.list, msg.calendars)
+		m.list.SetItems(calendarsToItems(msg.calendars))
 		return m, nil
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keys.Exit):
-			return m, showCalendarViewCmd
 		case key.Matches(msg, m.keys.Toggle):
 			listItem := m.list.SelectedItem()
 			if listItem == nil {
@@ -77,9 +75,11 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, updateCalendarRequestCmd(item.calendar.Id, !item.calendar.Selected))
 			cmds = append(cmds, m.list.StartSpinner())
 			return m, tea.Batch(cmds...)
+		case key.Matches(msg, m.keys.Exit):
+			return m, showCalendarViewCmd
 		}
 	case tea.WindowSizeMsg:
-		m.height, m.width = msg.Height, msg.Width
+		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 	}
 	var cmd tea.Cmd
@@ -87,12 +87,12 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func setCalendarListItems(l *list.Model, calendars []*calendar.CalendarListEntry) {
+func calendarsToItems(calendars []*calendar.CalendarListEntry) []list.Item {
 	var items []list.Item
-	for _, calendar := range calendars {
-		items = append(items, calendarItem{calendar: calendar})
+	for _, c := range calendars {
+		items = append(items, calendarItem{calendar: c})
 	}
-	l.SetItems(items)
+	return items
 }
 
 func (m CalendarListDialog) View() string {

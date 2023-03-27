@@ -57,7 +57,7 @@ func (m GotoDialog) Init() tea.Cmd {
 func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.height, m.width = msg.Height, msg.Width
+		m.width, m.height = msg.Width, msg.Height
 		return m, nil
 	case tea.KeyMsg:
 		switch {
@@ -70,6 +70,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				autoformatYearInput(&m.inputs[m.focusIndex])
 			}
 			m.focusIndex = focusNext(m.inputs, m.focusIndex)
+			return m, nil
 		case key.Matches(msg, m.keys.Prev):
 			if m.focusIndex == month {
 				autoformatMonthInput(&m.inputs[m.focusIndex])
@@ -79,6 +80,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				autoformatYearInput(&m.inputs[m.focusIndex])
 			}
 			m.focusIndex = focusPrev(m.inputs, m.focusIndex)
+			return m, nil
 		case key.Matches(msg, m.keys.Increment):
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
