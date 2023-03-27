@@ -82,7 +82,7 @@ func autofillEmptyInputs(inputs []textinput.Model) {
 }
 
 func parseDateTime(month, day, year, tme string) (time.Time, error) {
-	d, err := time.Parse(AbbreviatedTextDate, month+day+year)
+	d, err := time.Parse(AbbreviatedTextDate, month+" "+day+" "+year)
 	if err != nil {
 		return d, fmt.Errorf("Failed to parse date: %v", err)
 	}
