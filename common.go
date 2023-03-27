@@ -26,15 +26,13 @@ const (
 	AbbreviatedTextDate            = "Jan 2 2006"
 	AbbreviatedTextDateWithWeekday = "Mon Jan 2"
 	TextDateWithWeekday            = "Monday, January 2, 2006"
-	AbbreviatedTextDate24h         = "Jan 2 2006 15:04"
-	AbbreviatedTextDate12h         = "Jan 2 2006 03:04 PM"
 )
 
 const (
 	summaryWidth = 40
-	monthWidth   = 3 // Jan
-	dayWidth     = 2 // 02
-	yearWidth    = 4 // 2006
+	monthWidth   = len("Jan")
+	dayWidth     = len("02")
+	yearWidth    = len("2006")
 	timeWidth    = len(HH_MM_PM)
 )
 
@@ -105,7 +103,6 @@ func autofillEmptyInputs(inputs []textinput.Model) {
 	}
 }
 
-// TODO replace this with a more robust solution, compress common logic
 func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
 	t = strings.ToUpper(t)
 	t = strings.TrimSpace(t)
@@ -136,7 +133,6 @@ func parseDateTimeInputs(month, day, year, t string) (time.Time, error) {
 	return d, fmt.Errorf("Failed to parse datetime")
 }
 
-// TODO replace this with a more robust solution
 func shotgunParseTime(t string) (time.Time, error) {
 	t = strings.ToUpper(t)
 	t = strings.TrimSpace(t)
@@ -211,11 +207,4 @@ func populateDateInputs(datetime time.Time, monthInput, dayInput, yearInput *tex
 
 func populateTimeInput(datetime time.Time, timeInput *textinput.Model) {
 	timeInput.SetValue(datetime.Format(HH_MM_PM))
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
