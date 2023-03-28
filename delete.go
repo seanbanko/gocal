@@ -20,6 +20,7 @@ var (
 )
 
 type DeleteDialog struct {
+	srv        *calendar.Service
 	calendarId string
 	eventId    string
 	selection  int
@@ -33,10 +34,11 @@ type DeleteDialog struct {
 	keys       keyMapDelete
 }
 
-func newDeleteDialog(calendarId, eventId string, width, height int) DeleteDialog {
+func newDeleteDialog(srv *calendar.Service, calendarId, eventId string, width, height int) DeleteDialog {
 	s := spinner.New()
 	s.Spinner = spinner.Points
 	return DeleteDialog{
+		srv:        srv,
 		calendarId: calendarId,
 		eventId:    eventId,
 		selection:  no,
@@ -84,10 +86,10 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Confirm):
 			if m.selection == yes {
 				m.pending = true
-				var cmds []tea.Cmd
-				cmds = append(cmds, deleteEventRequestCmd(m.calendarId, m.eventId))
-				cmds = append(cmds, m.spinner.Tick)
-				return m, tea.Batch(cmds...)
+				return m, tea.Batch(
+					deleteEvent(m.srv, m.calendarId, m.eventId),
+					m.spinner.Tick,
+				)
 			} else {
 				return m, showCalendarViewCmd
 			}
@@ -107,15 +109,15 @@ func (m *DeleteDialog) toggleSelection() {
 }
 
 func (m DeleteDialog) View() string {
-	var content string
+	var s string
 	if m.err != nil {
-		content = "Error deleting event. Press any key to return to calendar."
+		s = "Error. Press any key to return to calendar."
 	} else if m.success {
-		content = "Successfully deleted event. Press any key to return to calendar."
+		s = "Success. Press any key to return to calendar."
 	} else if m.pending {
-		content = m.spinner.View()
+		s = m.spinner.View()
 	} else {
-		content = renderDeleteContent(m)
+		s = renderDeleteContent(m)
 	}
 	helpView := lipgloss.NewStyle().
 		Width(m.width).
@@ -126,7 +128,7 @@ func (m DeleteDialog) View() string {
 		Padding(1).
 		Border(lipgloss.RoundedBorder()).
 		Align(lipgloss.Center, lipgloss.Center).
-		Render(content)
+		Render(s)
 	container := lipgloss.NewStyle().
 		Width(m.width).
 		Height(m.height-lipgloss.Height(helpView)-3). // 3 is titlebar height. TODO refactor
@@ -160,23 +162,9 @@ func renderDeleteContent(m DeleteDialog) string {
 // Messages and Commands
 // -----------------------------------------------------------------------------
 
-type deleteEventRequestMsg struct {
-	calendarId string
-	eventId    string
-}
-
-func deleteEventRequestCmd(calendarId, eventId string) tea.Cmd {
+func deleteEvent(srv *calendar.Service, calendarId, eventId string) tea.Cmd {
 	return func() tea.Msg {
-		return deleteEventRequestMsg{
-			calendarId: calendarId,
-			eventId:    eventId,
-		}
-	}
-}
-
-func deleteEventResponseCmd(srv *calendar.Service, msg deleteEventRequestMsg) tea.Cmd {
-	return func() tea.Msg {
-		err := srv.Events.Delete(msg.calendarId, msg.eventId).Do()
+		err := srv.Events.Delete(calendarId, eventId).Do()
 		if err != nil {
 			return errMsg{err: err}
 		}
