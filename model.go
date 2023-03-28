@@ -149,8 +149,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case flushCacheMsg:
 		m.cache.Flush()
 		return m, nil
-	case editEventRequestMsg:
-		return m, editEventResponseCmd(m.srv, msg)
 	case deleteEventRequestMsg:
 		return m, deleteEventResponseCmd(m.srv, msg)
 	case updateCalendarRequestMsg:
@@ -290,7 +288,7 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keys.Create):
 			m.focusedModel = editPage
-			m.editPage = newEditPage(nil, m.focusedDate, modifiableCalendars(m.calendars), m.width, m.height)
+			m.editPage = newEditPage(m.srv, nil, m.focusedDate, modifiableCalendars(m.calendars), m.width, m.height)
 			return m, nil
 		case key.Matches(msg, m.keys.Edit):
 			event, ok := m.dayLists[m.focusedDate.Weekday()].SelectedItem().(*Event)
@@ -298,7 +296,7 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 				return m, nil
 			}
 			m.focusedModel = editPage
-			m.editPage = newEditPage(event, m.focusedDate, m.calendars, m.width, m.height)
+			m.editPage = newEditPage(m.srv, event, m.focusedDate, m.calendars, m.width, m.height)
 			return m, nil
 		case key.Matches(msg, m.keys.Delete):
 			event, ok := m.dayLists[m.focusedDate.Weekday()].SelectedItem().(*Event)
@@ -365,17 +363,17 @@ func (m model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	titleContainer := lipgloss.NewStyle().
+	title := lipgloss.NewStyle().Padding(0, 1).Bold(true).Background(googleBlue).Render("GoCal")
+	header := lipgloss.NewStyle().
 		Width(m.width - 2).
 		MaxWidth(m.width - 2).
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
-		Bold(true).
-		Render("GoCal")
+		Render(title)
 	var body string
 	switch m.focusedModel {
 	case calendarView:
-		body = m.viewCalendar(m.width-2, m.height-lipgloss.Height(titleContainer))
+		body = m.viewCalendar(m.width-2, m.height-lipgloss.Height(header))
 	case gotoDateDialog:
 		body = m.gotoDialog.View()
 	case editPage:
@@ -387,9 +385,9 @@ func (m model) View() string {
 	}
 	bodyContainer := lipgloss.NewStyle().
 		MaxWidth(m.width).
-		MaxHeight(m.height - lipgloss.Height(titleContainer)).
+		MaxHeight(m.height - lipgloss.Height(header)).
 		Render(body)
-	return lipgloss.JoinVertical(lipgloss.Center, titleContainer, bodyContainer)
+	return lipgloss.JoinVertical(lipgloss.Center, header, bodyContainer)
 }
 
 func (m *model) viewCalendar(width, height int) string {

@@ -26,6 +26,7 @@ const (
 )
 
 type EditPage struct {
+	srv           *calendar.Service
 	inputs        []textinput.Model
 	focusIndex    int
 	calendarId    string
@@ -44,7 +45,7 @@ type EditPage struct {
 	keys          keyMapEdit
 }
 
-func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.CalendarListEntry, width, height int) EditPage {
+func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, calendars []*calendar.CalendarListEntry, width, height int) EditPage {
 	var calendarId, eventId string
 	if event != nil {
 		calendarId = event.calendarId
@@ -139,6 +140,7 @@ func newEditPage(event *Event, focusedDate time.Time, calendars []*calendar.Cale
 	s.Spinner = spinner.Points
 
 	return EditPage{
+		srv:           srv,
 		inputs:        inputs,
 		focusIndex:    focusIndex,
 		calendarId:    calendarId,
@@ -169,7 +171,6 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Sequence(flushCacheCmd, showCalendarViewCmd)
 		}
 		switch {
-
 		case key.Matches(msg, m.keys.Next):
 			if m.isOnDateTimeInput() {
 				m.autoformatInputs()
@@ -222,32 +223,27 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Save):
 			autofillEmptyInputs(m.inputs)
-			m.calendarId = m.calendars[m.calendarIndex].Id
-			summary := m.inputs[summary].Value()
-			start, err := parseDateTime(
-				m.inputs[startMonth].Value(),
-				m.inputs[startDay].Value(),
-				m.inputs[startYear].Value(),
-				m.inputs[startTime].Value(),
-			)
+			start, err := m.parseStart()
 			if err != nil {
 				return m, func() tea.Msg { return errMsg{err: err} }
 			}
-			end, err := parseDateTime(
-				m.inputs[endMonth].Value(),
-				m.inputs[endDay].Value(),
-				m.inputs[endYear].Value(),
-				m.inputs[endTime].Value(),
-			)
+			end, err := m.parseEnd()
 			if err != nil {
 				return m, func() tea.Msg { return errMsg{err: err} }
 			}
 			m.pending = true
-			var cmds []tea.Cmd
-			cmds = append(cmds, editEventRequestCmd(m.calendarId, m.eventId, summary, start, end, m.allDay))
-			cmds = append(cmds, m.spinner.Tick)
-			return m, tea.Batch(cmds...)
-
+			editEventRequestMsg := editEventRequestMsg{
+				calendarId: m.calendars[m.calendarIndex].Id,
+				eventId:    m.eventId,
+				summary:    m.inputs[summary].Value(),
+				start:      start,
+				end:        end,
+				allDay:     m.allDay,
+			}
+			return m, tea.Batch(
+				editEvent(m.srv, editEventRequestMsg),
+				m.spinner.Tick,
+			)
 		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
@@ -376,15 +372,15 @@ func (m *EditPage) adjustEndInputs() {
 }
 
 func (m EditPage) View() string {
-	var content string
+	var s string
 	if m.err != nil {
-		content = "Error. Press any key to return to calendar."
+		s = "Error. Press any key to return to calendar."
 	} else if m.success {
-		content = "Success. Press any key to return to calendar."
+		s = "Success. Press any key to return to calendar."
 	} else if m.pending {
-		content = m.spinner.View()
+		s = m.spinner.View()
 	} else {
-		content = renderEditContent(m)
+		s = renderEditContent(m)
 	}
 	helpView := lipgloss.NewStyle().
 		Width(m.width).
@@ -395,7 +391,7 @@ func (m EditPage) View() string {
 		Width(m.width).
 		Height(m.height-lipgloss.Height(helpView)-3).
 		Align(lipgloss.Center, lipgloss.Center).
-		Render(content)
+		Render(s)
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 
@@ -457,20 +453,7 @@ type editEventRequestMsg struct {
 	allDay     bool
 }
 
-func editEventRequestCmd(calendarId, eventId, summary string, start, end time.Time, allDay bool) tea.Cmd {
-	return func() tea.Msg {
-		return editEventRequestMsg{
-			calendarId: calendarId,
-			eventId:    eventId,
-			summary:    summary,
-			start:      start,
-			end:        end,
-			allDay:     allDay,
-		}
-	}
-}
-
-func editEventResponseCmd(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
+func editEvent(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		var startDate, startDateTime, endDate, endDateTime string
 		if msg.allDay {
