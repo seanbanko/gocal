@@ -29,8 +29,9 @@ type EditPage struct {
 	srv           *calendar.Service
 	inputs        []textinput.Model
 	focusIndex    int
-	calendarId    string
 	eventId       string
+	start         time.Time
+	end           time.Time
 	duration      time.Duration
 	allDay        bool
 	calendars     []*calendar.CalendarListEntry
@@ -46,18 +47,15 @@ type EditPage struct {
 }
 
 func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, calendars []*calendar.CalendarListEntry, width, height int) EditPage {
-	var calendarId, eventId string
-	if event != nil {
-		calendarId = event.calendarId
-		eventId = event.event.Id
-	}
-
 	inputs := make([]textinput.Model, 10)
 
 	inputs[summary] = textinput.New()
-	inputs[summary].Placeholder = "Add title"
 	inputs[summary].Width = summaryWidth
 	inputs[summary].Prompt = " "
+	inputs[summary].Placeholder = "Add title"
+	if event != nil {
+		inputs[summary].SetValue(event.event.Summary)
+	}
 
 	inputs[startMonth] = newTextInput(monthWidth)
 	inputs[startDay] = newTextInput(dayWidth)
@@ -72,29 +70,35 @@ func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, cal
 	inputs[calId].Prompt = " "
 	inputs[calId].SetCursorMode(textinput.CursorHide)
 
-	var start, end time.Time
-	var allDay bool
+	var (
+		eventId    string
+		allDay     bool
+		start, end time.Time
+	)
+
 	if event == nil {
+		eventId = ""
 		allDay = false
 		start = time.Date(focusedDate.Year(), focusedDate.Month(), focusedDate.Day(), time.Now().Hour(), time.Now().Minute(), 0, 0, time.Local).Truncate(30 * time.Minute).Add(30 * time.Minute)
 		end = start.Add(time.Hour)
 	} else {
-		var eventStart, eventEnd time.Time
+		eventId = event.event.Id
 		if isAllDay(*event) {
 			allDay = true
 			// TODO handle errors
-			eventStart, _ = time.Parse(YYYYMMDD, event.event.Start.Date)
-			eventStart = time.Date(eventStart.Year(), eventStart.Month(), eventStart.Day(), 0, 0, 0, 0, time.Local)
-			eventEnd, _ = time.Parse(YYYYMMDD, event.event.End.Date)
-			eventEnd = time.Date(eventEnd.Year(), eventEnd.Month(), eventEnd.Day(), 0, 0, 0, 0, time.Local)
+			start, _ = time.Parse(YYYYMMDD, event.event.Start.Date)
+			end, _ = time.Parse(YYYYMMDD, event.event.End.Date)
 		} else {
 			allDay = false
-			eventStart, _ = time.Parse(time.RFC3339, event.event.Start.DateTime)
-			eventEnd, _ = time.Parse(time.RFC3339, event.event.End.DateTime)
+			// TODO handle errors
+			start, _ = time.Parse(time.RFC3339, event.event.Start.DateTime)
+			end, _ = time.Parse(time.RFC3339, event.event.End.DateTime)
 		}
-		start = eventStart.In(time.Local)
-		end = eventEnd.In(time.Local)
+		start = start.In(time.Local)
+		end = end.In(time.Local)
 	}
+
+	duration := end.Sub(start)
 
 	var (
 		startMonthText, startDayText, startYearText = toDateFields(start)
@@ -112,15 +116,6 @@ func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, cal
 	inputs[endDay].Placeholder = endDayText
 	inputs[endYear].Placeholder = endYearText
 
-	var calendarIndex int
-	if event != nil {
-		inputs[summary].SetValue(event.event.Summary)
-		for i, calendar := range calendars {
-			if calendar.Id == event.calendarId {
-				calendarIndex = i
-			}
-		}
-	}
 	inputs[startMonth].SetValue(startMonthText)
 	inputs[startDay].SetValue(startDayText)
 	inputs[startYear].SetValue(startYearText)
@@ -129,9 +124,17 @@ func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, cal
 	inputs[endMonth].SetValue(endMonthText)
 	inputs[endDay].SetValue(endDayText)
 	inputs[endYear].SetValue(endYearText)
-	inputs[calId].SetValue(calendars[calendarIndex].Summary + " ⏷")
 
-	duration := end.Sub(start)
+	var calendarIndex int
+	if event != nil {
+		for i, calendar := range calendars {
+			if calendar.Id == event.calendarId {
+				calendarIndex = i
+			}
+		}
+	}
+
+	inputs[calId].SetValue(calendars[calendarIndex].Summary + " ⏷")
 
 	focusIndex := summary
 	refocus(inputs, focusIndex)
@@ -143,8 +146,9 @@ func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, cal
 		srv:           srv,
 		inputs:        inputs,
 		focusIndex:    focusIndex,
-		calendarId:    calendarId,
 		eventId:       eventId,
+		start:         start,
+		end:           end,
 		duration:      duration,
 		allDay:        allDay,
 		calendars:     calendars,
