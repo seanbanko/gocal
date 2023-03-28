@@ -20,18 +20,17 @@ var (
 )
 
 type DeleteDialog struct {
-	srv        *calendar.Service
-	calendarId string
-	eventId    string
-	selection  int
-	height     int
-	width      int
-	success    bool
-	pending    bool
-	spinner    spinner.Model
-	err        error
-	help       help.Model
-	keys       keyMapDelete
+	srv           *calendar.Service
+	calendarId    string
+	eventId       string
+	selection     int
+	success       bool
+	pending       bool
+	spinner       spinner.Model
+	err           error
+	keys          keyMapDelete
+	help          help.Model
+	width, height int
 }
 
 func newDeleteDialog(srv *calendar.Service, calendarId, eventId string, width, height int) DeleteDialog {
@@ -42,14 +41,14 @@ func newDeleteDialog(srv *calendar.Service, calendarId, eventId string, width, h
 		calendarId: calendarId,
 		eventId:    eventId,
 		selection:  no,
-		height:     height,
-		width:      width,
 		success:    false,
 		pending:    false,
 		spinner:    s,
 		err:        nil,
-		help:       help.New(),
 		keys:       deleteKeyMap,
+		help:       help.New(),
+		width:      width,
+		height:     height,
 	}
 }
 

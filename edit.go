@@ -36,14 +36,13 @@ type EditPage struct {
 	allDay        bool
 	calendars     []*calendar.CalendarListEntry
 	calendarIndex int
-	height        int
-	width         int
 	success       bool
 	pending       bool
 	spinner       spinner.Model
 	err           error
-	help          help.Model
 	keys          keyMapEdit
+	help          help.Model
+	width, height int
 }
 
 func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, calendars []*calendar.CalendarListEntry, width, height int) EditPage {

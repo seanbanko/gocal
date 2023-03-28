@@ -10,21 +10,21 @@ import (
 )
 
 type CalendarListDialog struct {
-	list   list.Model
-	height int
-	width  int
-	help   help.Model
-	keys   keyMapCalendarsList
+	srv           *calendar.Service
+	list          list.Model
+	keys          keyMapCalendarsList
+	help          help.Model
+	width, height int
 }
 
-func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, height int) CalendarListDialog {
-	delegate := list.NewDefaultDelegate()
-	delegate.ShowDescription = false
-	delegate.Styles.SelectedTitle.Foreground(googleBlue)
-	delegate.Styles.SelectedTitle.BorderForeground(googleBlue)
-	delegate.Styles.SelectedDesc.BorderForeground(googleBlue)
-	delegate.Styles.SelectedDesc.Foreground(googleBlue)
-	l := list.New(nil, delegate, 0, 0)
+func newCalendarListDialog(srv *calendar.Service, calendars []*calendar.CalendarListEntry, width, height int) CalendarListDialog {
+	d := list.NewDefaultDelegate()
+	d.ShowDescription = false
+	d.Styles.SelectedTitle.Foreground(googleBlue)
+	d.Styles.SelectedTitle.BorderForeground(googleBlue)
+	d.Styles.SelectedDesc.BorderForeground(googleBlue)
+	d.Styles.SelectedDesc.Foreground(googleBlue)
+	l := list.New(nil, d, 0, 0)
 	l.SetShowStatusBar(false)
 	l.SetStatusBarItemName("calendar", "calendars")
 	l.SetShowHelp(false)
@@ -33,11 +33,12 @@ func newCalendarListDialog(calendars []*calendar.CalendarListEntry, width, heigh
 	l.Styles.Title.Background(googleBlue)
 	l.SetItems(calendarsToItems(calendars))
 	return CalendarListDialog{
+		srv:    srv,
 		list:   l,
-		height: height,
-		width:  width,
-		help:   help.New(),
 		keys:   calendarsListKeyMap,
+		help:   help.New(),
+		width:  width,
+		height: height,
 	}
 }
 
@@ -50,18 +51,14 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Toggle):
-			listItem := m.list.SelectedItem()
-			if listItem == nil {
-				return m, nil
-			}
-			item, ok := listItem.(calendarItem)
+			item, ok := m.list.SelectedItem().(calendarItem)
 			if !ok {
 				return m, nil
 			}
-			var cmds []tea.Cmd
-			cmds = append(cmds, updateCalendarRequestCmd(item.calendar.Id, !item.calendar.Selected))
-			cmds = append(cmds, m.list.StartSpinner())
-			return m, tea.Batch(cmds...)
+			return m, tea.Batch(
+				updateCalendarListEntry(m.srv, item.calendar.Id, !item.calendar.Selected),
+				m.list.StartSpinner(),
+			)
 		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
@@ -98,6 +95,10 @@ func (m CalendarListDialog) View() string {
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 
+// -----------------------------------------------------------------------------
+// list.Item wrapper
+// -----------------------------------------------------------------------------
+
 type calendarItem struct {
 	calendar *calendar.CalendarListEntry
 }
@@ -127,28 +128,14 @@ func calendarsToItems(calendars []*calendar.CalendarListEntry) []list.Item {
 // Messages and Commands
 // -----------------------------------------------------------------------------
 
-type updateCalendarRequestMsg struct {
-	calendarId string
-	selected   bool
-}
-
-func updateCalendarRequestCmd(calendarId string, selected bool) tea.Cmd {
+func updateCalendarListEntry(srv *calendar.Service, calendarId string, selected bool) tea.Cmd {
 	return func() tea.Msg {
-		return updateCalendarRequestMsg{
-			calendarId: calendarId,
-			selected:   selected,
-		}
-	}
-}
-
-func updateCalendarResponseCmd(srv *calendar.Service, msg updateCalendarRequestMsg) tea.Cmd {
-	return func() tea.Msg {
-		calendar, err := srv.CalendarList.Get(msg.calendarId).Do()
+		calendar, err := srv.CalendarList.Get(calendarId).Do()
 		if err != nil {
 			return errMsg{err: err}
 		}
-		calendar.Selected = msg.selected
-		_, err = srv.CalendarList.Update(msg.calendarId, calendar).Do()
+		calendar.Selected = selected
+		_, err = srv.CalendarList.Update(calendarId, calendar).Do()
 		if err != nil {
 			return errMsg{err: err}
 		}

@@ -18,12 +18,11 @@ const (
 )
 
 type GotoDialog struct {
-	inputs     []textinput.Model
-	focusIndex int
-	height     int
-	width      int
-	help       help.Model
-	keys       keyMapGoto
+	inputs        []textinput.Model
+	focusIndex    int
+	keys          keyMapGoto
+	help          help.Model
+	width, height int
 }
 
 func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
@@ -43,10 +42,10 @@ func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	return GotoDialog{
 		inputs:     inputs,
 		focusIndex: focusIndex,
-		height:     height,
-		width:      width,
-		help:       help.New(),
 		keys:       gotoKeymap,
+		help:       help.New(),
+		width:      width,
+		height:     height,
 	}
 }
 
@@ -59,6 +58,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
+
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Next):
@@ -66,6 +66,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focusIndex = (m.focusIndex + 1) % len(m.inputs)
 			refocus(m.inputs, m.focusIndex)
 			return m, nil
+
 		case key.Matches(msg, m.keys.Prev):
 			m.autoformatInputs()
 			m.focusIndex = m.focusIndex - 1
@@ -74,6 +75,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			refocus(m.inputs, m.focusIndex)
 			return m, nil
+
 		case key.Matches(msg, m.keys.Increment):
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
@@ -83,6 +85,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			date = date.AddDate(0, 0, 1)
 			populateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
 			return m, nil
+
 		case key.Matches(msg, m.keys.Decrement):
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
 			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
@@ -92,6 +95,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			date = date.AddDate(0, 0, -1)
 			populateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
 			return m, nil
+
 		case key.Matches(msg, m.keys.Confirm):
 			autofillEmptyInputs(m.inputs)
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
@@ -100,14 +104,17 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, showCalendarViewCmd
 			}
 			return m, tea.Batch(showCalendarViewCmd, gotoDateCmd(date))
+
 		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
 	}
+
 	cmds := make([]tea.Cmd, len(m.inputs))
 	for i := range m.inputs {
 		m.inputs[i], cmds[i] = m.inputs[i].Update(msg)
 	}
+
 	return m, tea.Batch(cmds...)
 }
 
@@ -122,8 +129,8 @@ func (m *GotoDialog) autoformatInputs() {
 }
 
 func (m GotoDialog) View() string {
-	dateInputs := renderDateInputs(m.inputs[month], m.inputs[day], m.inputs[year])
-	content := lipgloss.JoinHorizontal(lipgloss.Center, "Go to Date: ", dateInputs)
+	inputs := renderDateInputs(m.inputs[month], m.inputs[day], m.inputs[year])
+	s := lipgloss.JoinHorizontal(lipgloss.Center, "Go to Date: ", inputs)
 	helpView := lipgloss.NewStyle().
 		Width(m.width).
 		Padding(1).
@@ -133,9 +140,25 @@ func (m GotoDialog) View() string {
 		Width(m.width).
 		Height(m.height-lipgloss.Height(helpView)-3).
 		Align(lipgloss.Center, lipgloss.Center).
-		Render(content)
+		Render(s)
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
+
+// -----------------------------------------------------------------------------
+// Messages and Commands
+// -----------------------------------------------------------------------------
+
+type gotoDateMsg struct{ date time.Time }
+
+func gotoDateCmd(date time.Time) tea.Cmd {
+	return func() tea.Msg {
+		return gotoDateMsg{date: date}
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Keys
+// -----------------------------------------------------------------------------
 
 type keyMapGoto struct {
 	Next      key.Binding
