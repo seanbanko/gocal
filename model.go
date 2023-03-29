@@ -73,28 +73,22 @@ func newModel(service *calendar.Service, cache *cache.Cache, now time.Time) mode
 
 func newBaseDelegate() list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
-	d.Styles.NormalTitle.UnsetForeground()
-	d.Styles.NormalTitle.UnsetBorderForeground()
-	d.Styles.NormalDesc.UnsetForeground()
-	d.Styles.NormalDesc.UnsetBorderForeground()
+	d.Styles.NormalTitle.UnsetForeground().UnsetBorderForeground()
+	d.Styles.NormalDesc.UnsetForeground().UnsetBorderForeground()
 	return d
 }
 
 func newFocusedDelegate() list.DefaultDelegate {
 	d := newBaseDelegate()
-	d.Styles.SelectedTitle.Foreground(googleBlue)
-	d.Styles.SelectedTitle.BorderForeground(googleBlue)
-	d.Styles.SelectedDesc.Foreground(googleBlue)
-	d.Styles.SelectedDesc.BorderForeground(googleBlue)
+	d.Styles.SelectedTitle.Foreground(googleBlue).BorderForeground(googleBlue)
+	d.Styles.SelectedDesc.Foreground(googleBlue).BorderForeground(googleBlue)
 	return d
 }
 
 func newUnfocusedDelegate() list.DefaultDelegate {
 	d := newBaseDelegate()
-	d.Styles.SelectedTitle.Foreground(d.Styles.NormalTitle.GetForeground())
-	d.Styles.SelectedTitle.BorderStyle(lipgloss.HiddenBorder())
-	d.Styles.SelectedDesc.Foreground(d.Styles.NormalDesc.GetForeground())
-	d.Styles.SelectedDesc.BorderStyle(lipgloss.HiddenBorder())
+	d.Styles.SelectedTitle.Foreground(d.Styles.NormalTitle.GetForeground()).BorderStyle(lipgloss.HiddenBorder())
+	d.Styles.SelectedDesc.Foreground(d.Styles.NormalDesc.GetForeground()).BorderStyle(lipgloss.HiddenBorder())
 	return d
 }
 
@@ -139,7 +133,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.help.Width = m.width
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
+		cmds = append(cmds, cmd) // don't return because submodels also need to receive TickMsgs
 	case showCalendarMsg:
 		m.state = ready
 		return m, tea.Batch(tea.ClearScreen, m.refreshEvents())
