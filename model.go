@@ -154,13 +154,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case gotoDateMsg:
 		return m, m.focus(msg.date)
-	case flushCacheMsg:
+	case createEventSuccessMsg, editEventSuccessMsg, deleteEventSuccessMsg:
 		m.cache.Flush()
 		return m, nil
-	case successMsg:
-		if m.state == calendarList {
-			return m, getCalendarList(m.srv)
-		}
+	case updateCalendarListSuccessMsg:
+		return m, getCalendarList(m.srv)
 	}
 	m, cmd = m.updateSubModels(msg)
 	cmds = append(cmds, cmd)
@@ -437,17 +435,11 @@ type (
 		events []*Event
 	}
 	errMsg          struct{ err error }
-	successMsg      struct{}
 	showCalendarMsg struct{}
-	flushCacheMsg   struct{}
 )
 
 func showCalendarViewCmd() tea.Msg {
 	return showCalendarMsg{}
-}
-
-func flushCacheCmd() tea.Msg {
-	return flushCacheMsg{}
 }
 
 func getCalendarList(srv *calendar.Service) tea.Cmd {

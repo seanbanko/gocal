@@ -64,7 +64,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.err = msg.err
 		return m, nil
-	case successMsg:
+	case deleteEventSuccessMsg:
 		m.success = true
 		return m, nil
 	case spinner.TickMsg:
@@ -73,7 +73,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
-			return m, tea.Sequence(flushCacheCmd, showCalendarViewCmd)
+			return m, showCalendarViewCmd
 		}
 		switch {
 		case key.Matches(msg, m.keys.Toggle):
@@ -161,13 +161,15 @@ func renderDeleteContent(m DeleteDialog) string {
 // Messages and Commands
 // -----------------------------------------------------------------------------
 
+type deleteEventSuccessMsg struct{}
+
 func deleteEvent(srv *calendar.Service, calendarId, eventId string) tea.Cmd {
 	return func() tea.Msg {
 		err := srv.Events.Delete(calendarId, eventId).Do()
 		if err != nil {
 			return errMsg{err: err}
 		}
-		return successMsg{}
+		return deleteEventSuccessMsg{}
 	}
 }
 

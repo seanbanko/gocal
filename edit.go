@@ -171,7 +171,7 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
-			return m, tea.Sequence(flushCacheCmd, showCalendarViewCmd)
+			return m, showCalendarViewCmd
 		}
 		switch {
 		case key.Matches(msg, m.keys.Next):
@@ -260,7 +260,7 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pending = false
 		return m, nil
 
-	case successMsg:
+	case createEventSuccessMsg, editEventSuccessMsg:
 		m.success = true
 		m.pending = false
 		return m, nil
@@ -461,6 +461,11 @@ type editEventRequestMsg struct {
 	allDay     bool
 }
 
+type (
+	createEventSuccessMsg struct{}
+	editEventSuccessMsg   struct{}
+)
+
 func createEvent(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
 		var start, end *calendar.EventDateTime
@@ -480,7 +485,7 @@ func createEvent(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 		if err != nil {
 			return errMsg{err: err}
 		}
-		return successMsg{}
+		return createEventSuccessMsg{}
 	}
 }
 
@@ -506,7 +511,7 @@ func editEvent(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 		if err != nil {
 			return errMsg{err: err}
 		}
-		return successMsg{}
+		return editEventSuccessMsg{}
 	}
 }
 

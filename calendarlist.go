@@ -128,6 +128,8 @@ func calendarsToItems(calendars []*calendar.CalendarListEntry) []list.Item {
 // Messages and Commands
 // -----------------------------------------------------------------------------
 
+type updateCalendarListSuccessMsg struct{}
+
 func updateCalendarListEntry(srv *calendar.Service, calendarId string, selected bool) tea.Cmd {
 	return func() tea.Msg {
 		calendar, err := srv.CalendarList.Get(calendarId).Do()
@@ -139,7 +141,7 @@ func updateCalendarListEntry(srv *calendar.Service, calendarId string, selected 
 		if err != nil {
 			return errMsg{err: err}
 		}
-		return successMsg{}
+		return updateCalendarListSuccessMsg{}
 	}
 }
 
