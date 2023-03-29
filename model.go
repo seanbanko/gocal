@@ -154,11 +154,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case gotoDateMsg:
 		return m, m.focus(msg.date)
-	case createEventSuccessMsg, editEventSuccessMsg, deleteEventSuccessMsg:
-		m.cache.Flush()
-		return m, nil
 	case updateCalendarListSuccessMsg:
 		return m, getCalendarList(m.srv)
+	case createEventSuccessMsg, editEventSuccessMsg, deleteEventSuccessMsg:
+		m.cache.Flush()
 	}
 	m, cmd = m.updateSubModels(msg)
 	cmds = append(cmds, cmd)
