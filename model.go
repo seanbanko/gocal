@@ -392,11 +392,7 @@ func (m *model) viewCalendar(width, height int) string {
 
 func (m *model) viewDay(width, height int) string {
 	m.dayLists[m.focusedDate.Weekday()].SetSize(width, height)
-	if m.focusedDate.Equal(m.currentDate) {
-		m.dayLists[m.focusedDate.Weekday()].Styles.Title.Background(googleBlue)
-	} else {
-		m.dayLists[m.focusedDate.Weekday()].Styles.Title.Background(grey)
-	}
+	updateDayListTitles(m.dayLists, m.focusedDate, m.currentDate)
 	style := lipgloss.NewStyle().Border(lipgloss.HiddenBorder())
 	return lipgloss.PlaceHorizontal(width, lipgloss.Left, style.Render(m.dayLists[m.focusedDate.Weekday()].View()))
 }
@@ -408,19 +404,23 @@ func (m *model) viewWeek(width, height int) string {
 	for i := 0; i < 7; i++ {
 		date := startOfWeek.AddDate(0, 0, i)
 		m.dayLists[date.Weekday()].SetSize(width/8, height)
+		updateDayListTitles(m.dayLists, m.focusedDate, m.currentDate)
 		if date.Equal(m.focusedDate) {
 			style = style.BorderForeground(googleBlue)
 		} else {
 			style = style.UnsetBorderForeground()
 		}
-		if date.Equal(m.currentDate) {
-			m.dayLists[date.Weekday()].Styles.Title.Background(googleBlue)
-		} else {
-			m.dayLists[date.Weekday()].Styles.Title.Background(grey)
-		}
 		dayViews = append(dayViews, style.Render(m.dayLists[date.Weekday()].View()))
 	}
 	return lipgloss.PlaceHorizontal(width, lipgloss.Center, lipgloss.JoinHorizontal(lipgloss.Top, dayViews...))
+}
+
+func updateDayListTitles(dayLists []list.Model, focusedDate, currentDate time.Time) {
+	if focusedDate.Equal(currentDate) {
+		dayLists[focusedDate.Weekday()].Styles.Title.Background(googleBlue)
+	} else {
+		dayLists[focusedDate.Weekday()].Styles.Title.Background(grey)
+	}
 }
 
 // -----------------------------------------------------------------------------
