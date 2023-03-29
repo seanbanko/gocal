@@ -243,10 +243,14 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				end:        end,
 				allDay:     m.allDay,
 			}
-			return m, tea.Batch(
-				editEvent(m.srv, editEventRequestMsg),
-				m.spinner.Tick,
-			)
+			var cmd tea.Cmd
+			if m.eventId == "" {
+				cmd = createEvent(m.srv, editEventRequestMsg)
+			} else {
+				cmd = editEvent(m.srv, editEventRequestMsg)
+			}
+			return m, tea.Batch(cmd, m.spinner.Tick)
+
 		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
@@ -377,7 +381,8 @@ func (m *EditPage) adjustEndInputs() {
 func (m EditPage) View() string {
 	var s string
 	if m.err != nil {
-		s = "Error. Press any key to return to calendar."
+		// s = "Error. Press any key to return to calendar."
+		s = m.err.Error()
 	} else if m.success {
 		s = "Success. Press any key to return to calendar."
 	} else if m.pending {
@@ -456,52 +461,50 @@ type editEventRequestMsg struct {
 	allDay     bool
 }
 
+func createEvent(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
+	return func() tea.Msg {
+		var start, end *calendar.EventDateTime
+		if msg.allDay {
+			start = &calendar.EventDateTime{Date: msg.start.Format(YYYYMMDD)}
+			end = &calendar.EventDateTime{Date: msg.end.Format(YYYYMMDD)}
+		} else {
+			start = &calendar.EventDateTime{DateTime: msg.start.Format(time.RFC3339)}
+			end = &calendar.EventDateTime{DateTime: msg.end.Format(time.RFC3339)}
+		}
+		event := &calendar.Event{
+			Summary: msg.summary,
+			Start:   start,
+			End:     end,
+		}
+		_, err := srv.Events.Insert(msg.calendarId, event).Do()
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return successMsg{}
+	}
+}
+
 func editEvent(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 	return func() tea.Msg {
-		var startDate, startDateTime, endDate, endDateTime string
-		if msg.allDay {
-			startDate = msg.start.Format(YYYYMMDD)
-			endDate = msg.end.Format(YYYYMMDD)
-			startDateTime = ""
-			endDateTime = ""
-		} else {
-			startDate = ""
-			endDate = ""
-			startDateTime = msg.start.Format(time.RFC3339)
-			endDateTime = msg.end.Format(time.RFC3339)
+		event, err := srv.Events.Get(msg.calendarId, msg.eventId).Do()
+		if err != nil {
+			return errMsg{err: err}
 		}
-		if msg.eventId == "" {
-			var startEventDateTime, endEventDatetime *calendar.EventDateTime
-			if msg.allDay {
-				startEventDateTime = &calendar.EventDateTime{Date: startDate}
-				endEventDatetime = &calendar.EventDateTime{Date: endDate}
-			} else {
-				startEventDateTime = &calendar.EventDateTime{DateTime: startDateTime}
-				endEventDatetime = &calendar.EventDateTime{DateTime: endDateTime}
-			}
-			event := &calendar.Event{
-				Summary: msg.summary,
-				Start:   startEventDateTime,
-				End:     endEventDatetime,
-			}
-			_, err := srv.Events.Insert(msg.calendarId, event).Do()
-			if err != nil {
-				return errMsg{err: err}
-			}
+		event.Summary = msg.summary
+		if msg.allDay {
+			event.Start.Date = msg.start.Format(YYYYMMDD)
+			event.End.Date = msg.end.Format(YYYYMMDD)
+			event.Start.DateTime = ""
+			event.End.DateTime = ""
 		} else {
-			event, err := srv.Events.Get(msg.calendarId, msg.eventId).Do()
-			if err != nil {
-				return errMsg{err: err}
-			}
-			event.Summary = msg.summary
-			event.Start.Date = startDate
-			event.End.Date = endDate
-			event.Start.DateTime = startDateTime
-			event.End.DateTime = endDateTime
-			_, err = srv.Events.Update(msg.calendarId, msg.eventId, event).Do()
-			if err != nil {
-				return errMsg{err: err}
-			}
+			event.Start.Date = ""
+			event.End.Date = ""
+			event.Start.DateTime = msg.start.Format(time.RFC3339)
+			event.End.DateTime = msg.end.Format(time.RFC3339)
+		}
+		_, err = srv.Events.Update(msg.calendarId, msg.eventId, event).Do()
+		if err != nil {
+			return errMsg{err: err}
 		}
 		return successMsg{}
 	}
@@ -528,7 +531,7 @@ var editKeyMap = keyMapEdit{
 	),
 	Prev: key.NewBinding(
 		key.WithKeys("shift+tab"),
-		key.WithHelp("shift+tab", "prev field"),
+		key.WithHelp("shift+tab", "prev"),
 	),
 	ToggleAllDay: key.NewBinding(
 		key.WithKeys("ctrl+a"),
