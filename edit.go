@@ -74,7 +74,6 @@ func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, cal
 		allDay     bool
 		start, end time.Time
 	)
-
 	if event == nil {
 		eventId = ""
 		allDay = false
@@ -82,16 +81,33 @@ func newEditPage(srv *calendar.Service, event *Event, focusedDate time.Time, cal
 		end = start.Add(time.Hour)
 	} else {
 		eventId = event.event.Id
+		var err error
 		if isAllDay(*event) {
 			allDay = true
 			// TODO handle errors
-			start, _ = time.Parse(YYYYMMDD, event.event.Start.Date)
-			end, _ = time.Parse(YYYYMMDD, event.event.End.Date)
+			// start, err = time.Parse(YYYYMMDD, event.event.Start.Date)
+			start, err = time.ParseInLocation(YYYYMMDD, event.event.Start.Date, time.Local)
+			if err != nil {
+				panic(err)
+			}
+			// TODO handle errors
+			// end, err = time.Parse(YYYYMMDD, event.event.End.Date)
+			end, err = time.ParseInLocation(YYYYMMDD, event.event.End.Date, time.Local)
+			if err != nil {
+				panic(err)
+			}
 		} else {
 			allDay = false
 			// TODO handle errors
-			start, _ = time.Parse(time.RFC3339, event.event.Start.DateTime)
-			end, _ = time.Parse(time.RFC3339, event.event.End.DateTime)
+			start, err = time.Parse(time.RFC3339, event.event.Start.DateTime)
+			if err != nil {
+				panic(err)
+			}
+			// TODO handle errors
+			end, err = time.Parse(time.RFC3339, event.event.End.DateTime)
+			if err != nil {
+				panic(err)
+			}
 		}
 		start = start.In(time.Local)
 		end = end.In(time.Local)
