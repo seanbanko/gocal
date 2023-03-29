@@ -138,9 +138,11 @@ func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 		log.Printf("Unable to open authorization URL in web server: %v", err)
 		return nil, err
 	}
-	fmt.Println("Your browser has been opened to the following authorization URL.")
+	fmt.Println("Your browser has been opened to the following URL so that you can sign in with Google.")
+	fmt.Println("")
 	fmt.Println(authURL)
-	fmt.Println("This program will resume once the authorization flow is complete.")
+	fmt.Println("")
+	fmt.Println("GoCal will resume once you've signed in.")
 	code := <-codeCh
 	return exchangeCodeForToken(config, code)
 }
@@ -150,7 +152,7 @@ func tokenFilePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	tokenCacheDir := filepath.Join(usr.HomeDir, ".gocal")
+	tokenCacheDir := filepath.Join(usr.HomeDir, ".config", ".gocal")
 	err = os.MkdirAll(tokenCacheDir, 0o700)
 	if err != nil {
 		return "", err
