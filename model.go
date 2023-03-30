@@ -144,7 +144,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.calendarList.StopSpinner()
 		m.calendarList.SetItems(calendarsToItems(msg.calendars))
-		return m, tea.Batch(m.refreshEvents())
+		return m, m.refreshEvents()
 	case eventsMsg:
 		m.dayLists[msg.date.Weekday()].StopSpinner()
 		m.dayLists[msg.date.Weekday()].SetItems(eventsToItems(msg.events))
