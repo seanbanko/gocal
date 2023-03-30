@@ -9,7 +9,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type CalendarListDialog struct {
+type CalendarList struct {
 	srv           *calendar.Service
 	list          list.Model
 	keys          keyMapCalendarsList
@@ -17,22 +17,21 @@ type CalendarListDialog struct {
 	width, height int
 }
 
-func newCalendarListDialog(srv *calendar.Service, calendars []*calendar.CalendarListEntry, width, height int) CalendarListDialog {
+func newCalendarList(srv *calendar.Service, calendars []*calendar.CalendarListEntry, width, height int) CalendarList {
 	d := list.NewDefaultDelegate()
 	d.ShowDescription = false
-	d.Styles.SelectedTitle.Foreground(googleBlue)
-	d.Styles.SelectedTitle.BorderForeground(googleBlue)
-	d.Styles.SelectedDesc.BorderForeground(googleBlue)
-	d.Styles.SelectedDesc.Foreground(googleBlue)
+	d.Styles.SelectedTitle.Foreground(googleBlue).BorderForeground(googleBlue)
+	d.Styles.SelectedDesc.Foreground(googleBlue).BorderForeground(googleBlue)
 	l := list.New(nil, d, 0, 0)
+	l.DisableQuitKeybindings()
+	l.SetShowHelp(false)
 	l.SetShowStatusBar(false)
 	l.SetStatusBarItemName("calendar", "calendars")
-	l.SetShowHelp(false)
-	l.DisableQuitKeybindings()
-	l.Title = "My calendars"
+	l.SetFilteringEnabled(false)
+	l.Title = "Calendars"
 	l.Styles.Title.Background(googleBlue)
 	l.SetItems(calendarsToItems(calendars))
-	return CalendarListDialog{
+	return CalendarList{
 		srv:    srv,
 		list:   l,
 		keys:   calendarsListKeyMap,
@@ -42,11 +41,11 @@ func newCalendarListDialog(srv *calendar.Service, calendars []*calendar.Calendar
 	}
 }
 
-func (m CalendarListDialog) Init() tea.Cmd {
+func (m CalendarList) Init() tea.Cmd {
 	return nil
 }
 
-func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m CalendarList) Update(msg tea.Msg) (CalendarList, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -75,7 +74,7 @@ func (m CalendarListDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m CalendarListDialog) View() string {
+func (m CalendarList) View() string {
 	helpView := lipgloss.NewStyle().
 		Width(m.width).
 		Padding(1).
@@ -89,10 +88,30 @@ func (m CalendarListDialog) View() string {
 		Render(m.list.View())
 	container := lipgloss.NewStyle().
 		Width(m.width).
-		Height(m.height-lipgloss.Height(helpView)).
+		Height(m.height-lipgloss.Height(helpView)-4).
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(dialog)
 	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
+}
+
+func (m CalendarList) Items() []list.Item {
+	return m.list.Items()
+}
+
+func (m *CalendarList) SetItems(items []list.Item) {
+	m.list.SetItems(items)
+}
+
+func (m CalendarList) SelectedItem() list.Item {
+	return m.list.SelectedItem()
+}
+
+func (m *CalendarList) StartSpinner() tea.Cmd {
+	return m.list.StartSpinner()
+}
+
+func (m *CalendarList) StopSpinner() {
+	m.list.StopSpinner()
 }
 
 // -----------------------------------------------------------------------------
@@ -122,6 +141,18 @@ func calendarsToItems(calendars []*calendar.CalendarListEntry) []list.Item {
 		items = append(items, calendarItem{calendar: c})
 	}
 	return items
+}
+
+func itemsToCalendars(items []list.Item) []*calendar.CalendarListEntry {
+	var calendars []*calendar.CalendarListEntry
+	for _, i := range items {
+		calendarItem, ok := i.(calendarItem)
+		if !ok {
+			continue
+		}
+		calendars = append(calendars, calendarItem.calendar)
+	}
+	return calendars
 }
 
 // -----------------------------------------------------------------------------

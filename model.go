@@ -24,7 +24,7 @@ const (
 	editing
 	deleting
 	gotodate
-	calendarList
+	showCalendarList
 )
 
 type calendarPeriod int
@@ -39,14 +39,13 @@ type model struct {
 	cache         *cache.Cache
 	currentDate   time.Time
 	focusedDate   time.Time
-	calendars     []*calendar.CalendarListEntry
 	state         state
 	viewType      calendarPeriod
+	calendarList  CalendarList
 	dayLists      []list.Model
 	gotoDialog    tea.Model
 	editPage      tea.Model
 	deleteDialog  tea.Model
-	calendarList  tea.Model
 	spinner       spinner.Model
 	keys          keyMapDefault
 	help          help.Model
@@ -58,16 +57,17 @@ func newModel(service *calendar.Service, cache *cache.Cache, now time.Time) mode
 	s := spinner.New()
 	s.Spinner = spinner.Points
 	return model{
-		srv:         service,
-		cache:       cache,
-		currentDate: today,
-		focusedDate: today,
-		state:       initializing,
-		viewType:    weekView,
-		dayLists:    newWeekLists(today),
-		spinner:     s,
-		keys:        defaultKeyMap,
-		help:        help.New(),
+		srv:          service,
+		cache:        cache,
+		currentDate:  today,
+		focusedDate:  today,
+		state:        initializing,
+		viewType:     weekView,
+		calendarList: newCalendarList(service, nil, 0, 0),
+		dayLists:     newWeekLists(today),
+		spinner:      s,
+		keys:         defaultKeyMap,
+		help:         help.New(),
 	}
 }
 
@@ -131,6 +131,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.help.Width = m.width
+		m.calendarList.width, m.calendarList.height = msg.Width, (msg.Height - 3)
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
 		cmds = append(cmds, cmd) // don't return because submodels also need to receive TickMsgs
@@ -138,16 +139,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = ready
 		return m, tea.Batch(tea.ClearScreen, m.refreshEvents())
 	case calendarListMsg:
-		if len(m.calendars) == 0 {
+		if m.state == initializing {
 			m.state = ready
 		}
-		m.calendars = msg.calendars
-		if m.state == calendarList {
-			m.calendarList, cmd = m.calendarList.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-		cmds = append(cmds, m.refreshEvents())
-		return m, tea.Batch(cmds...)
+		m.calendarList.StopSpinner()
+		m.calendarList.SetItems(calendarsToItems(msg.calendars))
+		return m, tea.Batch(m.refreshEvents())
 	case eventsMsg:
 		m.dayLists[msg.date.Weekday()].StopSpinner()
 		m.dayLists[msg.date.Weekday()].SetItems(eventsToItems(msg.events))
@@ -179,7 +176,7 @@ func (m model) updateSubModels(msg tea.Msg) (model, tea.Cmd) {
 	case deleting:
 		m.deleteDialog, cmd = m.deleteDialog.Update(msg)
 		return m, cmd
-	case calendarList:
+	case showCalendarList:
 		m.calendarList, cmd = m.calendarList.Update(msg)
 		return m, cmd
 	default:
@@ -271,7 +268,7 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Create):
 			m.state = editing
-			m.editPage = newEditPage(m.srv, nil, m.focusedDate, filterModifiable(m.calendars), m.width, m.height)
+			m.editPage = newEditPage(m.srv, nil, m.focusedDate, filterModifiable(itemsToCalendars(m.calendarList.Items())), m.width, m.height)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Edit):
@@ -280,7 +277,7 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 				return m, nil
 			}
 			m.state = editing
-			m.editPage = newEditPage(m.srv, event, m.focusedDate, m.calendars, m.width, m.height)
+			m.editPage = newEditPage(m.srv, event, m.focusedDate, itemsToCalendars(m.calendarList.Items()), m.width, m.height)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Delete):
@@ -292,9 +289,8 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 			m.deleteDialog = newDeleteDialog(m.srv, event.calendarId, event.event.Id, m.width, m.height)
 			return m, nil
 
-		case key.Matches(msg, m.keys.CalendarList):
-			m.state = calendarList
-			m.calendarList = newCalendarListDialog(m.srv, m.calendars, m.width, m.height)
+		case key.Matches(msg, m.keys.ShowCalendarList):
+			m.state = showCalendarList
 			return m, nil
 
 		case key.Matches(msg, m.keys.Help):
@@ -364,7 +360,7 @@ func (m model) View() string {
 		body = m.editPage.View()
 	case deleting:
 		body = m.deleteDialog.View()
-	case calendarList:
+	case showCalendarList:
 		body = m.calendarList.View()
 	}
 	bodyContainer := lipgloss.NewStyle().
@@ -404,7 +400,7 @@ func (m *model) viewWeek(width, height int) string {
 	for i := 0; i < 7; i++ {
 		date := startOfWeek.AddDate(0, 0, i)
 		m.dayLists[date.Weekday()].SetSize(width/8, height)
-		updateDayListTitles(m.dayLists, m.focusedDate, m.currentDate)
+		updateDayListTitles(m.dayLists, date, m.currentDate)
 		if date.Equal(m.focusedDate) {
 			style = style.BorderForeground(googleBlue)
 		} else {
@@ -467,7 +463,7 @@ func (m model) refreshEvents() tea.Cmd {
 
 func (m model) refreshDate(date time.Time) tea.Cmd {
 	return tea.Batch(
-		getEvents(m.srv, m.cache, filterSelected(m.calendars), date),
+		getEvents(m.srv, m.cache, filterSelected(itemsToCalendars(m.calendarList.Items())), date),
 		m.dayLists[date.Weekday()].StartSpinner(),
 	)
 }
@@ -604,20 +600,20 @@ func forwardEvents(
 // -----------------------------------------------------------------------------
 
 type keyMapDefault struct {
-	Next         key.Binding
-	Prev         key.Binding
-	NextDay      key.Binding
-	PrevDay      key.Binding
-	Today        key.Binding
-	GotoDate     key.Binding
-	Create       key.Binding
-	Edit         key.Binding
-	Delete       key.Binding
-	CalendarList key.Binding
-	DayView      key.Binding
-	WeekView     key.Binding
-	Help         key.Binding
-	Quit         key.Binding
+	Next             key.Binding
+	Prev             key.Binding
+	NextDay          key.Binding
+	PrevDay          key.Binding
+	Today            key.Binding
+	GotoDate         key.Binding
+	Create           key.Binding
+	Edit             key.Binding
+	Delete           key.Binding
+	ShowCalendarList key.Binding
+	DayView          key.Binding
+	WeekView         key.Binding
+	Help             key.Binding
+	Quit             key.Binding
 }
 
 var defaultKeyMap = keyMapDefault{
@@ -665,7 +661,7 @@ var defaultKeyMap = keyMapDefault{
 		key.WithKeys("backspace", "delete"),
 		key.WithHelp("del", "delete event"),
 	),
-	CalendarList: key.NewBinding(
+	ShowCalendarList: key.NewBinding(
 		key.WithKeys("s"),
 		key.WithHelp("s", "show calendar list"),
 	),
@@ -687,7 +683,7 @@ func (k keyMapDefault) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Next, k.Delete},
 		{k.Prev, k.GotoDate},
-		{k.Today, k.CalendarList},
+		{k.Today, k.ShowCalendarList},
 		{k.GotoDate, k.Help},
 		{k.Create, k.Quit},
 		{k.Edit},
