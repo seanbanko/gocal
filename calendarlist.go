@@ -1,6 +1,8 @@
 package main
 
 import (
+	"gocal/common"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -20,8 +22,8 @@ type CalendarList struct {
 func newCalendarList(srv *calendar.Service, calendars []*calendar.CalendarListEntry, width, height int) CalendarList {
 	d := list.NewDefaultDelegate()
 	d.ShowDescription = false
-	d.Styles.SelectedTitle.Foreground(googleBlue).BorderForeground(googleBlue)
-	d.Styles.SelectedDesc.Foreground(googleBlue).BorderForeground(googleBlue)
+	d.Styles.SelectedTitle.Foreground(common.GoogleBlue).BorderForeground(common.GoogleBlue)
+	d.Styles.SelectedDesc.Foreground(common.GoogleBlue).BorderForeground(common.GoogleBlue)
 	l := list.New(nil, d, 0, 0)
 	l.DisableQuitKeybindings()
 	l.SetShowHelp(false)
@@ -29,7 +31,7 @@ func newCalendarList(srv *calendar.Service, calendars []*calendar.CalendarListEn
 	l.SetStatusBarItemName("calendar", "calendars")
 	l.SetFilteringEnabled(false)
 	l.Title = "Calendars"
-	l.Styles.Title.Background(googleBlue)
+	l.Styles.Title.Background(common.GoogleBlue)
 	l.SetItems(calendarsToItems(calendars))
 	return CalendarList{
 		srv:    srv,
@@ -50,7 +52,7 @@ func (m CalendarList) Update(msg tea.Msg) (CalendarList, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Toggle):
-			item, ok := m.list.SelectedItem().(calendarItem)
+			item, ok := m.list.SelectedItem().(CalendarItem)
 			if !ok {
 				return m, nil
 			}
@@ -112,47 +114,6 @@ func (m *CalendarList) StartSpinner() tea.Cmd {
 
 func (m *CalendarList) StopSpinner() {
 	m.list.StopSpinner()
-}
-
-// -----------------------------------------------------------------------------
-// list.Item wrapper
-// -----------------------------------------------------------------------------
-
-type calendarItem struct {
-	calendar *calendar.CalendarListEntry
-}
-
-// Implement list.Item interface
-func (i calendarItem) FilterValue() string { return i.Title() }
-func (i calendarItem) Title() string       { return checkbox(i.calendar.Summary, i.calendar.Selected) }
-func (i calendarItem) Description() string { return i.calendar.Description }
-
-func checkbox(label string, checked bool) string {
-	if checked {
-		return "[X] " + label
-	} else {
-		return "[ ] " + label
-	}
-}
-
-func calendarsToItems(calendars []*calendar.CalendarListEntry) []list.Item {
-	var items []list.Item
-	for _, c := range calendars {
-		items = append(items, calendarItem{calendar: c})
-	}
-	return items
-}
-
-func itemsToCalendars(items []list.Item) []*calendar.CalendarListEntry {
-	var calendars []*calendar.CalendarListEntry
-	for _, i := range items {
-		calendarItem, ok := i.(calendarItem)
-		if !ok {
-			continue
-		}
-		calendars = append(calendars, calendarItem.calendar)
-	}
-	return calendars
 }
 
 // -----------------------------------------------------------------------------

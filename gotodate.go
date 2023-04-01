@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"gocal/common"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -27,10 +29,10 @@ type GotoDialog struct {
 
 func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	inputs := make([]textinput.Model, 3)
-	inputs[month] = newTextInput(monthWidth)
-	inputs[day] = newTextInput(dayWidth)
-	inputs[year] = newTextInput(yearWidth)
-	monthText, dayText, yearText := toDateFields(focusedDate)
+	inputs[month] = common.NewTextInput(common.MonthWidth)
+	inputs[day] = common.NewTextInput(common.DayWidth)
+	inputs[year] = common.NewTextInput(common.YearWidth)
+	monthText, dayText, yearText := common.ToDateFields(focusedDate)
 	inputs[month].Placeholder = monthText
 	inputs[day].Placeholder = dayText
 	inputs[year].Placeholder = yearText
@@ -38,7 +40,7 @@ func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	inputs[day].SetValue(dayText)
 	inputs[year].SetValue(yearText)
 	focusIndex := month
-	refocus(inputs, focusIndex)
+	common.Refocus(inputs, focusIndex)
 	return GotoDialog{
 		inputs:     inputs,
 		focusIndex: focusIndex,
@@ -64,7 +66,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Next):
 			m.autoformatInputs()
 			m.focusIndex = (m.focusIndex + 1) % len(m.inputs)
-			refocus(m.inputs, m.focusIndex)
+			common.Refocus(m.inputs, m.focusIndex)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Prev):
@@ -73,33 +75,33 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.focusIndex < 0 {
 				m.focusIndex = len(m.inputs) - 1
 			}
-			refocus(m.inputs, m.focusIndex)
+			common.Refocus(m.inputs, m.focusIndex)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Increment):
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
-			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
+			date, err := time.ParseInLocation(common.AbbreviatedTextDate, text, time.Local)
 			if err != nil {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, 1)
-			populateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
+			common.PopulateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
 			return m, nil
 
 		case key.Matches(msg, m.keys.Decrement):
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
-			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
+			date, err := time.ParseInLocation(common.AbbreviatedTextDate, text, time.Local)
 			if err != nil {
 				return m, nil
 			}
 			date = date.AddDate(0, 0, -1)
-			populateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
+			common.PopulateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
 			return m, nil
 
 		case key.Matches(msg, m.keys.Confirm):
-			autofillEmptyInputs(m.inputs)
+			common.AutofillEmptyInputs(m.inputs)
 			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
-			date, err := time.ParseInLocation(AbbreviatedTextDate, text, time.Local)
+			date, err := time.ParseInLocation(common.AbbreviatedTextDate, text, time.Local)
 			if err != nil {
 				return m, showCalendarViewCmd
 			}
@@ -120,16 +122,16 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *GotoDialog) autoformatInputs() {
 	if m.focusIndex == month {
-		autoformatMonthInput(&m.inputs[m.focusIndex])
+		common.AutoformatMonthInput(&m.inputs[m.focusIndex])
 	} else if m.focusIndex == day {
-		autoformatDayInput(&m.inputs[m.focusIndex])
+		common.AutoformatDayInput(&m.inputs[m.focusIndex])
 	} else if m.focusIndex == year {
-		autoformatYearInput(&m.inputs[m.focusIndex])
+		common.AutoformatYearInput(&m.inputs[m.focusIndex])
 	}
 }
 
 func (m GotoDialog) View() string {
-	inputs := renderDateInputs(m.inputs[month], m.inputs[day], m.inputs[year])
+	inputs := common.RenderDateInputs(m.inputs[month], m.inputs[day], m.inputs[year])
 	s := lipgloss.JoinHorizontal(lipgloss.Center, "Go to Date: ", inputs)
 	helpView := lipgloss.NewStyle().
 		Width(m.width).

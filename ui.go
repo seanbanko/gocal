@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"gocal/common"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -47,7 +49,7 @@ type model struct {
 	editPage      tea.Model
 	deleteDialog  tea.Model
 	spinner       spinner.Model
-	keys          keyMapDefault
+	keys          CalendarKeyMap
 	help          help.Model
 	width, height int
 }
@@ -66,7 +68,7 @@ func newModel(service *calendar.Service, cache *cache.Cache, now time.Time) mode
 		calendarList: newCalendarList(service, nil, 0, 0),
 		eventLists:   newWeekLists(today),
 		spinner:      s,
-		keys:         defaultKeyMap,
+		keys:         calendarKeyMap(),
 		help:         help.New(),
 	}
 }
@@ -80,8 +82,8 @@ func newBaseDelegate() list.DefaultDelegate {
 
 func newFocusedDelegate() list.DefaultDelegate {
 	d := newBaseDelegate()
-	d.Styles.SelectedTitle.Foreground(googleBlue).BorderForeground(googleBlue)
-	d.Styles.SelectedDesc.Foreground(googleBlue).BorderForeground(googleBlue)
+	d.Styles.SelectedTitle.Foreground(common.GoogleBlue).BorderForeground(common.GoogleBlue)
+	d.Styles.SelectedDesc.Foreground(common.GoogleBlue).BorderForeground(common.GoogleBlue)
 	return d
 }
 
@@ -99,7 +101,7 @@ func newDayList(date time.Time) list.Model {
 	l.SetShowHelp(false)
 	l.SetShowStatusBar(false)
 	l.SetStatusBarItemName("event", "events")
-	l.Title = date.Format(AbbreviatedTextDateWithWeekday)
+	l.Title = date.Format(common.AbbreviatedTextDateWithWeekday)
 	l.Styles.Title.Bold(true)
 	l.Styles.Title.UnsetForeground()
 	return l
@@ -207,12 +209,12 @@ func (m *model) refocusDayLists() {
 func (m *model) resetTitles() {
 	switch m.viewType {
 	case dayView:
-		m.eventLists[m.focusedDate.Weekday()].Title = m.focusedDate.Format(AbbreviatedTextDateWithWeekday)
+		m.eventLists[m.focusedDate.Weekday()].Title = m.focusedDate.Format(common.AbbreviatedTextDateWithWeekday)
 	case weekView:
 		startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
 		for i := range m.eventLists {
 			date := startOfWeek.AddDate(0, 0, i)
-			m.eventLists[date.Weekday()].Title = date.Format(AbbreviatedTextDateWithWeekday)
+			m.eventLists[date.Weekday()].Title = date.Format(common.AbbreviatedTextDateWithWeekday)
 		}
 	}
 }
@@ -238,10 +240,10 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, m.keys.Next):
+		case key.Matches(msg, m.keys.NextPeriod):
 			return m, m.focus(m.focusedDate.AddDate(0, 0, daysIn(m.viewType)))
 
-		case key.Matches(msg, m.keys.Prev):
+		case key.Matches(msg, m.keys.PrevPeriod):
 			return m, m.focus(m.focusedDate.AddDate(0, 0, -daysIn(m.viewType)))
 
 		case key.Matches(msg, m.keys.NextDay):
@@ -272,7 +274,7 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Edit):
-			event, ok := m.eventLists[m.focusedDate.Weekday()].SelectedItem().(*Event)
+			event, ok := m.eventLists[m.focusedDate.Weekday()].SelectedItem().(*EventItem)
 			if !ok {
 				return m, nil
 			}
@@ -281,15 +283,15 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Delete):
-			event, ok := m.eventLists[m.focusedDate.Weekday()].SelectedItem().(*Event)
+			event, ok := m.eventLists[m.focusedDate.Weekday()].SelectedItem().(*EventItem)
 			if !ok {
 				return m, nil
 			}
 			m.state = deleting
-			m.deleteDialog = newDeleteDialog(m.srv, event.calendarId, event.event.Id, m.width, m.height)
+			m.deleteDialog = newDeleteDialog(m.srv, event.calendarId, event.Id, m.width, m.height)
 			return m, nil
 
-		case key.Matches(msg, m.keys.ShowCalendarList):
+		case key.Matches(msg, m.keys.CalendarList):
 			m.state = showCalendarList
 			return m, nil
 
@@ -341,7 +343,7 @@ func (m model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	title := lipgloss.NewStyle().Padding(0, 1).Bold(true).Background(googleBlue).Render("GoCal")
+	title := lipgloss.NewStyle().Padding(0, 1).Bold(true).Background(common.GoogleBlue).Render("GoCal")
 	header := lipgloss.NewStyle().
 		Width(m.width - 2).
 		MaxWidth(m.width - 2).
@@ -402,7 +404,7 @@ func (m *model) viewWeek(width, height int) string {
 		m.eventLists[date.Weekday()].SetSize(width/8, height)
 		updateDayListTitles(m.eventLists, date, m.currentDate)
 		if date.Equal(m.focusedDate) {
-			style = style.BorderForeground(googleBlue)
+			style = style.BorderForeground(common.GoogleBlue)
 		} else {
 			style = style.UnsetBorderForeground()
 		}
@@ -413,9 +415,9 @@ func (m *model) viewWeek(width, height int) string {
 
 func updateDayListTitles(dayLists []list.Model, focusedDate, currentDate time.Time) {
 	if focusedDate.Equal(currentDate) {
-		dayLists[focusedDate.Weekday()].Styles.Title.Background(googleBlue)
+		dayLists[focusedDate.Weekday()].Styles.Title.Background(common.GoogleBlue)
 	} else {
-		dayLists[focusedDate.Weekday()].Styles.Title.Background(grey)
+		dayLists[focusedDate.Weekday()].Styles.Title.Background(common.Grey)
 	}
 }
 
@@ -427,7 +429,7 @@ type (
 	calendarListMsg struct{ calendars []*calendar.CalendarListEntry }
 	eventsMsg       struct {
 		date   time.Time
-		events []*Event
+		events []*EventItem
 	}
 	errMsg          struct{ err error }
 	showCalendarMsg struct{}
@@ -473,7 +475,7 @@ func (m model) refreshWeek() tea.Cmd {
 	startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
 	for i := range m.eventLists {
 		date := startOfWeek.AddDate(0, 0, i)
-		m.eventLists[date.Weekday()].Title = date.Format(AbbreviatedTextDateWithWeekday)
+		m.eventLists[date.Weekday()].Title = date.Format(common.AbbreviatedTextDateWithWeekday)
 		cmds = append(cmds, m.refreshDate(date))
 	}
 	return tea.Batch(cmds...)
@@ -481,7 +483,7 @@ func (m model) refreshWeek() tea.Cmd {
 
 func getEvents(srv *calendar.Service, cache *cache.Cache, calendars []*calendar.CalendarListEntry, date time.Time) tea.Cmd {
 	return func() tea.Msg {
-		eventCh := make(chan *Event)
+		eventCh := make(chan *EventItem)
 		errCh := make(chan error)
 		done := make(chan struct{})
 		defer close(done)
@@ -499,7 +501,7 @@ func getEvents(srv *calendar.Service, cache *cache.Cache, calendars []*calendar.
 			close(eventCh)
 			close(errCh)
 		}()
-		var events []*Event
+		var events []*EventItem
 		for event := range eventCh {
 			events = append(events, event)
 		}
@@ -511,44 +513,24 @@ func getEvents(srv *calendar.Service, cache *cache.Cache, calendars []*calendar.
 			return errMsg{err: errs[0]}
 		}
 
-		var allDayEvents []*Event
-		var timeEvents []*Event
+		// TODO can probably adjust sort interface impl to do this automatically
+		var allDayEvents EventItems
+		var timeEvents EventItems
 		for _, event := range events {
-			if event.event.Start.Date != "" {
+			if event.Start.Date != "" {
 				allDayEvents = append(allDayEvents, event)
 			} else {
 				timeEvents = append(timeEvents, event)
 			}
 		}
 		sort.Slice(allDayEvents, func(i, j int) bool {
-			return allDayEvents[i].event.Summary < allDayEvents[j].event.Summary
+			return allDayEvents[i].Summary < allDayEvents[j].Summary
 		})
-		sort.Sort(eventsSlice(timeEvents))
+		sort.Sort(timeEvents)
 		allEvents := append(allDayEvents, timeEvents...)
+
 		return eventsMsg{date: date, events: allEvents}
 	}
-}
-
-type eventsSlice []*Event
-
-func (events eventsSlice) Len() int {
-	return len(events)
-}
-
-func (events eventsSlice) Less(i, j int) bool {
-	dateI, err := time.Parse(time.RFC3339, events[i].event.Start.DateTime)
-	if err != nil {
-		return true
-	}
-	dateJ, err := time.Parse(time.RFC3339, events[j].event.Start.DateTime)
-	if err != nil {
-		return true
-	}
-	return dateI.Before(dateJ)
-}
-
-func (events eventsSlice) Swap(i, j int) {
-	events[i], events[j] = events[j], events[i]
 }
 
 func cacheKey(ss ...string) string {
@@ -560,15 +542,15 @@ func forwardEvents(
 	cache *cache.Cache,
 	calendarId string,
 	timeMin, timeMax time.Time,
-	eventCh chan<- *Event,
+	eventCh chan<- *EventItem,
 	errCh chan<- error,
 	done <-chan struct{},
 ) {
-	var events []*Event
+	var events []*EventItem
 	key := cacheKey(calendarId, timeMin.Format(time.RFC3339), timeMax.Format(time.RFC3339))
 	x, found := cache.Get(key)
 	if found {
-		events = x.([]*Event)
+		events = x.([]*EventItem)
 	} else {
 		response, err := srv.Events.
 			List(calendarId).
@@ -582,7 +564,7 @@ func forwardEvents(
 			return
 		}
 		for _, event := range response.Items {
-			events = append(events, &Event{calendarId: calendarId, event: event})
+			events = append(events, &EventItem{*event, calendarId})
 		}
 		cache.SetDefault(key, events)
 	}
@@ -599,91 +581,15 @@ func forwardEvents(
 // Keys
 // -----------------------------------------------------------------------------
 
-type keyMapDefault struct {
-	Next             key.Binding
-	Prev             key.Binding
-	NextDay          key.Binding
-	PrevDay          key.Binding
-	Today            key.Binding
-	GotoDate         key.Binding
-	Create           key.Binding
-	Edit             key.Binding
-	Delete           key.Binding
-	ShowCalendarList key.Binding
-	DayView          key.Binding
-	WeekView         key.Binding
-	Help             key.Binding
-	Quit             key.Binding
-}
-
-var defaultKeyMap = keyMapDefault{
-	Next: key.NewBinding(
-		key.WithKeys("n"),
-		key.WithHelp("n", "next period"),
-	),
-	Prev: key.NewBinding(
-		key.WithKeys("p"),
-		key.WithHelp("p", "prev period"),
-	),
-	NextDay: key.NewBinding(
-		key.WithKeys("l"),
-		key.WithHelp("l", "next day"),
-	),
-	PrevDay: key.NewBinding(
-		key.WithKeys("h"),
-		key.WithHelp("h", "prev day"),
-	),
-	Today: key.NewBinding(
-		key.WithKeys("t"),
-		key.WithHelp("t", "today"),
-	),
-	DayView: key.NewBinding(
-		key.WithKeys("d"),
-		key.WithHelp("d", "day view"),
-	),
-	WeekView: key.NewBinding(
-		key.WithKeys("w"),
-		key.WithHelp("w", "week view"),
-	),
-	GotoDate: key.NewBinding(
-		key.WithKeys("g"),
-		key.WithHelp("g", "go to date"),
-	),
-	Create: key.NewBinding(
-		key.WithKeys("c"),
-		key.WithHelp("c", "create event"),
-	),
-	Edit: key.NewBinding(
-		key.WithKeys("e"),
-		key.WithHelp("e", "edit event"),
-	),
-	Delete: key.NewBinding(
-		key.WithKeys("backspace", "delete"),
-		key.WithHelp("del", "delete event"),
-	),
-	ShowCalendarList: key.NewBinding(
-		key.WithKeys("s"),
-		key.WithHelp("s", "show calendar list"),
-	),
-	Help: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "toggle help"),
-	),
-	Quit: key.NewBinding(
-		key.WithKeys("ctrl+c", "q"),
-		key.WithHelp("q", "quit"),
-	),
-}
-
-func (k keyMapDefault) ShortHelp() []key.Binding {
+func (k CalendarKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Help}
 }
 
-func (k keyMapDefault) FullHelp() [][]key.Binding {
+func (k CalendarKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Next, k.Delete},
-		{k.Prev, k.GotoDate},
-		{k.Today, k.ShowCalendarList},
+		{k.NextPeriod, k.Delete},
+		{k.PrevPeriod, k.GotoDate},
+		{k.Today, k.CalendarList},
 		{k.GotoDate, k.Help},
 		{k.Create, k.Quit},
 		{k.Edit},

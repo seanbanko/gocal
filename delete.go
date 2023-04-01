@@ -1,6 +1,8 @@
 package main
 
 import (
+	"gocal/common"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -15,8 +17,8 @@ const (
 )
 
 var (
-	buttonStyle         = lipgloss.NewStyle().Background(grey).Padding(0, 3)
-	selectedButtonStyle = buttonStyle.Copy().Background(googleBlue).Underline(true)
+	buttonStyle         = lipgloss.NewStyle().Background(common.Grey).Padding(0, 3)
+	selectedButtonStyle = buttonStyle.Copy().Background(common.GoogleBlue).Underline(true)
 )
 
 type DeleteDialog struct {
