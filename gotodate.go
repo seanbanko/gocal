@@ -71,10 +71,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Prev):
 			m.autoformatInputs()
-			m.focusIndex = m.focusIndex - 1
-			if m.focusIndex < 0 {
-				m.focusIndex = len(m.inputs) - 1
-			}
+			m.focusIndex = (m.focusIndex - 1 + len(m.inputs)) % len(m.inputs)
 			common.Refocus(m.inputs, m.focusIndex)
 			return m, nil
 

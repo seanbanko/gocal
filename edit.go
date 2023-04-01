@@ -205,10 +205,7 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.autoformatInputs()
 				m.adjustDuration()
 			}
-			m.focusIndex = m.focusIndex - 1
-			if m.focusIndex < 0 {
-				m.focusIndex = len(m.inputs) - 1
-			}
+			m.focusIndex = (m.focusIndex - 1 + len(m.inputs)) % len(m.inputs)
 			if m.allDay && m.isOnTimeInput() {
 				m.focusIndex = startYear
 			}
@@ -230,10 +227,7 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.PrevCal) && m.focusIndex == calId:
-			m.calendarIndex = m.calendarIndex - 1
-			if m.calendarIndex < 0 {
-				m.calendarIndex = len(m.calendars) - 1
-			}
+			m.calendarIndex = (m.calendarIndex - 1 + len(m.calendars)) % len(m.calendars)
 			m.inputs[calId].SetValue(m.calendars[m.calendarIndex].Summary + " ⏷")
 			return m, nil
 
