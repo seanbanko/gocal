@@ -13,6 +13,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// -----------------------------------------------------------------------------
+// Model
+// -----------------------------------------------------------------------------
+
 const (
 	month = iota
 	day
@@ -51,9 +55,17 @@ func newGotoDialog(focusedDate time.Time, width, height int) GotoDialog {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// Init
+// -----------------------------------------------------------------------------
+
 func (m GotoDialog) Init() tea.Cmd {
 	return textinput.Blink
 }
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
 
 func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -65,7 +77,7 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Next):
 			m.autoformatInputs()
-			m.focusIndex = (m.focusIndex + 1) % len(m.inputs)
+			m.focusIndex = (m.focusIndex + 1 + len(m.inputs)) % len(m.inputs)
 			common.Refocus(m.inputs, m.focusIndex)
 			return m, nil
 
@@ -76,23 +88,11 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Increment):
-			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
-			date, err := time.ParseInLocation(common.AbbreviatedTextDate, text, time.Local)
-			if err != nil {
-				return m, nil
-			}
-			date = date.AddDate(0, 0, 1)
-			common.PopulateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
+			m.adjustDate(1)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Decrement):
-			text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
-			date, err := time.ParseInLocation(common.AbbreviatedTextDate, text, time.Local)
-			if err != nil {
-				return m, nil
-			}
-			date = date.AddDate(0, 0, -1)
-			common.PopulateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
+			m.adjustDate(-1)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Confirm):
@@ -117,6 +117,16 @@ func (m GotoDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *GotoDialog) adjustDate(days int) {
+	text := fmt.Sprintf("%s %s %s", m.inputs[month].Value(), m.inputs[day].Value(), m.inputs[year].Value())
+	date, err := time.ParseInLocation(common.AbbreviatedTextDate, text, time.Local)
+	if err != nil {
+		return
+	}
+	date = date.AddDate(0, 0, days)
+	common.PopulateDateInputs(date, &m.inputs[month], &m.inputs[day], &m.inputs[year])
+}
+
 func (m *GotoDialog) autoformatInputs() {
 	if m.focusIndex == month {
 		common.AutoformatMonthInput(&m.inputs[m.focusIndex])
@@ -127,20 +137,19 @@ func (m *GotoDialog) autoformatInputs() {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// View
+// -----------------------------------------------------------------------------
+
 func (m GotoDialog) View() string {
-	inputs := common.RenderDateInputs(m.inputs[month], m.inputs[day], m.inputs[year])
-	s := lipgloss.JoinHorizontal(lipgloss.Center, "Go to Date: ", inputs)
-	helpView := lipgloss.NewStyle().
-		Width(m.width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(m.help.View(m.keys))
-	container := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height-lipgloss.Height(helpView)-3).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render(s)
-	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
+	s := lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		"Go to Date: ",
+		common.RenderDateInputs(m.inputs[month], m.inputs[day], m.inputs[year]),
+	)
+	help := lipgloss.NewStyle().Width(m.width).Padding(1).AlignHorizontal(lipgloss.Center).Render(m.help.View(m.keys))
+	body := lipgloss.Place(m.width, m.height-lipgloss.Height(help), lipgloss.Center, lipgloss.Center, s)
+	return lipgloss.JoinVertical(lipgloss.Center, body, help)
 }
 
 // -----------------------------------------------------------------------------
@@ -156,7 +165,7 @@ func gotoDateCmd(date time.Time) tea.Cmd {
 }
 
 // -----------------------------------------------------------------------------
-// Keys
+// Keys and Help
 // -----------------------------------------------------------------------------
 
 type keyMapGoto struct {

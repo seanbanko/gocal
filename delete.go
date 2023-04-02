@@ -11,6 +11,10 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+// -----------------------------------------------------------------------------
+// Model
+// -----------------------------------------------------------------------------
+
 const (
 	yes = iota
 	no
@@ -54,36 +58,58 @@ func newDeleteDialog(srv *calendar.Service, calendarId, eventId string, width, h
 	}
 }
 
+// -----------------------------------------------------------------------------
+// Init
+// -----------------------------------------------------------------------------
+
 func (m DeleteDialog) Init() tea.Cmd {
 	return nil
 }
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
 
 func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		return m, nil
+
 	case errMsg:
 		m.err = msg.err
 		return m, nil
+
 	case deleteEventSuccessMsg:
 		m.success = true
 		return m, nil
+
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
+
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
 			return m, showCalendarViewCmd
 		}
 		switch {
 		case key.Matches(msg, m.keys.Toggle):
-			m.toggleSelection()
+			if m.selection == no {
+				m.selection = yes
+			} else {
+				m.selection = no
+			}
+			return m, nil
+
 		case key.Matches(msg, m.keys.Yes):
 			m.selection = yes
+			return m, nil
+
 		case key.Matches(msg, m.keys.No):
 			m.selection = no
+			return m, nil
+
 		case key.Matches(msg, m.keys.Confirm):
 			if m.selection == yes {
 				m.pending = true
@@ -94,6 +120,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				return m, showCalendarViewCmd
 			}
+
 		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
@@ -101,13 +128,9 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *DeleteDialog) toggleSelection() {
-	if m.selection == yes {
-		m.selection = no
-	} else {
-		m.selection = yes
-	}
-}
+// -----------------------------------------------------------------------------
+// View
+// -----------------------------------------------------------------------------
 
 func (m DeleteDialog) View() string {
 	var s string
@@ -118,27 +141,14 @@ func (m DeleteDialog) View() string {
 	} else if m.pending {
 		s = m.spinner.View()
 	} else {
-		s = renderDeleteContent(m)
+		s = m.viewDialog()
 	}
-	helpView := lipgloss.NewStyle().
-		Width(m.width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(m.help.View(m.keys))
-	dialog := lipgloss.NewStyle().
-		Padding(1).
-		Border(lipgloss.RoundedBorder()).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render(s)
-	container := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height-lipgloss.Height(helpView)-3). // 3 is titlebar height. TODO refactor
-		Align(lipgloss.Center, lipgloss.Center).
-		Render(dialog)
-	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
+	help := lipgloss.NewStyle().Width(m.width).Padding(1).AlignHorizontal(lipgloss.Center).Render(m.help.View(m.keys))
+	body := lipgloss.Place(m.width, m.height-lipgloss.Height(help), lipgloss.Center, lipgloss.Center, s)
+	return lipgloss.JoinVertical(lipgloss.Center, body, help)
 }
 
-func renderDeleteContent(m DeleteDialog) string {
+func (m DeleteDialog) viewDialog() string {
 	var (
 		yesStyle lipgloss.Style
 		noStyle  lipgloss.Style
@@ -152,11 +162,12 @@ func renderDeleteContent(m DeleteDialog) string {
 	}
 	yesButton := yesStyle.Render("Yes")
 	noButton := noStyle.Render("No")
-	return lipgloss.JoinVertical(
+	s := lipgloss.JoinVertical(
 		lipgloss.Center,
 		"Delete Event?\n",
 		lipgloss.JoinHorizontal(lipgloss.Top, noButton, "  ", yesButton),
 	)
+	return lipgloss.NewStyle().Padding(1).Border(lipgloss.RoundedBorder()).Align(lipgloss.Center, lipgloss.Center).Render(s)
 }
 
 // -----------------------------------------------------------------------------

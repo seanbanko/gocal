@@ -14,6 +14,10 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+// -----------------------------------------------------------------------------
+// Model
+// -----------------------------------------------------------------------------
+
 const (
 	summary = iota
 	startMonth
@@ -100,7 +104,6 @@ func newEditPage(srv *calendar.Service, event *EventItem, focusedDate time.Time,
 			if err != nil {
 				panic(err) // TODO handle error more gracefully
 			}
-			// TODO handle errors
 			end, err = time.Parse(time.RFC3339, event.End.DateTime)
 			if err != nil {
 				panic(err) // TODO handle error more gracefully
@@ -146,7 +149,9 @@ func newEditPage(srv *calendar.Service, event *EventItem, focusedDate time.Time,
 		}
 	}
 
-	inputs[calId].SetValue(calendars[calendarIndex].Summary + " ⏷")
+	if len(calendars) != 0 {
+		inputs[calId].SetValue(calendars[calendarIndex].Summary + " ⏷")
+	}
 
 	focusIndex := summary
 	common.Refocus(inputs, focusIndex)
@@ -176,12 +181,39 @@ func newEditPage(srv *calendar.Service, event *EventItem, focusedDate time.Time,
 	}
 }
 
+// -----------------------------------------------------------------------------
+// Init
+// -----------------------------------------------------------------------------
+
 func (m EditPage) Init() tea.Cmd {
 	return textinput.Blink
 }
 
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
 func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		return m, nil
+
+	case errMsg:
+		m.err = msg.err
+		m.pending = false
+		return m, nil
+
+	case createEventSuccessMsg, editEventSuccessMsg:
+		m.success = true
+		m.pending = false
+		return m, nil
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
 			return m, showCalendarViewCmd
@@ -261,27 +293,7 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
-
-	case errMsg:
-		m.err = msg.err
-		m.pending = false
-		return m, nil
-
-	case createEventSuccessMsg, editEventSuccessMsg:
-		m.success = true
-		m.pending = false
-		return m, nil
-
-	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		return m, nil
 	}
-
 	cmds := make([]tea.Cmd, len(m.inputs))
 	for i := range m.inputs {
 		if i == calId {
@@ -385,6 +397,10 @@ func (m *EditPage) adjustEndInputs() {
 	)
 }
 
+// -----------------------------------------------------------------------------
+// View
+// -----------------------------------------------------------------------------
+
 func (m EditPage) View() string {
 	var s string
 	if m.err != nil {
@@ -396,17 +412,9 @@ func (m EditPage) View() string {
 	} else {
 		s = renderEditContent(m)
 	}
-	helpView := lipgloss.NewStyle().
-		Width(m.width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(m.help.View(m.keys))
-	container := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height-lipgloss.Height(helpView)-3).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render(s)
-	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
+	help := lipgloss.NewStyle().Width(m.width).Padding(1).AlignHorizontal(lipgloss.Center).Render(m.help.View(m.keys))
+	body := lipgloss.Place(m.width, m.height-lipgloss.Height(help), lipgloss.Center, lipgloss.Center, s)
+	return lipgloss.JoinVertical(lipgloss.Center, body, help)
 }
 
 func renderEditContent(m EditPage) string {

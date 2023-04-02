@@ -11,6 +11,10 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+// -----------------------------------------------------------------------------
+// Model
+// -----------------------------------------------------------------------------
+
 type CalendarList struct {
 	srv           *calendar.Service
 	list          list.Model
@@ -43,12 +47,29 @@ func newCalendarList(srv *calendar.Service, calendars []*calendar.CalendarListEn
 	}
 }
 
+// -----------------------------------------------------------------------------
+// Init
+// -----------------------------------------------------------------------------
+
 func (m CalendarList) Init() tea.Cmd {
 	return nil
 }
 
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
+
 func (m CalendarList) Update(msg tea.Msg) (CalendarList, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		return m, nil
+
+	case calendarListMsg:
+		m.list.StopSpinner()
+		m.list.SetItems(calendarsToItems(msg.calendars))
+		return m, nil
+
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Toggle):
@@ -63,37 +84,10 @@ func (m CalendarList) Update(msg tea.Msg) (CalendarList, tea.Cmd) {
 		case key.Matches(msg, m.keys.Exit):
 			return m, showCalendarViewCmd
 		}
-	case calendarListMsg:
-		m.list.StopSpinner()
-		m.list.SetItems(calendarsToItems(msg.calendars))
-		return m, nil
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		return m, nil
 	}
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
-}
-
-func (m CalendarList) View() string {
-	helpView := lipgloss.NewStyle().
-		Width(m.width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(m.help.View(m.keys))
-	m.list.SetSize(m.width, m.height-lipgloss.Height(helpView)-4)
-	dialog := lipgloss.NewStyle().
-		Padding(1).
-		Border(lipgloss.RoundedBorder()).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render(m.list.View())
-	container := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height-lipgloss.Height(helpView)-4).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render(dialog)
-	return lipgloss.JoinVertical(lipgloss.Center, container, helpView)
 }
 
 func (m CalendarList) Items() []list.Item {
@@ -114,6 +108,18 @@ func (m *CalendarList) StartSpinner() tea.Cmd {
 
 func (m *CalendarList) StopSpinner() {
 	m.list.StopSpinner()
+}
+
+// -----------------------------------------------------------------------------
+// View
+// -----------------------------------------------------------------------------
+
+func (m CalendarList) View() string {
+	help := lipgloss.NewStyle().Width(m.width).Padding(1).AlignHorizontal(lipgloss.Center).Render(m.help.View(m.keys))
+	listStyle := lipgloss.NewStyle().Padding(1).Border(lipgloss.RoundedBorder()).Align(lipgloss.Center, lipgloss.Center)
+	m.list.SetSize(m.width, m.height-lipgloss.Height(help)-listStyle.GetVerticalFrameSize())
+	body := lipgloss.Place(m.width, m.height-lipgloss.Height(help)-2, lipgloss.Center, lipgloss.Center, listStyle.Render(m.list.View()))
+	return lipgloss.JoinVertical(lipgloss.Center, body, help)
 }
 
 // -----------------------------------------------------------------------------

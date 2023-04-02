@@ -18,6 +18,10 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+// -----------------------------------------------------------------------------
+// Model
+// -----------------------------------------------------------------------------
+
 type state int
 
 const (
@@ -43,8 +47,8 @@ type model struct {
 	focusedDate   time.Time
 	state         state
 	viewType      calendarPeriod
-	calendarList  CalendarList
 	eventLists    []list.Model
+	calendarList  CalendarList
 	gotoDialog    tea.Model
 	editPage      tea.Model
 	deleteDialog  tea.Model
@@ -54,22 +58,27 @@ type model struct {
 	width, height int
 }
 
-func newModel(service *calendar.Service, cache *cache.Cache, now time.Time) model {
+func newModel(srv *calendar.Service, cache *cache.Cache, now time.Time) model {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	s := spinner.New()
 	s.Spinner = spinner.Points
 	return model{
-		srv:          service,
+		srv:          srv,
 		cache:        cache,
 		currentDate:  today,
 		focusedDate:  today,
 		state:        initializing,
 		viewType:     weekView,
-		calendarList: newCalendarList(service, nil, 0, 0),
 		eventLists:   newWeekLists(today),
+		calendarList: newCalendarList(srv, nil, 0, 0),
+		gotoDialog:   newGotoDialog(today, 0, 0),
+		editPage:     newEditPage(srv, nil, today, nil, 0, 0),
+		deleteDialog: newDeleteDialog(srv, "", "", 0, 0),
 		spinner:      s,
 		keys:         calendarKeyMap(),
 		help:         help.New(),
+		width:        0,
+		height:       0,
 	}
 }
 
@@ -117,9 +126,17 @@ func newWeekLists(focusedDate time.Time) []list.Model {
 	return lists
 }
 
+// -----------------------------------------------------------------------------
+// Init
+// -----------------------------------------------------------------------------
+
 func (m model) Init() tea.Cmd {
 	return tea.Batch(getCalendarList(m.srv), m.spinner.Tick)
 }
+
+// -----------------------------------------------------------------------------
+// Update
+// -----------------------------------------------------------------------------
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -130,16 +147,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		}
+
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.help.Width = m.width
-		m.calendarList.width, m.calendarList.height = msg.Width, (msg.Height - 3)
+		const headerHeight = 3
+		m, cmd = m.updateAllSubModels(tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - headerHeight})
+		return m, cmd
+
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
-		cmds = append(cmds, cmd) // don't return because submodels also need to receive TickMsgs
+		cmds = append(cmds, cmd)
+		m, cmd = m.updateFocusedSubModel(msg)
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
+
 	case showCalendarMsg:
 		m.state = ready
 		return m, tea.Batch(tea.ClearScreen, m.refreshEvents())
+
 	case calendarListMsg:
 		if m.state == initializing {
 			m.state = ready
@@ -147,23 +173,46 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.calendarList.StopSpinner()
 		m.calendarList.SetItems(calendarsToItems(msg.calendars))
 		return m, m.refreshEvents()
+
 	case eventsMsg:
 		m.eventLists[msg.date.Weekday()].StopSpinner()
 		m.eventLists[msg.date.Weekday()].SetItems(eventsToItems(msg.events))
 		return m, nil
+
 	case gotoDateMsg:
 		return m, m.focus(msg.date)
+
 	case updateCalendarListSuccessMsg:
 		return m, getCalendarList(m.srv)
+
 	case createEventSuccessMsg, editEventSuccessMsg, deleteEventSuccessMsg:
 		m.cache.Flush()
+		m, cmd = m.updateFocusedSubModel(msg)
+		return m, cmd
+
 	}
-	m, cmd = m.updateSubModels(msg)
+	m, cmd = m.updateFocusedSubModel(msg)
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
 
-func (m model) updateSubModels(msg tea.Msg) (model, tea.Cmd) {
+func (m model) updateAllSubModels(msg tea.Msg) (model, tea.Cmd) {
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+	m, cmd = m.updateCalendarView(msg)
+	cmds = append(cmds, cmd)
+	m.calendarList, cmd = m.calendarList.Update(msg)
+	cmds = append(cmds, cmd)
+	m.gotoDialog, cmd = m.gotoDialog.Update(msg)
+	cmds = append(cmds, cmd)
+	m.editPage, cmd = m.editPage.Update(msg)
+	cmds = append(cmds, cmd)
+	m.deleteDialog, cmd = m.deleteDialog.Update(msg)
+	cmds = append(cmds, cmd)
+	return m, tea.Batch(cmds...)
+}
+
+func (m model) updateFocusedSubModel(msg tea.Msg) (model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.state {
 	case ready:
@@ -265,12 +314,14 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.GotoDate):
 			m.state = gotodate
-			m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height)
+			const headerHeight = 3
+			m.gotoDialog = newGotoDialog(m.focusedDate, m.width, m.height-headerHeight)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Create):
 			m.state = editing
-			m.editPage = newEditPage(m.srv, nil, m.focusedDate, filterModifiable(itemsToCalendars(m.calendarList.Items())), m.width, m.height)
+			const headerHeight = 3
+			m.editPage = newEditPage(m.srv, nil, m.focusedDate, filterModifiable(itemsToCalendars(m.calendarList.Items())), m.width, m.height-headerHeight)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Edit):
@@ -279,7 +330,8 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 				return m, nil
 			}
 			m.state = editing
-			m.editPage = newEditPage(m.srv, event, m.focusedDate, itemsToCalendars(m.calendarList.Items()), m.width, m.height)
+			const headerHeight = 3
+			m.editPage = newEditPage(m.srv, event, m.focusedDate, itemsToCalendars(m.calendarList.Items()), m.width, m.height-headerHeight)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Delete):
@@ -288,7 +340,8 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 				return m, nil
 			}
 			m.state = deleting
-			m.deleteDialog = newDeleteDialog(m.srv, event.calendarId, event.Id, m.width, m.height)
+			const headerHeight = 3
+			m.deleteDialog = newDeleteDialog(m.srv, event.calendarId, event.Id, m.width, m.height-headerHeight)
 			return m, nil
 
 		case key.Matches(msg, m.keys.CalendarList):
@@ -339,23 +392,27 @@ func filterModifiable(calendars []*calendar.CalendarListEntry) []*calendar.Calen
 	return modifiable
 }
 
+// -----------------------------------------------------------------------------
+// View
+// -----------------------------------------------------------------------------
+
 func (m model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
 	}
-	title := lipgloss.NewStyle().Padding(0, 1).Bold(true).Background(common.GoogleBlue).Render("GoCal")
+	const title = "GoCal"
+	titleStyle := lipgloss.NewStyle().Padding(0, 1).Bold(true).Background(common.GoogleBlue)
 	header := lipgloss.NewStyle().
-		Width(m.width - 2).
-		MaxWidth(m.width - 2).
+		Width(m.width).
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
-		Render(title)
+		Render(titleStyle.Render(title))
 	var body string
 	switch m.state {
 	case initializing:
-		body = lipgloss.Place(m.width-2, m.height-lipgloss.Height(header), lipgloss.Center, lipgloss.Center, m.spinner.View())
+		body = lipgloss.Place(m.width, m.height-lipgloss.Height(header), lipgloss.Center, lipgloss.Center, m.spinner.View())
 	case ready:
-		body = m.viewCalendar(m.width-2, m.height-lipgloss.Height(header))
+		body = m.viewCalendar(m.width, m.height-lipgloss.Height(header))
 	case gotodate:
 		body = m.gotoDialog.View()
 	case editing:
@@ -373,7 +430,7 @@ func (m model) View() string {
 }
 
 func (m *model) viewCalendar(width, height int) string {
-	helpContainer := lipgloss.NewStyle().
+	help := lipgloss.NewStyle().
 		Width(m.width).
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
@@ -381,11 +438,11 @@ func (m *model) viewCalendar(width, height int) string {
 	var calendar string
 	switch m.viewType {
 	case dayView:
-		calendar = m.viewDay(width, height-lipgloss.Height(helpContainer)-2)
+		calendar = m.viewDay(width, height-lipgloss.Height(help)-2)
 	case weekView:
-		calendar = m.viewWeek(width, height-lipgloss.Height(helpContainer)-2)
+		calendar = m.viewWeek(width, height-lipgloss.Height(help)-2)
 	}
-	return lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(calendar), helpContainer)
+	return lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(calendar), help)
 }
 
 func (m *model) viewDay(width, height int) string {
