@@ -63,13 +63,14 @@ func newModel(srv *calendar.Service, cache *cache.Cache, now time.Time) model {
 	s := spinner.New()
 	s.Spinner = spinner.Points
 	return model{
-		srv:          srv,
-		cache:        cache,
-		currentDate:  today,
-		focusedDate:  today,
-		state:        initializing,
-		viewType:     weekView,
-		eventLists:   newWeekLists(today),
+		srv:         srv,
+		cache:       cache,
+		currentDate: today,
+		focusedDate: today,
+		state:       initializing,
+		viewType:    weekView,
+		eventLists:  newWeekLists(today),
+		// TODO don't initialize these with bad values, requires more error checking in the submodel
 		calendarList: newCalendarList(srv, nil, 0, 0),
 		gotoDialog:   newGotoDialog(today, 0, 0),
 		editPage:     newEditPage(srv, nil, today, nil, 0, 0),
@@ -152,13 +153,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.help.Width = m.width
 		const headerHeight = 3
-		m, cmd = m.updateAllSubModels(tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - headerHeight})
+		m, cmd = m.updateAllSubmodels(tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - headerHeight})
 		return m, cmd
 
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
 		cmds = append(cmds, cmd)
-		m, cmd = m.updateFocusedSubModel(msg)
+		m, cmd = m.updateFocusedSubmodel(msg)
 		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 
@@ -187,16 +188,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case createEventSuccessMsg, editEventSuccessMsg, deleteEventSuccessMsg:
 		m.cache.Flush()
-		m, cmd = m.updateFocusedSubModel(msg)
+		m, cmd = m.updateFocusedSubmodel(msg)
 		return m, cmd
 
 	}
-	m, cmd = m.updateFocusedSubModel(msg)
+	m, cmd = m.updateFocusedSubmodel(msg)
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
 
-func (m model) updateAllSubModels(msg tea.Msg) (model, tea.Cmd) {
+func (m model) updateAllSubmodels(msg tea.Msg) (model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 	m, cmd = m.updateCalendarView(msg)
@@ -212,7 +213,7 @@ func (m model) updateAllSubModels(msg tea.Msg) (model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m model) updateFocusedSubModel(msg tea.Msg) (model, tea.Cmd) {
+func (m model) updateFocusedSubmodel(msg tea.Msg) (model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.state {
 	case ready:
