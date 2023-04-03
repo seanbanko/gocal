@@ -116,9 +116,9 @@ func (m *CalendarList) StopSpinner() {
 
 func (m CalendarList) View() string {
 	help := lipgloss.NewStyle().Width(m.width).Padding(1).AlignHorizontal(lipgloss.Center).Render(m.help.View(m.keys))
-	listStyle := lipgloss.NewStyle().Padding(1).Border(lipgloss.RoundedBorder()).Align(lipgloss.Center, lipgloss.Center)
-	m.list.SetSize(m.width, m.height-lipgloss.Height(help)-listStyle.GetVerticalFrameSize())
-	body := lipgloss.Place(m.width, m.height-lipgloss.Height(help)-2, lipgloss.Center, lipgloss.Center, listStyle.Render(m.list.View()))
+	style := lipgloss.NewStyle().Padding(1).Border(lipgloss.RoundedBorder()).Align(lipgloss.Center, lipgloss.Center)
+	m.list.SetSize(m.width, m.height-lipgloss.Height(help)-style.GetVerticalFrameSize())
+	body := lipgloss.Place(m.width, m.height-lipgloss.Height(help)-style.GetVerticalFrameSize(), lipgloss.Center, lipgloss.Center, style.Render(m.list.View()))
 	return lipgloss.JoinVertical(lipgloss.Center, body, help)
 }
 

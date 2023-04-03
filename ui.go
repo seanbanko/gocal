@@ -408,48 +408,42 @@ func (m model) View() string {
 		Padding(1).
 		AlignHorizontal(lipgloss.Center).
 		Render(titleStyle.Render(title))
-	var body string
+	var s string
 	switch m.state {
 	case initializing:
-		body = lipgloss.Place(m.width, m.height-lipgloss.Height(header), lipgloss.Center, lipgloss.Center, m.spinner.View())
+		s = lipgloss.Place(m.width, m.height-lipgloss.Height(header), lipgloss.Center, lipgloss.Center, m.spinner.View())
 	case ready:
-		body = m.viewCalendar(m.width, m.height-lipgloss.Height(header))
+		s = m.viewCalendar()
 	case gotodate:
-		body = m.gotoDialog.View()
+		s = m.gotoDialog.View()
 	case editing:
-		body = m.editPage.View()
+		s = m.editPage.View()
 	case deleting:
-		body = m.deleteDialog.View()
+		s = m.deleteDialog.View()
 	case showCalendarList:
-		body = m.calendarList.View()
+		s = m.calendarList.View()
 	}
-	bodyContainer := lipgloss.NewStyle().
-		MaxWidth(m.width).
-		MaxHeight(m.height - lipgloss.Height(header)).
-		Render(body)
-	return lipgloss.JoinVertical(lipgloss.Center, header, bodyContainer)
+	body := lipgloss.NewStyle().MaxWidth(m.width).MaxHeight(m.height - lipgloss.Height(header)).Render(s)
+	return lipgloss.JoinVertical(lipgloss.Center, header, body)
 }
 
-func (m *model) viewCalendar(width, height int) string {
-	help := lipgloss.NewStyle().
-		Width(m.width).
-		Padding(1).
-		AlignHorizontal(lipgloss.Center).
-		Render(m.help.View(m.keys))
+func (m *model) viewCalendar() string {
+	help := lipgloss.NewStyle().Width(m.width).Padding(1).AlignHorizontal(lipgloss.Center).Render(m.help.View(m.keys))
+	const headerHeight = 3
 	var calendar string
 	switch m.viewType {
 	case dayView:
-		calendar = m.viewDay(width, height-lipgloss.Height(help)-2)
+		calendar = m.viewDay(m.width, m.height-lipgloss.Height(help)-headerHeight)
 	case weekView:
-		calendar = m.viewWeek(width, height-lipgloss.Height(help)-2)
+		calendar = m.viewWeek(m.width, m.height-lipgloss.Height(help)-headerHeight)
 	}
 	return lipgloss.JoinVertical(lipgloss.Center, lipgloss.NewStyle().Padding(0, 1).Render(calendar), help)
 }
 
 func (m *model) viewDay(width, height int) string {
-	m.eventLists[m.focusedDate.Weekday()].SetSize(width, height)
+	style := lipgloss.NewStyle().Padding(1)
+	m.eventLists[m.focusedDate.Weekday()].SetSize(width, height-style.GetVerticalFrameSize())
 	updateDayListTitles(m.eventLists, m.focusedDate, m.currentDate)
-	style := lipgloss.NewStyle().Border(lipgloss.HiddenBorder())
 	return lipgloss.PlaceHorizontal(width, lipgloss.Left, style.Render(m.eventLists[m.focusedDate.Weekday()].View()))
 }
 
@@ -459,13 +453,13 @@ func (m *model) viewWeek(width, height int) string {
 	startOfWeek := m.focusedDate.AddDate(0, 0, -1*int(m.focusedDate.Weekday()))
 	for i := 0; i < 7; i++ {
 		date := startOfWeek.AddDate(0, 0, i)
-		m.eventLists[date.Weekday()].SetSize(width/8, height)
-		updateDayListTitles(m.eventLists, date, m.currentDate)
 		if date.Equal(m.focusedDate) {
 			style = style.BorderForeground(common.GoogleBlue)
 		} else {
 			style = style.UnsetBorderForeground()
 		}
+		m.eventLists[date.Weekday()].SetSize(width/8, height-style.GetVerticalFrameSize())
+		updateDayListTitles(m.eventLists, date, m.currentDate)
 		dayViews = append(dayViews, style.Render(m.eventLists[date.Weekday()].View()))
 	}
 	return lipgloss.PlaceHorizontal(width, lipgloss.Center, lipgloss.JoinHorizontal(lipgloss.Top, dayViews...))
