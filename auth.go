@@ -152,7 +152,7 @@ func tokenFilePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	tokenCacheDir := filepath.Join(usr.HomeDir, ".config", ".gocal")
+	tokenCacheDir := filepath.Join(usr.HomeDir, ".config", "gocal")
 	err = os.MkdirAll(tokenCacheDir, 0o700)
 	if err != nil {
 		return "", err
