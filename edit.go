@@ -44,6 +44,7 @@ type EditPage struct {
 	allDay        bool
 	calendars     []*calendar.CalendarListEntry
 	calendarIndex int
+	ogCalIndex    int
 	success       bool
 	pending       bool
 	spinner       spinner.Model
@@ -142,11 +143,12 @@ func newEditPage(srv *calendar.Service, event *EventItem, focusedDate time.Time,
 	inputs[endDay].SetValue(endDayText)
 	inputs[endYear].SetValue(endYearText)
 
-	var calendarIndex int
+	var calendarIndex, ogCalIndex int
 	if event != nil {
 		for i, calendar := range calendars {
 			if calendar.Id == event.calendarId {
 				calendarIndex = i
+				ogCalIndex = i
 			}
 		}
 	}
@@ -188,6 +190,7 @@ func newEditPage(srv *calendar.Service, event *EventItem, focusedDate time.Time,
 		allDay:        allDay,
 		calendars:     calendars,
 		calendarIndex: calendarIndex,
+		ogCalIndex:    ogCalIndex,
 		height:        height,
 		width:         width,
 		success:       false,
@@ -306,7 +309,14 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.eventId == "" {
 				cmd = createEvent(m.srv, editEventRequestMsg)
 			} else {
-				cmd = editEvent(m.srv, editEventRequestMsg)
+                if m.calendarIndex != m.ogCalIndex {
+                    cmd = tea.Sequence(
+                        createEvent(m.srv, editEventRequestMsg),
+                        deleteEvent(m.srv, m.calendars[m.ogCalIndex].Id, m.eventId),
+                    )
+                } else {
+                    cmd = editEvent(m.srv, editEventRequestMsg)
+                }
 			}
 			return m, tea.Batch(cmd, m.spinner.Tick)
 
