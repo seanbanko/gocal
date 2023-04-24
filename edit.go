@@ -29,6 +29,8 @@ const (
 	endDay
 	endYear
 	calId
+	location
+	description
 )
 
 type EditPage struct {
@@ -52,7 +54,7 @@ type EditPage struct {
 }
 
 func newEditPage(srv *calendar.Service, event *EventItem, focusedDate time.Time, calendars []*calendar.CalendarListEntry, width, height int) EditPage {
-	inputs := make([]textinput.Model, 10)
+	inputs := make([]textinput.Model, 12) // needs to be exactly the max const index
 
 	inputs[summary] = textinput.New()
 	inputs[summary].Width = common.SummaryWidth
@@ -151,6 +153,22 @@ func newEditPage(srv *calendar.Service, event *EventItem, focusedDate time.Time,
 
 	if len(calendars) != 0 {
 		inputs[calId].SetValue(calendars[calendarIndex].Summary + " ⏷")
+	}
+
+	inputs[location] = textinput.New()
+	inputs[location].Width = common.SummaryWidth
+	inputs[location].Prompt = " "
+	inputs[location].Placeholder = "Add location"
+	if event != nil {
+		inputs[location].SetValue(event.Location)
+	}
+
+	inputs[description] = textinput.New()
+	inputs[description].Width = common.SummaryWidth
+	inputs[description].Prompt = " "
+	inputs[description].Placeholder = "Add description"
+	if event != nil {
+		inputs[description].SetValue(event.Event.Description)
 	}
 
 	focusIndex := summary
@@ -275,12 +293,14 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.pending = true
 			editEventRequestMsg := editEventRequestMsg{
-				calendarId: m.calendars[m.calendarIndex].Id,
-				eventId:    m.eventId,
-				summary:    m.inputs[summary].Value(),
-				start:      start,
-				end:        end,
-				allDay:     m.allDay,
+				calendarId:  m.calendars[m.calendarIndex].Id,
+				eventId:     m.eventId,
+				summary:     m.inputs[summary].Value(),
+				start:       start,
+				end:         end,
+				allDay:      m.allDay,
+				location:    m.inputs[location].Value(),
+				description: m.inputs[description].Value(),
 			}
 			var cmd tea.Cmd
 			if m.eventId == "" {
@@ -450,6 +470,8 @@ func renderEditContent(m EditPage) string {
 		lipgloss.JoinHorizontal(lipgloss.Center, startDateInputs, startTimeInputs, " to ", endTimeInputs, endDateInputs),
 		duration,
 		m.renderCalendarDrowpdown(),
+		lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(common.SummaryWidth+2).Render(m.inputs[location].View()),
+		lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(common.SummaryWidth+2).Render(m.inputs[description].View()),
 		"", // TODO the last line is not being centered properly so this is just here for that
 	)
 }
@@ -467,12 +489,14 @@ func (m EditPage) renderCalendarDrowpdown() string {
 // -----------------------------------------------------------------------------
 
 type editEventRequestMsg struct {
-	calendarId string
-	eventId    string
-	summary    string
-	start      time.Time
-	end        time.Time
-	allDay     bool
+	calendarId  string
+	eventId     string
+	summary     string
+	start       time.Time
+	end         time.Time
+	allDay      bool
+	location    string
+	description string
 }
 
 type (
@@ -491,9 +515,11 @@ func createEvent(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 			end = &calendar.EventDateTime{DateTime: msg.end.Format(time.RFC3339)}
 		}
 		event := &calendar.Event{
-			Summary: msg.summary,
-			Start:   start,
-			End:     end,
+			Summary:     msg.summary,
+			Start:       start,
+			End:         end,
+			Location:    msg.location,
+			Description: msg.description,
 		}
 		_, err := srv.Events.Insert(msg.calendarId, event).Do()
 		if err != nil {
@@ -521,6 +547,8 @@ func editEvent(srv *calendar.Service, msg editEventRequestMsg) tea.Cmd {
 			event.Start.DateTime = msg.start.Format(time.RFC3339)
 			event.End.DateTime = msg.end.Format(time.RFC3339)
 		}
+		event.Location = msg.location
+		event.Description = msg.description
 		_, err = srv.Events.Update(msg.calendarId, msg.eventId, event).Do()
 		if err != nil {
 			return errMsg{err: err}
