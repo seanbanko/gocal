@@ -77,7 +77,7 @@ func (events EventItems) Less(i, j int) bool {
 		if err != nil {
 			return true
 		}
-		if ti.Equal(ti) {
+		if ti.Equal(tj) {
 			return events[i].Summary < events[j].Summary
 		}
 		return ti.Before(tj)
