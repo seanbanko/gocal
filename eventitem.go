@@ -56,11 +56,11 @@ func (events EventItems) Less(i, j int) bool {
 	} else if !events[i].isAllDay() && events[j].isAllDay() {
 		return false
 	} else if events[i].isAllDay() && events[j].isAllDay() {
-		di, err := time.Parse(time.DateOnly, events[i].Start.DateTime)
+		di, err := time.Parse(time.DateOnly, events[i].Start.Date)
 		if err != nil {
 			return true
 		}
-		dj, err := time.Parse(time.DateOnly, events[j].Start.DateTime)
+		dj, err := time.Parse(time.DateOnly, events[j].Start.Date)
 		if err != nil {
 			return true
 		}
