@@ -309,14 +309,14 @@ func (m EditPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.eventId == "" {
 				cmd = createEvent(m.srv, editEventRequestMsg)
 			} else {
-                if m.calendarIndex != m.ogCalIndex {
-                    cmd = tea.Sequence(
-                        createEvent(m.srv, editEventRequestMsg),
-                        deleteEvent(m.srv, m.calendars[m.ogCalIndex].Id, m.eventId),
-                    )
-                } else {
-                    cmd = editEvent(m.srv, editEventRequestMsg)
-                }
+				if m.calendarIndex != m.ogCalIndex {
+					cmd = tea.Sequence(
+						createEvent(m.srv, editEventRequestMsg),
+						deleteEvent(m.srv, m.calendars[m.ogCalIndex].Id, m.eventId),
+					)
+				} else {
+					cmd = editEvent(m.srv, editEventRequestMsg)
+				}
 			}
 			return m, tea.Batch(cmd, m.spinner.Tick)
 
