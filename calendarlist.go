@@ -135,7 +135,7 @@ func updateCalendarListEntry(srv *calendar.Service, calendarId string, selected 
 			return errMsg{err: err}
 		}
 		calendar.Selected = selected
-		_, err = srv.CalendarList.Update(calendarId, calendar).Do()
+		_, err = srv.CalendarList.Update(calendarId, calendar).ColorRgbFormat(true).Do()
 		if err != nil {
 			return errMsg{err: err}
 		}
