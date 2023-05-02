@@ -74,7 +74,7 @@ func newModel(srv *calendar.Service, cache *cache.Cache, now time.Time) model {
 		calendarList: newCalendarList(srv, nil, 0, 0),
 		gotoDialog:   newGotoDialog(today, 0, 0),
 		editPage:     newEditPage(srv, nil, today, nil, 0, 0),
-		deleteDialog: newDeleteDialog(srv, "", "", 0, 0),
+		deleteDialog: newConfirmDialog("Delete Event?", nil, nil, 0, 0),
 		spinner:      s,
 		keys:         calendarKeyMap(),
 		help:         help.New(),
@@ -341,8 +341,10 @@ func (m model) updateCalendarView(msg tea.Msg) (model, tea.Cmd) {
 				return m, nil
 			}
 			m.state = deleting
+			yesCmd := deleteEvent(m.srv, event.calendarId, event.Id)
+			noCmd := showCalendarViewCmd
 			const headerHeight = 3
-			m.deleteDialog = newDeleteDialog(m.srv, event.calendarId, event.Id, m.width, m.height-headerHeight)
+			m.deleteDialog = newConfirmDialog("Delete Event?", yesCmd, noCmd, m.width, m.height-headerHeight)
 			return m, nil
 
 		case key.Matches(msg, m.keys.CalendarList):

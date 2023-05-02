@@ -25,36 +25,36 @@ var (
 	selectedButtonStyle = buttonStyle.Copy().Background(common.GoogleBlue).Underline(true)
 )
 
-type DeleteDialog struct {
-	srv           *calendar.Service
-	calendarId    string
-	eventId       string
+type ConfirmDialog struct {
+	prompt        string
+	yesCmd        tea.Cmd
+	noCmd         tea.Cmd
 	selection     int
 	success       bool
 	pending       bool
 	spinner       spinner.Model
 	err           error
-	keys          keyMapDelete
+	keys          keyMapConfirm
 	help          help.Model
 	width, height int
 }
 
-func newDeleteDialog(srv *calendar.Service, calendarId, eventId string, width, height int) DeleteDialog {
+func newConfirmDialog(prompt string, yesCmd, noCmd tea.Cmd, width, height int) ConfirmDialog {
 	s := spinner.New()
 	s.Spinner = spinner.Points
-	return DeleteDialog{
-		srv:        srv,
-		calendarId: calendarId,
-		eventId:    eventId,
-		selection:  no,
-		success:    false,
-		pending:    false,
-		spinner:    s,
-		err:        nil,
-		keys:       deleteKeyMap,
-		help:       help.New(),
-		width:      width,
-		height:     height,
+	return ConfirmDialog{
+		prompt:    prompt,
+		yesCmd:    yesCmd,
+		noCmd:     noCmd,
+		selection: no,
+		success:   false,
+		pending:   false,
+		spinner:   s,
+		err:       nil,
+		keys:      confirmKeyMap,
+		help:      help.New(),
+		width:     width,
+		height:    height,
 	}
 }
 
@@ -62,7 +62,7 @@ func newDeleteDialog(srv *calendar.Service, calendarId, eventId string, width, h
 // Init
 // -----------------------------------------------------------------------------
 
-func (m DeleteDialog) Init() tea.Cmd {
+func (m ConfirmDialog) Init() tea.Cmd {
 	return nil
 }
 
@@ -70,7 +70,7 @@ func (m DeleteDialog) Init() tea.Cmd {
 // Update
 // -----------------------------------------------------------------------------
 
-func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m ConfirmDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -113,16 +113,13 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Confirm):
 			if m.selection == yes {
 				m.pending = true
-				return m, tea.Batch(
-					deleteEvent(m.srv, m.calendarId, m.eventId),
-					m.spinner.Tick,
-				)
+				return m, tea.Batch(m.yesCmd, m.spinner.Tick)
 			} else {
-				return m, showCalendarViewCmd
+				return m, m.noCmd
 			}
 
 		case key.Matches(msg, m.keys.Exit):
-			return m, showCalendarViewCmd
+			return m, m.noCmd
 		}
 	}
 	return m, nil
@@ -132,7 +129,7 @@ func (m DeleteDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View
 // -----------------------------------------------------------------------------
 
-func (m DeleteDialog) View() string {
+func (m ConfirmDialog) View() string {
 	var s string
 	if m.err != nil {
 		s = "Error. Press any key to return to calendar."
@@ -148,7 +145,7 @@ func (m DeleteDialog) View() string {
 	return lipgloss.JoinVertical(lipgloss.Center, body, help)
 }
 
-func (m DeleteDialog) viewDialog() string {
+func (m ConfirmDialog) viewDialog() string {
 	var (
 		yesStyle lipgloss.Style
 		noStyle  lipgloss.Style
@@ -164,7 +161,7 @@ func (m DeleteDialog) viewDialog() string {
 	noButton := noStyle.Render("No")
 	s := lipgloss.JoinVertical(
 		lipgloss.Center,
-		"Delete Event?\n",
+		m.prompt+"\n",
 		lipgloss.JoinHorizontal(lipgloss.Top, noButton, "  ", yesButton),
 	)
 	return lipgloss.NewStyle().Padding(1).Border(lipgloss.RoundedBorder()).Align(lipgloss.Center, lipgloss.Center).Render(s)
@@ -190,7 +187,7 @@ func deleteEvent(srv *calendar.Service, calendarId, eventId string) tea.Cmd {
 // Keys
 // -----------------------------------------------------------------------------
 
-type keyMapDelete struct {
+type keyMapConfirm struct {
 	Toggle  key.Binding
 	Yes     key.Binding
 	No      key.Binding
@@ -198,7 +195,7 @@ type keyMapDelete struct {
 	Exit    key.Binding
 }
 
-var deleteKeyMap = keyMapDelete{
+var confirmKeyMap = keyMapConfirm{
 	Yes: key.NewBinding(
 		key.WithKeys("y"),
 		key.WithHelp("y", "yes"),
@@ -221,11 +218,11 @@ var deleteKeyMap = keyMapDelete{
 	),
 }
 
-func (k keyMapDelete) ShortHelp() []key.Binding {
+func (k keyMapConfirm) ShortHelp() []key.Binding {
 	return []key.Binding{k.Yes, k.No, k.Toggle, k.Confirm, k.Exit}
 }
 
-func (k keyMapDelete) FullHelp() [][]key.Binding {
+func (k keyMapConfirm) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Yes, k.Confirm},
 		{k.No, k.Exit},
