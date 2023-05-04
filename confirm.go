@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"google.golang.org/api/calendar/v3"
 )
 
 // -----------------------------------------------------------------------------
@@ -91,7 +90,7 @@ func (m ConfirmDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.success || m.err != nil {
-			return m, showCalendarViewCmd
+			return m, m.noCmd
 		}
 		switch {
 		case key.Matches(msg, m.keys.Toggle):
@@ -165,22 +164,6 @@ func (m ConfirmDialog) viewDialog() string {
 		lipgloss.JoinHorizontal(lipgloss.Top, noButton, "  ", yesButton),
 	)
 	return lipgloss.NewStyle().Padding(1).Border(lipgloss.RoundedBorder()).Align(lipgloss.Center, lipgloss.Center).Render(s)
-}
-
-// -----------------------------------------------------------------------------
-// Messages and Commands
-// -----------------------------------------------------------------------------
-
-type deleteEventSuccessMsg struct{}
-
-func deleteEvent(srv *calendar.Service, calendarId, eventId string) tea.Cmd {
-	return func() tea.Msg {
-		err := srv.Events.Delete(calendarId, eventId).Do()
-		if err != nil {
-			return errMsg{err: err}
-		}
-		return deleteEventSuccessMsg{}
-	}
 }
 
 // -----------------------------------------------------------------------------

@@ -631,6 +631,18 @@ func forwardEvents(
 	}
 }
 
+type deleteEventSuccessMsg struct{}
+
+func deleteEvent(srv *calendar.Service, calendarId, eventId string) tea.Cmd {
+	return func() tea.Msg {
+		err := srv.Events.Delete(calendarId, eventId).Do()
+		if err != nil {
+			return errMsg{err: err}
+		}
+		return deleteEventSuccessMsg{}
+	}
+}
+
 // -----------------------------------------------------------------------------
 // Keys
 // -----------------------------------------------------------------------------
