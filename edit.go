@@ -482,7 +482,6 @@ func renderEditContent(m EditPage) string {
 		m.renderCalendarDrowpdown(),
 		lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(common.SummaryWidth+2).Render(m.inputs[location].View()),
 		lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(common.SummaryWidth+2).Render(m.inputs[description].View()),
-		"", // TODO the last line is not being centered properly so this is just here for that
 	)
 }
 
